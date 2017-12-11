@@ -19,6 +19,7 @@ library(magrittr) # der Pipe-operator %>%: z.B: x = a; y=f(x); z=g(y); wird zu z
 # Read the model
 This is basically copied from a libSBML-example
 ```{r}
+setwd("~/Promotion/Projects/methacetin_fitting/")
 filename <- "model/met13_pkpd_7.xml"
 d <-  readSBML(filename)
 
@@ -206,6 +207,10 @@ niass <- m %>% Model_getNumInitialAssignments()
 liass <- m %>% Model_getListOfInitialAssignments()
 iass <- structure(sapply(0:(niass-1), . %>% ListOfInitialAssignments_get(liass,.) %>% print %>%  str_split("\n") %>% sapply( . %>% {.[str_detect(.,"<ci>")]}) %>% str_replace_all("^.*<ci> ", "") %>% str_replace_all(" </ci>.*$", "")), names = sapply(0:(niass-1), . %>% ListOfInitialAssignments_get(liass,.) %>% InitialAssignment_getId)) 
 
+nspecies <- Model_getNumSpecies(m)
+lspecies <- Model_getListOfSpecies(m)
+species <- lapply(0:(nspecies-1), . %>% {ListOfSpecies_get(lspecies,.)} %>% Species_getId()) %>% do.call(c,.)
+
 inits <- structure(sapply(0:(nspecies-1), . %>% ListOfSpecies_get(lspecies,.) %>% Species_getInitialAmount), names = species)
 inits[names(iass)] <- sbml_parameters[iass]
 
@@ -224,9 +229,9 @@ data.frame(par = names(sbml_parameters), value = sbml_parameters, original_unit=
 # C-Code
 the odemodel() command takes a while because sensitivity equations are calculated for derivatives and then the whole system is compiled into c-code.
 ```{r}
-myodemodel <- odemodel(f, modelname = "methacetin") # this compiles the ode into a c-file. you can comment out this and the next two lines after it has been run once to save time.
+myodemodel <- odemodel(f, modelname = "methacetin") # this compiles the ode into a c-file. you can comment out this and the next line after it has been run once to save time.
 save(myodemodel, file = "methacetin.rda")
-beepr::beep("ready")
+
 load("methacetin.rda")
 ```
 
@@ -234,8 +239,8 @@ load("methacetin.rda")
 Make a prediction function from the odemodel.
 x will be a function x(times, pars)
 ```{r}
-x <- Xs(myodemodel) # make 
-loadDLL(x)
+# x <- Xs(myodemodel) # make prediction function
+# loadDLL(x)
 
 # get the only the parameters needed for x
 pars <- all_pars[getParameters(x)]
@@ -253,6 +258,9 @@ mytimes = seq(0,8*3600, length.out = 400) #8 hours
 prediction <- (x)(times = mytimes, pars = pars, deriv = F, conditions = "c1")
 
 # Compute the volumes in litres for each state
+volumes <- lapply(0:(nspecies-1), . %>% {ListOfSpecies_get(lspecies,.)} %>% Species_getCompartment()) %>% do.call(c,.) %>% set_names(species)
+myrules <- rules %>% set_names(paste0("\\b", rulenames, "\\b"))
+volumes <- str_replace_all(volumes, myrules) %>% set_names(species)
 vol_fun <- funC0(volumes)
 vol <- do.call(vol_fun, as.list(pars)) %>% t %>% {data.frame(volume=., name = rownames(.), stringsAsFactors = F)}
 
@@ -283,7 +291,7 @@ pars["D_metc13"] <- 0 #100mg
 # pars["FVlu"] <- 7.6*10^(-6) * 10
 
 prediction_second_plot <- (x)(times = mytimes,pars = pars, deriv = F, conditions = "c1")
-plot_fun(prediction_prediction_second_plot)
+plot_fun(prediction_second_plot)
 
 
 ```
