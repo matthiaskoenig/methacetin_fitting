@@ -1,0 +1,337 @@
+---
+title: "methacetin-fitting"
+author: "Daniel Lill"
+date: "23 November 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Load all important libraries
+```{r, message=FALSE, warning=FALSE}
+library(libSBML)
+library(dMod)
+library(stringr) # Um bequem mit strings zu arbeiten
+library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für schöne plots
+library(magrittr) # der Pipe-operator %>%: z.B: x = a; y=f(x); z=g(y); wird zu z= a %>% f %>% g
+```
+
+# Read the model
+This is basically copied from a libSBML-example
+```{r}
+filename <- "model/met13_pkpd_7.xml"
+d <-  readSBML(filename)
+
+m <- SBMLDocument_getModel(d)
+
+level   = SBase_getLevel  (d);
+version = SBase_getVersion(d);
+
+cat("File: ",filename," (Level ",level,", version ",version,")\n");
+cat("  model id: ", ifelse(Model_isSetId(m), Model_getId(m) ,"(empty)"),"\n");
+
+
+cat( "functionDefinitions: ", Model_getNumFunctionDefinitions(m) ,"\n" );
+cat( "    unitDefinitions: ", Model_getNumUnitDefinitions    (m) ,"\n" );
+cat( "   compartmentTypes: ", Model_getNumCompartmentTypes   (m) ,"\n" );
+cat( "        specieTypes: ", Model_getNumSpeciesTypes       (m) ,"\n" );
+cat( "       compartments: ", Model_getNumCompartments       (m) ,"\n" );
+cat( "            species: ", Model_getNumSpecies            (m) ,"\n" );
+cat( "         parameters: ", Model_getNumParameters         (m) ,"\n" );
+cat( " initialAssignments: ", Model_getNumInitialAssignments (m) ,"\n" );
+cat( "              rules: ", Model_getNumRules              (m) ,"\n" );
+cat( "        constraints: ", Model_getNumConstraints        (m) ,"\n" );
+cat( "          reactions: ", Model_getNumReactions          (m) ,"\n" );
+cat( "             events: ", Model_getNumEvents             (m) ,"\n" );
+cat( "\n" );
+
+```
+
+
+# Einschub: der Pipe-Operator %>% 
+```{r}
+# Mit dem Pipe-Operator kann man Funktionen verketten
+# Standardmäßig wird das vorherige Ergebnis als erstes Argument von der nächsten Funktion eingesetzt. wenn man das nicht will, kann man es als . woanders hinsetzen
+
+f <- function(x) x^2;
+g <- function(x,y) x-y;
+
+2 %>% f # f(2)
+2 %>% f %>% g(3) # g(f(2),3)
+2 %>% f %>% g(3,.) # g(3,f(2))
+
+# Man kann auch Funktionen definieren, die mit . losgehen
+h <- . %>% sqrt %>% add(5)
+h(4)
+# Das ist besonders nützlich in lapply, sapply und so weiter, wo man über eine liste(oder einen vektor) immer wieder die gleiche funktion laufen lässt (syntactic sugar für for-loops)
+sapply(1:4, function(i) i^2 +5)
+sapply(1:4 , . %>% raise_to_power(2) %>% add(5) ) # dassselbe
+```
+
+
+
+# Assignment Rules
+
+1. Get the assignment rules as string
+2. Apply the assignment rules onto themselves with str_replace. This is for assigments that convert parameters into other parameters
+```{r Asssignment Rules}
+# get rules
+nrules <- Model_getNumRules(m)
+lrules <- Model_getListOfRules(m)
+rules <- structure(sapply(0:(nrules-1), . %>% ListOfRules_get(lrules,.) %>% Rule_getFormula), 
+                   names = sapply(0:(nrules-1), . %>% ListOfRules_get(lrules,.) %>% Rule_getId))
+rulenames <- names(rules)
+
+# "Cure" rules: Since I do a parameter trafo for the units, I don't want to have any unit conversions via some rules
+# A "bad" rule would be eg "QC = CO*3600/100", since I take care of the Units later. Therefore, the rule should be only "QC = CO" 
+rules <- rules %>% str_replace_all(c("1000" = "1", "3600" = "1", "\\b60\\b" = 1)) %>% set_names(rulenames)
+
+
+# Apply the rules onto themselves to insert parameter transformations
+# Final goal is to have a named vector where 
+  # names are the "inner" parameters that are used within the model
+  # values are functions of "outer" parameters that are fed into the model
+
+# apply rules 1st time
+rules <- paste0("(", rules, ")") %>% set_names(paste0("\\b", rulenames, "\\b"))
+rules <- str_replace_all(rules, rules) %>% set_names(rulenames)
+
+# apply rules 2nd time
+rules <- paste0("(", rules, ")") %>% set_names(paste0("\\b", rulenames, "\\b"))
+rules <- str_replace_all(rules, rules) %>% set_names(rulenames)
+
+# check if any of the rules are functions of other rules
+indices <- rules %>% sapply(. %>% str_detect(paste0("\\b",rulenames, "\\b")) %>% any)
+rules %>% extract(indices) %>% sapply(. %>% str_detect(paste0("\\b",rulenames, "\\b")) %>% extract(rulenames,.)) # check works, none of the 
+
+print(rules)
+
+getSymbols(rules) # These are the "outer" parameters
+```
+
+# Reactions
+
+```{r Reactions}
+# get reactions
+nreactions <- Model_getNumReactions(m)
+lreactions <- Model_getListOfReactions(m)
+reactions <- lapply(0:(nreactions-1), function(i) {
+  
+  reaction <-  ListOfReactions_get(lreactions,i)
+
+  nreactants <- reaction %>% Reaction_getNumReactants()
+  if (nreactants > 0) {
+    lreactants <- reaction %>% Reaction_getListOfReactants()
+    myreactant_stoichiometries <- lapply(0:(nreactants-1), . %>% ListOfSpeciesReferences_get(lreactants,.) %>% SpeciesReference_getStoichiometry)
+    myreactant_IDs <- lapply(0:(nreactants-1), . %>% ListOfSpeciesReferences_get(lreactants,.) %>% SimpleSpeciesReference_getSpecies)
+    from = paste0(paste0("(", myreactant_stoichiometries, "*", myreactant_IDs, ")"), collapse = "+")
+  } else {
+    from = ""
+  }
+
+  nproducts <- reaction %>% Reaction_getNumProducts()
+  if (nproducts > 0) {
+    lproducts <- reaction %>% Reaction_getListOfProducts()
+    myproduct_stoichiometries <- lapply(0:(nproducts-1), . %>% ListOfSpeciesReferences_get(lproducts,.) %>% SpeciesReference_getStoichiometry)
+    myproduct_IDs <- lapply(0:(nproducts-1), . %>% ListOfSpeciesReferences_get(lproducts,.) %>% SimpleSpeciesReference_getSpecies)
+    to = paste0(paste0("(", myproduct_stoichiometries, "*", myproduct_IDs, ")"), collapse = "+")
+  } else {
+    to = ""
+  }
+
+  # Apply rules to rate expressions
+  myrules <- rules
+  mynames <- names(myrules)
+  absorption_indices <- str_detect(myrules, "Absorption") 
+  absorption_rules <- myrules[absorption_indices] %>% structure(names = mynames[absorption_indices])
+  myrules <- structure(myrules[!str_detect(myrules, "Absorption")], names = paste0("\\b", mynames[!str_detect(myrules, "Absorption")], "\\b"))
+
+  rate <-  reaction %>% Reaction_getKineticLaw() %>% KineticLaw_getFormula() %>% str_replace_all(myrules)
+  
+  description <- reaction %>% Reaction_getId()
+
+  # Incorporate the absorption:
+  # For this I add another reaction which absorbs the oral dose, e.g. D_apap_sul
+  if(description %>% str_detect("Absorption")) {
+    from[2] <- names(absorption_rules)[absorption_rules %>% str_detect(paste0(description, "\\)*$"))]
+    to[2] <- ""
+    rate[2] <- rate
+    description[2] <- description
+  }
+  # print(i)
+  
+  return(data.frame(from = from, to  = to, rate = rate, description = description, stringsAsFactors = F))
+}) %>% do.call(rbind,.) # make one big data.frame out of it
+
+
+# Build the dMod-object "eqnlist", which stores the reactions and stoichiometries
+el <- eqnlist()
+for(i in 1:nrow(reactions)) el <- addReaction(el, reactions$from[i], reactions$to[i], reactions$rate[i], reactions$description[i])
+
+
+# Convert to "eqnvec", which is basically a named vector of the ODEs and the names denote the states
+f <- el %>% as.eqnvec()
+
+# This is the full ODE when every rule is applied
+print(f)
+```
+
+# Parameters
+```{r}
+# get the parameters from the definition
+nsbml_parameters <- m %>% Model_getNumParameters()
+lsbml_parameters <- m %>% Model_getListOfParameters()
+sbml_parameters <- structure(sapply(0:(nsbml_parameters-1), . %>% ListOfParameters_get(lsbml_parameters,.) %>% Parameter_getValue), names = sapply(0:(nsbml_parameters-1), . %>% ListOfParameters_get(lsbml_parameters,.) %>% Parameter_getId))
+
+# unit conversion
+sbml_parameter_units <- structure(sapply(0:(nsbml_parameters-1), . %>% ListOfParameters_get(lsbml_parameters,.) %>% Parameter_getUnits), names = sapply(0:(nsbml_parameters-1), . %>% ListOfParameters_get(lsbml_parameters,.) %>% Parameter_getId))
+# The factors to bring each parameter to the units seconds, grams, litres
+multiplication_factors <- sapply(0:(nsbml_parameters-1), . %>% 
+         ListOfParameters_get(lsbml_parameters,.) %>% 
+         Parameter_getDerivedUnitDefinition %>%
+         {myunitdef <- .
+           nunits <- UnitDefinition_getNumUnits(myunitdef)
+         lunits <- UnitDefinition_getListOfUnits(myunitdef)
+         lapply(0:(nunits-1), . %>%
+                  ListOfUnits_get(lunits,.) %>%
+                  {(Unit_getMultiplier(.) * 10^(Unit_getScale(.)))^Unit_getExponent(.)}) %>% Reduce("*",.)
+         } %>%
+         {.}
+       )
+sbml_parameters <- sbml_parameters * multiplication_factors
+
+
+# Initial assignments
+niass <- m %>% Model_getNumInitialAssignments()
+liass <- m %>% Model_getListOfInitialAssignments()
+iass <- structure(sapply(0:(niass-1), . %>% ListOfInitialAssignments_get(liass,.) %>% print %>%  str_split("\n") %>% sapply( . %>% {.[str_detect(.,"<ci>")]}) %>% str_replace_all("^.*<ci> ", "") %>% str_replace_all(" </ci>.*$", "")), names = sapply(0:(niass-1), . %>% ListOfInitialAssignments_get(liass,.) %>% InitialAssignment_getId)) 
+
+inits <- structure(sapply(0:(nspecies-1), . %>% ListOfSpecies_get(lspecies,.) %>% Species_getInitialAmount), names = species)
+inits[names(iass)] <- sbml_parameters[iass]
+
+# All parameters combined, more than actually needed, because many of them have been replaced due to Rules
+all_pars <- c(sbml_parameters, inits) # all possible parameters
+
+# To check if the unit conversion worked
+data.frame(par = names(sbml_parameters), value = sbml_parameters, original_unit= sbml_parameter_units,  multiplication_factor = multiplication_factors, original_value = sbml_parameters/multiplication_factors, row.names = NULL) #%>% 
+  # filter(par %in% c("MET2APAP_HLM_CL", "fumic_metc13", "MPPGL", "BW", "FVli"))  #%>% summarise(prod(multiplication_factor))
+  # filter(par %in% c("CO", "QC"))
+# rules[str_detect(rules, "MET2APAP")]
+# rules[str_detect(rules, "CO")]
+
+```
+
+# C-Code
+the odemodel() command takes a while because sensitivity equations are calculated for derivatives and then the whole system is compiled into c-code.
+```{r}
+myodemodel <- odemodel(f, modelname = "methacetin") # this compiles the ode into a c-file. you can comment out this and the next two lines after it has been run once to save time.
+save(myodemodel, file = "methacetin.rda")
+beepr::beep("ready")
+load("methacetin.rda")
+```
+
+# Prediction function
+Make a prediction function from the odemodel.
+x will be a function x(times, pars)
+```{r}
+x <- Xs(myodemodel) # make 
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+```
+
+# Example plot
+This plot is supposed to be the first plot from chunk 3 of the html-file that you sent me via email.
+```{r}
+pars["Ave_metc13"] <- 0
+pars["D_metc13"] <- 0.1 #100mg
+
+mytimes = seq(0,8*3600, length.out = 400) #8 hours
+
+# pred <- (g*x)(0:50, mypars, deriv = F, conditions = rownames(attr(data, "cond")))
+prediction <- (x)(times = mytimes, pars = pars, deriv = F, conditions = "c1")
+
+# Compute the volumes in litres for each state
+vol_fun <- funC0(volumes)
+vol <- do.call(vol_fun, as.list(pars)) %>% t %>% {data.frame(volume=., name = rownames(.), stringsAsFactors = F)}
+
+# Plot
+plot_fun <- function(pred) pred %>% 
+  wide2long() %>% 
+  full_join(vol,by= "name") %>% 
+  mutate(value = value * 1000, time = time/3600, concentration = value/volume) %>% # scale g to mg, s to h
+  separate(col = name, into = c("compartment", "substance"), sep = "_", extra = "merge") %>% 
+  filter(compartment %in% c("Ali", "Ave", "Alu")) %>% # plot only liver, venuous and lung (as in the html file)
+  ggplot(aes(x= time, y = concentration)) +
+  geom_line(aes(color = compartment)) + 
+  facet_wrap(~substance, scales = "free") + 
+  theme_dMod() + scale_color_dMod()
+
+
+
+plot_fun(prediction)
+
+prediction_long <- (x)(times = mytimes*20,pars = pars, deriv = F, conditions = "c1")
+plot_fun(prediction_long)
+
+# Second plot from chunk 3
+pars <- all_pars[getParameters(x)]
+pars["Ave_metc13"] <- 0.1
+pars["D_metc13"] <- 0 #100mg
+# pars["Kplu_metc13"] <- 1
+# pars["FVlu"] <- 7.6*10^(-6) * 10
+
+prediction_second_plot <- (x)(times = mytimes,pars = pars, deriv = F, conditions = "c1")
+plot_fun(prediction_prediction_second_plot)
+
+
+```
+
+
+
+# Data
+Load the data 
+to be continued...
+```{r}
+myfiles <- list.files("data/", full.names = T)
+
+data <- myfiles %>% lapply(. %>% read.table(header = T, sep = "\t", stringsAsFactors = F))
+
+
+data <- data %>% lapply(. %>% 
+                          select(-contains("_mol")) %>% 
+                          gather("name_std", "std", ends_with("_sd")) %>% 
+                          mutate(name_std = str_replace(name_std, "_sd","")) %>% 
+                          gather("name_sigma", "sigma", ends_with("_se")) %>% 
+                          mutate(name_sigma = str_replace(name_sigma, "_se","")) %>% 
+                          {gather(.,"name", "value", one_of(.$name_std))} %>% 
+                          filter(name == name_std, name == name_sigma) %>% 
+                          # select(name,time,value,sigma) %>% 
+                          {.}) %>% plyr::join_all(type = "full") %>% 
+  select(-group, -health_status, - name_std, - name_sigma, -std, -ethnicity) %>% 
+  as.datalist()
+
+plot(data)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
