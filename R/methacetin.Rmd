@@ -516,9 +516,9 @@ free_parameters1 <- c("APAPGLU_HLM_CL",  # Vmax value
                      "APAPGLU_Km",  # Km value
                      "APAPCYS_HLM_CL",  # Vmax value
                      "APAPCYS_Km",  # Km value
-                     
-                     "Ka_apap_sul", "F_apap_sul", 
-                     "Kpre_apap", "Kpki_apap", "Kpli_apap", 
+
+                     "Ka_apap_sul", "F_apap_sul",
+                     "Kpre_apap", "Kpki_apap", "Kpli_apap",
                      "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
                      "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
                      "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu",
@@ -528,17 +528,17 @@ free_parameters1 <- c("APAPGLU_HLM_CL",  # Vmax value
 
 fixed_parameters1 <- pars[!(names(pars)%in%c(free_parameters1,names(f)[1]))] %>% names
 
-mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist() 
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist()
 
 conditions <- mydatalist %>% attr("condition.grid")
 
 p_list <- lapply(1:nrow(conditions), function(i) {
   trafo <- as.character(pars) %>% set_names(names(pars))
   cond <- unlist(conditions[i,])[2:3]
-  
+
   trafo[names(cond)] <- cond
   trafo[free_parameters1] <- paste0("exp(log", free_parameters1, ")")
-  
+
   p <- P(trafo, condition=rownames(conditions[i,]))
   return(p)
 })
@@ -553,7 +553,7 @@ pouter <- log(pars[free_parameters1]) %>% set_names(paste0("log",names(.)))
 
 obj <- normL2(mydatalist, (g*x*p))
 
-job1 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 20, fits = 100); myfit}, machine = "knecht3", filename = "job1")
+# job1 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 20, fits = 100); myfit}, machine = "knecht3", filename = "job1")
 
 ```
 
@@ -573,9 +573,9 @@ free_parameters2 <- c("APAPGLU_HLM_CL",  # Vmax value
                      "APAPGLU_Km",  # Km value
                      "APAPCYS_HLM_CL",  # Vmax value
                      "APAPCYS_Km",  # Km value
-                     
-                     "Ka_apap_sul", "F_apap_sul"    #, 
-                     # "Kpre_apap", "Kpki_apap", "Kpli_apap", 
+
+                     "Ka_apap_sul", "F_apap_sul"    #,   # total dumm, Ka und F sind so redundant wie es nur geht.
+                     # "Kpre_apap", "Kpki_apap", "Kpli_apap",
                      # "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
                      # "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
                      # "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu",
@@ -585,17 +585,17 @@ free_parameters2 <- c("APAPGLU_HLM_CL",  # Vmax value
 
 fixed_parameters2 <- pars[!(names(pars)%in%c(free_parameters2,names(f)[1]))] %>% names
 
-mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist() 
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist()
 
 conditions <- mydatalist %>% attr("condition.grid")
 
 p_list <- lapply(1:nrow(conditions), function(i) {
   trafo <- as.character(pars) %>% set_names(names(pars))
   cond <- unlist(conditions[i,])[2:3]
-  
+
   trafo[names(cond)] <- cond
   trafo[free_parameters2] <- paste0("exp(log", free_parameters2, ")")
-  
+
   p <- P(trafo, condition=rownames(conditions[i,]))
   return(p)
 })
@@ -610,8 +610,8 @@ pouter <- log(pars[free_parameters2]) %>% set_names(paste0("log",names(.)))
 
 obj <- normL2(mydatalist, (g*x*p))
 
-job2 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 12, fits = 100); myfit}, machine = "knecht4", filename = "job2")
-
+# job2 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 12, fits = 100); myfit}, machine = "knecht4", filename = "job2")
+# 
 
 ```
 
@@ -632,8 +632,8 @@ free_parameters3 <- c("APAPGLU_HLM_CL",  # Vmax value
                      "APAPGLU_Km",  # Km value
                      "APAPCYS_HLM_CL",  # Vmax value
                      "APAPCYS_Km",  # Km value
-                     
-                     "Ka_apap_sul", "F_apap_sul"    , 
+
+                     "Ka_apap_sul", "F_apap_sul"    ,
                      "Kpre_apap", "Kpki_apap", "Kpli_apap",
                      "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
                      "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
@@ -644,17 +644,17 @@ free_parameters3 <- c("APAPGLU_HLM_CL",  # Vmax value
 
 fixed_parameters3 <- pars[!(names(pars)%in%c(free_parameters3,names(f)[1]))] %>% names
 
-mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist() 
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist()
 
 conditions <- mydatalist %>% attr("condition.grid")
 
 p_list <- lapply(1:nrow(conditions), function(i) {
   trafo <- as.character(pars) %>% set_names(names(pars))
   cond <- unlist(conditions[i,])[2:3]
-  
+
   trafo[names(cond)] <- cond
   trafo[free_parameters3] <- paste0("exp(log", free_parameters3, ")")
-  
+
   p <- P(trafo, condition=rownames(conditions[i,]))
   return(p)
 })
@@ -669,7 +669,7 @@ pouter <- log(pars[free_parameters3]) %>% set_names(paste0("log",names(.)))
 
 obj <- normL2(mydatalist, (g*x*p))
 
-job3 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 15, fits = 100); myfit}, machine = "knecht1", filename = "job3")
+# job3 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 15, fits = 100); myfit}, machine = "knecht1", filename = "job3")
 
 ```
 
@@ -677,10 +677,84 @@ job3 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "meth
 # save(list = c("job1", "job2", "job3"), file = "fit_jobs.rda")
 ```
 
+```{r}
+# load("fit_jobs.rda")
+```
+
+```{r}
+load("methacetin.rda")
+
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters4 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+
+                     "Ka_apap_sul"#, "F_apap_sul"    ,
+                     # "Kpre_apap", "Kpki_apap", "Kpli_apap",
+                     # "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     # "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     # "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu"#,
+                     # "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     # "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters4 <- pars[!(names(pars)%in%c(free_parameters4,names(f)[1]))] %>% names
+
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist()
+
+conditions <- mydatalist %>% attr("condition.grid")
+
+p_list <- lapply(1:nrow(conditions), function(i) {
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  cond <- unlist(conditions[i,])[2:3]
+
+  trafo[names(cond)] <- cond
+  trafo[free_parameters4] <- paste0("exp(log", free_parameters4, ")")
+
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p <- NULL
+for(i in 1:length(p_list)) { p <<- p + p_list[[i]]}
+
+pouter <- log(pars[free_parameters4]) %>% set_names(paste0("log",names(.)))
+
+
+# mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
+# plotCombined(mypred, mydatalist, name%in% names(observables))
+
+obj <- normL2(mydatalist, (g*x*p))
+
+job4 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 15, fits = 100); myfit}, machine = "knecht1", filename = "job4")
+
+save(job4, file = "job4.rda")
+```
 
 
 
+```{r}
+# original free parameters
+myfit %>% as.parframe()
+```
 
+
+```{r}
+# fits2 <- job2$get()
+# myfit2 <- fits2$knecht4
+
+myfit2 %>% as.parframe()
+
+mypred <- (g*x*p)(mytimes*4, myfit2 %>% as.parframe() %>% as.parvec())
+plotCombined(mypred, mydatalist, name %in% names(observables))
+```
 
 
 
