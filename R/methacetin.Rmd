@@ -5,32 +5,38 @@ date: "23 November 2017"
 output:
   pdf_document: default
   html_document: default
+
 ---
 
 Load all important libraries
 ```{r, message=FALSE, warning=FALSE}
-library(libSBML)
 library(dMod)
 library(stringr) # Um bequem mit strings zu arbeiten
 library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für schöne plots
 library(magrittr) # der Pipe-operator %>%: z.B: x = a; y=f(x); z=g(y); wird zu z= a %>% f %>% g
+library(conveniencefunctions)
+library(libSBML)
 ```
 
-# Read the model
+# Model setup
+
+## Read the model
 This is basically copied from a libSBML-example
 ```{r}
-setwd("~/Promotion/Projects/methacetin_fitting/")
-filename <- "model/met13_pkpd_7.xml"
+
+filename <- "/home/denial/Promotion/Projects/methacetin_fitting/model/met13_pkpd_7.xml" # Attention: tilde expansion doesn't work
 d <-  readSBML(filename)
 
 m <- SBMLDocument_getModel(d)
+# errors   = SBMLDocument_getNumErrors(d);
+# SBMLDocument_printErrors(d);
+
 
 level   = SBase_getLevel  (d);
 version = SBase_getVersion(d);
 
 cat("File: ",filename," (Level ",level,", version ",version,")\n");
 cat("  model id: ", ifelse(Model_isSetId(m), Model_getId(m) ,"(empty)"),"\n");
-
 
 cat( "functionDefinitions: ", Model_getNumFunctionDefinitions(m) ,"\n" );
 cat( "    unitDefinitions: ", Model_getNumUnitDefinitions    (m) ,"\n" );
@@ -46,10 +52,11 @@ cat( "          reactions: ", Model_getNumReactions          (m) ,"\n" );
 cat( "             events: ", Model_getNumEvents             (m) ,"\n" );
 cat( "\n" );
 
+
 ```
 
 
-# Einschub: der Pipe-Operator %>% 
+### Einschub: der Pipe-Operator %>% 
 ```{r}
 # Mit dem Pipe-Operator kann man Funktionen verketten
 # Standardmäßig wird das vorherige Ergebnis als erstes Argument von der nächsten Funktion eingesetzt. wenn man das nicht will, kann man es als . woanders hinsetzen
@@ -58,10 +65,10 @@ f <- function(x) x^2;
 g <- function(x,y) x-y;
 
 2 %>% f # f(2)
-2 %>% f %>% g(3) # g(f(2),3)
-2 %>% f %>% g(3,.) # g(3,f(2))
+2 %>% f %>% g(3) # g(f(2),3) = 4-3 = 1
+2 %>% f %>% g(3,.) # g(3,f(2)) = 3-4 = -1
 
-# Man kann auch Funktionen definieren, die mit . losgehen
+# Man kann auch Funktionen definieren, die mit . losgehen, was dann das Argument für die Funktion ist.
 h <- . %>% sqrt %>% add(5)
 h(4)
 # Das ist besonders nützlich in lapply, sapply und so weiter, wo man über eine liste(oder einen vektor) immer wieder die gleiche funktion laufen lässt (syntactic sugar für for-loops)
@@ -71,7 +78,7 @@ sapply(1:4 , . %>% raise_to_power(2) %>% add(5) ) # dassselbe
 
 
 
-# Assignment Rules
+## Assignment Rules
 
 1. Get the assignment rules as string
 2. Apply the assignment rules onto themselves with str_replace. This is for assigments that convert parameters into other parameters
@@ -105,12 +112,12 @@ rules <- str_replace_all(rules, rules) %>% set_names(rulenames)
 indices <- rules %>% sapply(. %>% str_detect(paste0("\\b",rulenames, "\\b")) %>% any)
 rules %>% extract(indices) %>% sapply(. %>% str_detect(paste0("\\b",rulenames, "\\b")) %>% extract(rulenames,.)) # check works, none of the 
 
-print(rules)
+# print(rules)
 
-getSymbols(rules) # These are the "outer" parameters
+# getSymbols(rules) # These are the "outer" parameters
 ```
 
-# Reactions
+## Reactions
 
 ```{r Reactions}
 # get reactions
@@ -174,10 +181,10 @@ for(i in 1:nrow(reactions)) el <- addReaction(el, reactions$from[i], reactions$t
 f <- el %>% as.eqnvec()
 
 # This is the full ODE when every rule is applied
-print(f)
+# print(f)
 ```
 
-# Parameters
+## Parameters
 ```{r}
 # get the parameters from the definition
 nsbml_parameters <- m %>% Model_getNumParameters()
@@ -226,27 +233,27 @@ data.frame(par = names(sbml_parameters), value = sbml_parameters, original_unit=
 
 ```
 
-# C-Code
+## C-Code
 the odemodel() command takes a while because sensitivity equations are calculated for derivatives and then the whole system is compiled into c-code.
 ```{r}
-myodemodel <- odemodel(f, modelname = "methacetin") # this compiles the ode into a c-file. you can comment out this and the next line after it has been run once to save time.
-save(myodemodel, file = "methacetin.rda")
+# myodemodel <- odemodel(f, modelname = "methacetin") # this compiles the ode into a c-file. you can comment out this and the next line after it has been run once to save time.
+# save(myodemodel, file = "methacetin.rda")
 
 load("methacetin.rda")
 ```
 
-# Prediction function
+## Prediction function
 Make a prediction function from the odemodel.
 x will be a function x(times, pars)
 ```{r}
-# x <- Xs(myodemodel) # make prediction function
-# loadDLL(x)
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
 
 # get the only the parameters needed for x
 pars <- all_pars[getParameters(x)]
 ```
 
-# Example plot
+## Example plot
 This plot is supposed to be the first plot from chunk 3 of the html-file that you sent me via email.
 ```{r}
 pars["Ave_metc13"] <- 0
@@ -276,7 +283,7 @@ plot_fun <- function(pred) pred %>%
   facet_wrap(~substance, scales = "free") + 
   theme_dMod() + scale_color_dMod()
 
-
+save(f, file = "~/Promotion/Projects/methacetin_fitting/R/f.rda")
 
 plot_fun(prediction)
 
@@ -293,36 +300,512 @@ pars["D_metc13"] <- 0 #100mg
 prediction_second_plot <- (x)(times = mytimes,pars = pars, deriv = F, conditions = "c1")
 plot_fun(prediction_second_plot)
 
+```
+
+# Modelling
+
+Reduce the model complexity by inserting the fixed parameter values
+```{r Reduce model}
+free_parameters <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km"  # Km value
+                     )
+
+
+fixed_parameters <- pars[!(names(pars)%in%c(free_parameters,names(f)[1]))] %>% names
+
+
+myodemodel <- odemodel(f, modelname = "methacetin_reduced", fixed = fixed_parameters)
+
+x <- Xs(myodemodel)
 
 ```
 
+## Observation function
+```{r observation function, results='hide'}
+observables <- c(apap = "Ave_apap/(BW*FVve)", 
+                 apap_glu = "Ave_apap_glu/(BW*FVve)", 
+                 apap_sul = "Ave_apap_sul/(BW*FVve)", 
+                 apap_cys = "Ave_apap_cys/(BW*FVve)"
+                 )
+
+g <- Y(observables, x, parameters = free_parameters)
+
+
+```
+
+```{r}
+(g*x)(mytimes, pars) %>% set_names("condition1") %>% plotPrediction(name %in% names(observables))
+```
 
 
 # Data
-Load the data 
-to be continued...
-```{r}
-myfiles <- list.files("data/", full.names = T)
-
-data <- myfiles %>% lapply(. %>% read.table(header = T, sep = "\t", stringsAsFactors = F))
+Load the data and transform it
+```{r data}
+myfiles <- list.files("~/Promotion/Projects/methacetin_fitting/data/", full.names = T)
 
 
-data <- data %>% lapply(. %>% 
-                          select(-contains("_mol")) %>% 
-                          gather("name_std", "std", ends_with("_sd")) %>% 
-                          mutate(name_std = str_replace(name_std, "_sd","")) %>% 
-                          gather("name_sigma", "sigma", ends_with("_se")) %>% 
-                          mutate(name_sigma = str_replace(name_sigma, "_se","")) %>% 
-                          {gather(.,"name", "value", one_of(.$name_std))} %>% 
-                          filter(name == name_std, name == name_sigma) %>% 
-                          # select(name,time,value,sigma) %>% 
-                          {.}) %>% plyr::join_all(type = "full") %>% 
-  select(-group, -health_status, - name_std, - name_sigma, -std, -ethnicity) %>% 
-  as.datalist()
+raw_data <- myfiles %>% lapply(. %>% read.table(header = T, sep = "\t", stringsAsFactors = F))
+
+
+data <-
+  raw_data %>% 
+  lapply(. %>% 
+           select(-contains("_mol")) %>% 
+           gather("name_std", "std", ends_with("_sd")) %>% 
+           mutate(name_std = str_replace(name_std, "_sd","")) %>% 
+           gather("name_sigma", "sigma", ends_with("_se")) %>% 
+           mutate(name_sigma = str_replace(name_sigma, "_se","")) %>% 
+           {gather(.,"name", "value", one_of(.$name_std))} %>% 
+           filter(name == name_std, name == name_sigma) %>% 
+           # select(name,time,value,sigma) %>% 
+           {.}) %>% 
+    do.call(dMod::combine,.) %>% 
+    mutate(D_apap = "D_apap", Ave_apap = "Ave_apap" ) %>% 
+    {.$D_apap[.$study=="Chan1997"] <- 1400 / 1000
+    .$Ave_apap[.$study=="Chan1997"] <- 0
+    .$D_apap[.$study=="Chiew2010"] <- 5600 / 1000
+    .$Ave_apap[.$study=="Chiew2010"] <- 0
+    .$D_apap[.$study=="Critchley2005"] <- 1400 /1000
+    .$Ave_apap[.$study=="Critchley2005"] <- 0
+    .$D_apap[.$study=="Rawlins1977"] <- .$dose[.$study=="Rawlins1977"] * (.$route[.$study=="Rawlins1977"]%in%"oral") / 1000
+    .$Ave_apap[.$study=="Rawlins1977"] <- .$dose[.$study=="Rawlins1977"] * (.$route[.$study=="Rawlins1977"]%in%"iv") / 1000
+    .
+    } %>% 
+  mutate(time = time * 3600, value = value/1000, sigma = sigma/1000) %>% 
+  select(-group, -health_status, - name_std, - name_sigma, -std, -ethnicity, -route, -dose, -n, -substance) %>%
+  filter(!is.na(sigma)) %>% 
+  as.datalist() %>% 
+           {.}
+
+  
+  
 
 plot(data)
+```
+
+
+Parameter transformations to define the conditions
+```{r}
+conditions <- data %>% attr("condition.grid")
+
+p_list <- lapply(1:nrow(conditions), function(i) {
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  cond <- unlist(conditions[i,])[2:3]
+  
+  trafo[names(cond)] <- cond
+  trafo[free_parameters] <- paste0("exp(log", free_parameters, ")")
+  
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p <- NULL
+for(i in 1:length(p_list)) { p <<- p + p_list[[i]]}
+
+pouter <- log(pars[free_parameters]) %>% set_names(paste0("log",names(.)))
+
+
+mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
+plotCombined(mypred, data, name%in% names(observables))
+```
+## Fitting
+
+```{r Objective function}
+obj <- normL2(data, (g*x*p))
+
+
+# myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 3)
+# save(myfit, file = "fit.rda")
+load("fit.rda")
+
+fitted_pars <- myfit %>% as.parframe() %>% as.parvec()
+```
+
+```{r}
+mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), fitted_pars)
+
+liver <- names(f)[str_detect(names(f), "li")]
+medication <- c(names(f)[str_detect(names(f), "D_apap$")], "Ave_apap")
+
+
+plotCombined(mypred, data, name %in% c(names(observables), liver, medication))
+```
+
+Look at the pars
+```{r}
+exp(fitted_pars) %>% sort()
+```
+
+
+# Profiles
+```{r}
+# profiles <- profile(obj = obj, pars = fitted_pars, whichPar = names(fitted_pars), cores = 3)
+```
+
+```{r}
+# plotProfile(profiles)
 
 ```
+
+
+
+# Look at some reactions
+```{r}
+reactions %>% filter(str_detect(rate, "APAPSUL"))
+```
+
+
+```{r}
+mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), fitted_pars)
+
+liver <- names(f)[str_detect(names(f), "li")]
+medication <- c(names(f)[str_detect(names(f), "D_apap$")], "Ave_apap")
+
+
+plotCombined(mypred, data, name %in% c(names(observables), liver, medication))
+```
+# Free some more parameters
+
+```{r}
+data <-
+  raw_data %>% 
+  lapply(. %>% 
+           select(-contains("_mol")) %>% 
+           gather("name_std", "std", ends_with("_sd")) %>% 
+           mutate(name_std = str_replace(name_std, "_sd","")) %>% 
+           gather("name_sigma", "sigma", ends_with("_se")) %>% 
+           mutate(name_sigma = str_replace(name_sigma, "_se","")) %>% 
+           {gather(.,"name", "value", one_of(.$name_std))} %>% 
+           filter(name == name_std, name == name_sigma) %>% 
+           {.}) %>% 
+  do.call(dMod::combine,.) %>% 
+  mutate(D_apap = "D_apap", Ave_apap = "Ave_apap" ) %>% 
+  {.$D_apap[.$study=="Chan1997"] <- 1400 / 1000
+  .$Ave_apap[.$study=="Chan1997"] <- 0
+  .$D_apap[.$study=="Chiew2010"] <- 5600 / 1000
+  .$Ave_apap[.$study=="Chiew2010"] <- 0
+  .$D_apap[.$study=="Critchley2005"] <- 1400 /1000
+  .$Ave_apap[.$study=="Critchley2005"] <- 0
+  .$D_apap[.$study=="Rawlins1977"] <- .$dose[.$study=="Rawlins1977"] * (.$route[.$study=="Rawlins1977"]%in%"oral") / 1000
+  .$Ave_apap[.$study=="Rawlins1977"] <- .$dose[.$study=="Rawlins1977"] * (.$route[.$study=="Rawlins1977"]%in%"iv") / 1000
+  .
+  } %>% 
+  mutate(time = time * 3600, value = value/1000, sigma = sigma/1000) %>% 
+  select(-group, -health_status, - name_std, - name_sigma, -std, -ethnicity, -route, -dose, -substance) %>%
+  # filter(!is.na(sigma)) %>% 
+  # as.datalist() %>%
+  {.}
+```
+
+
+```{r}
+load("methacetin.rda")
+
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters1 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+                     
+                     "Ka_apap_sul", "F_apap_sul", 
+                     "Kpre_apap", "Kpki_apap", "Kpli_apap", 
+                     "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu",
+                     "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters1 <- pars[!(names(pars)%in%c(free_parameters1,names(f)[1]))] %>% names
+
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist() 
+
+conditions <- mydatalist %>% attr("condition.grid")
+
+p_list <- lapply(1:nrow(conditions), function(i) {
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  cond <- unlist(conditions[i,])[2:3]
+  
+  trafo[names(cond)] <- cond
+  trafo[free_parameters1] <- paste0("exp(log", free_parameters1, ")")
+  
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p <- NULL
+for(i in 1:length(p_list)) { p <<- p + p_list[[i]]}
+
+pouter <- log(pars[free_parameters1]) %>% set_names(paste0("log",names(.)))
+
+
+# mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
+# plotCombined(mypred, mydatalist, name%in% names(observables))
+
+obj <- normL2(mydatalist, (g*x*p))
+
+job1 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 20, fits = 100); myfit}, machine = "knecht3", filename = "job1")
+
+```
+
+
+```{r}
+load("methacetin.rda")
+
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters2 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+                     
+                     "Ka_apap_sul", "F_apap_sul"    #, 
+                     # "Kpre_apap", "Kpki_apap", "Kpli_apap", 
+                     # "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     # "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     # "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu",
+                     # "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     # "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters2 <- pars[!(names(pars)%in%c(free_parameters2,names(f)[1]))] %>% names
+
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist() 
+
+conditions <- mydatalist %>% attr("condition.grid")
+
+p_list <- lapply(1:nrow(conditions), function(i) {
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  cond <- unlist(conditions[i,])[2:3]
+  
+  trafo[names(cond)] <- cond
+  trafo[free_parameters2] <- paste0("exp(log", free_parameters2, ")")
+  
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p <- NULL
+for(i in 1:length(p_list)) { p <<- p + p_list[[i]]}
+
+pouter <- log(pars[free_parameters2]) %>% set_names(paste0("log",names(.)))
+
+
+# mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
+# plotCombined(mypred, mydatalist, name%in% names(observables))
+
+obj <- normL2(mydatalist, (g*x*p))
+
+job2 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 12, fits = 100); myfit}, machine = "knecht4", filename = "job2")
+
+
+```
+
+
+
+```{r}
+load("methacetin.rda")
+
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters3 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+                     
+                     "Ka_apap_sul", "F_apap_sul"    , 
+                     "Kpre_apap", "Kpki_apap", "Kpli_apap",
+                     "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu"#,
+                     # "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     # "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters3 <- pars[!(names(pars)%in%c(free_parameters3,names(f)[1]))] %>% names
+
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist() 
+
+conditions <- mydatalist %>% attr("condition.grid")
+
+p_list <- lapply(1:nrow(conditions), function(i) {
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  cond <- unlist(conditions[i,])[2:3]
+  
+  trafo[names(cond)] <- cond
+  trafo[free_parameters3] <- paste0("exp(log", free_parameters3, ")")
+  
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p <- NULL
+for(i in 1:length(p_list)) { p <<- p + p_list[[i]]}
+
+pouter <- log(pars[free_parameters3]) %>% set_names(paste0("log",names(.)))
+
+
+# mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
+# plotCombined(mypred, mydatalist, name%in% names(observables))
+
+obj <- normL2(mydatalist, (g*x*p))
+
+job3 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 15, fits = 100); myfit}, machine = "knecht1", filename = "job3")
+
+```
+
+```{r}
+# save(list = c("job1", "job2", "job3"), file = "fit_jobs.rda")
+```
+
+
+
+
+
+
+
+
+
+# Data revisited
+Some sigmas of the data are NA, try to recover an estimate for the sigmas from the other sigmas
+```{r}
+myfiles <- list.files("~/Promotion/Projects/methacetin_fitting/data/", full.names = T)
+
+raw_data <- myfiles %>% lapply(. %>% read.table(header = T, sep = "\t", stringsAsFactors = F))
+
+data <-
+  raw_data %>% 
+  lapply(. %>% 
+           select(-contains("_mol")) %>% 
+           gather("name_std", "std", ends_with("_sd")) %>% 
+           mutate(name_std = str_replace(name_std, "_sd","")) %>% 
+           gather("name_sigma", "sigma", ends_with("_se")) %>% 
+           mutate(name_sigma = str_replace(name_sigma, "_se","")) %>% 
+           {gather(.,"name", "value", one_of(.$name_std))} %>% 
+           filter(name == name_std, name == name_sigma) %>% 
+           {.}) %>% 
+  do.call(dMod::combine,.) %>% 
+  mutate(D_apap = "D_apap", Ave_apap = "Ave_apap" ) %>% 
+  {.$D_apap[.$study=="Chan1997"] <- 1400 / 1000
+  .$Ave_apap[.$study=="Chan1997"] <- 0
+  .$D_apap[.$study=="Chiew2010"] <- 5600 / 1000
+  .$Ave_apap[.$study=="Chiew2010"] <- 0
+  .$D_apap[.$study=="Critchley2005"] <- 1400 /1000
+  .$Ave_apap[.$study=="Critchley2005"] <- 0
+  .$D_apap[.$study=="Rawlins1977"] <- .$dose[.$study=="Rawlins1977"] * (.$route[.$study=="Rawlins1977"]%in%"oral") / 1000
+  .$Ave_apap[.$study=="Rawlins1977"] <- .$dose[.$study=="Rawlins1977"] * (.$route[.$study=="Rawlins1977"]%in%"iv") / 1000
+  .
+  } %>% 
+  mutate(time = time * 3600, value = value/1000, sigma = sigma/1000) %>% 
+  select(-group, -health_status, - name_std, - name_sigma, -std, -ethnicity, -route, -dose, -substance) %>%
+  # filter(!is.na(sigma)) %>% 
+  # as.datalist() %>%
+  {.}
+
+
+
+mydatalist <- data %>% select(-n) %>% as.datalist()
+
+plotData(mydatalist[names(mydatalist) %>% str_detect("Chan")])
+
+```
+
+Take out some outliers for the fitting. Those are:
+study, name, time, reason
+1. Chan1997, apap_cys, 5400,   don't know what went wrong with this one, but it just doesn't fit reasonably in the time course
+3. Chan1997, apap,     18000,  The sigma is a few orders of magnitude lower. Mirjam said it might be that in this point less people were measured (eg 2) and they had nearly the same value. Then of course, sigma would be very smal
+```{r}
+# data <- data %>% 
+#   filter(!((study %>% str_detect("Chan")) & (name %in% "apap_cys") & time == 5400)) %>% 
+#   filter(!((study %>% str_detect("Chan")) & (name %in% "apap") & time == 18000)) %>% 
+#   {.}
+
+ data %>% select(-n) %>% filter(study %>% str_detect("Chiew"))%>% as.datalist() %>% plotData()
+```
+
+```{r}
+data_with_errors <- data %>% 
+  filter(!((study %>% str_detect("Chan")) & (name %in% "apap_cys") & time == 5400)) %>% 
+  filter(!((study %>% str_detect("Chan")) & (name %in% "apap") & time == 18000)) %>% 
+  fitErrorModel(factors = c("study", "D_apap", "Ave_apap", "name"), blather = T)
+
+data_with_errors %>% select(study, name, D_apap, s0, srel) %>% unique()
+```
+
+What's the problem with the Chiew-dataset? The error model doesn't work out, somehow
+```{r}
+data_with_errors %>% 
+  filter(study %>% str_detect("Chiew"), name %in% "apap") %>% 
+ggplot(aes(x=value)) +
+            geom_point(aes(y=sigmaLS^2*(n), color = log(time))) +
+            geom_line(aes(y=sigma^2*n)) +
+            geom_ribbon(aes(ymin=cbLower95, ymax=cbUpper95), alpha=.3) +
+            geom_ribbon(aes(ymin=cbLower68, ymax=cbUpper68), alpha=.3) +
+            ylab("variance") +
+            facet_wrap(~condidnt, scales = "free") +
+            scale_y_log10() +
+            theme_dMod() + 
+            scale_color_continuous( low = "#98f5ff", high = "#4c4cdb")
+
+```
+
+```{r}
+myplot <- data_with_errors %>% 
+  rename(sigma_fitted = sigma) %>% 
+  left_join(data) %>% 
+  gather("which_sig", "sigma", sigma, sigma_fitted) %>% 
+  mutate(condition = paste0(study, D_apap)) %>% 
+  ggplot(aes(x = time,y = log10(sigma))) +
+  geom_line(aes(color = condition, linetype = which_sig)) +
+  # geom_point(aes(color = condition, shape = which_sig))+
+  facet_wrap("name", scales = "free") 
+  
+myplot %>% plotly::ggplotly()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
