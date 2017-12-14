@@ -3,9 +3,8 @@ title: "methacetin-fitting"
 author: "Daniel Lill"
 date: "23 November 2017"
 output:
-  pdf_document: default
   html_document: default
-
+  pdf_document: default
 ---
 
 Load all important libraries
@@ -388,7 +387,7 @@ plot(mydatalist)
 
 Parameter transformations to define the conditions
 ```{r parameter trafo}
-conditions <- data %>% attr("condition.grid")
+conditions <- mydatalist %>% attr("condition.grid")
 
 p_list <- lapply(1:nrow(conditions), function(i) {
   trafo <- as.character(pars) %>% set_names(names(pars))
@@ -407,12 +406,12 @@ pouter <- log(pars[free_parameters]) %>% set_names(paste0("log",names(.)))
 
 
 mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
-plotCombined(mypred, data, name%in% names(observables))
+plotCombined(mypred, mydatalist, name%in% names(observables))
 ```
 ## Fitting
 
 ```{r Objective function 0}
-obj <- normL2(data, (g*x*p))
+obj <- normL2(mydatalist, (g*x*p))
 
 
 # myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 3)
@@ -429,7 +428,7 @@ liver <- names(f)[str_detect(names(f), "li")]
 medication <- c(names(f)[str_detect(names(f), "D_apap$")], "Ave_apap")
 
 
-plotCombined(mypred, data, name %in% c(names(observables), liver, medication))
+plotCombined(mypred, mydatalist, name %in% c(names(observables), liver, medication))
 ```
 
 Look at the pars
@@ -452,7 +451,7 @@ exp(fitted_pars) %>% sort()
 
 # Look at some reactions
 ```{r}
-reactions
+# reactions
 ```
 
 
@@ -463,41 +462,12 @@ liver <- names(f)[str_detect(names(f), "li")]
 medication <- c(names(f)[str_detect(names(f), "D_apap$")], "Ave_apap")
 
 
-plotCombined(mypred, data, name %in% c(names(observables), liver, medication))
+plotCombined(mypred, mydatalist, name %in% c(names(observables), liver, medication))
 ```
 
 # Free some more parameters
 
-```{r}
-data <-
-  raw_data %>% 
-  lapply(. %>% 
-           select(-contains("_mol")) %>% 
-           gather("name_std", "std", ends_with("_sd")) %>% 
-           mutate(name_std = str_replace(name_std, "_sd","")) %>% 
-           gather("name_sigma", "sigma", ends_with("_se")) %>% 
-           mutate(name_sigma = str_replace(name_sigma, "_se","")) %>% 
-           {gather(.,"name", "value", one_of(.$name_std))} %>% 
-           filter(name == name_std, name == name_sigma) %>% 
-           {.}) %>% 
-  do.call(dMod::combine,.) %>% 
-  mutate(D_apap = "D_apap", Ave_apap = "Ave_apap" ) %>% 
-  {.$D_apap[.$study=="Chan1997"] <- 1400 / 1000
-  .$Ave_apap[.$study=="Chan1997"] <- 0
-  .$D_apap[.$study=="Chiew2010"] <- 5600 / 1000
-  .$Ave_apap[.$study=="Chiew2010"] <- 0
-  .$D_apap[.$study=="Critchley2005"] <- 1400 /1000
-  .$Ave_apap[.$study=="Critchley2005"] <- 0
-  .$D_apap[.$study=="Rawlins1977"] <- .$dose[.$study=="Rawlins1977"] * (.$route[.$study=="Rawlins1977"]%in%"oral") / 1000
-  .$Ave_apap[.$study=="Rawlins1977"] <- .$dose[.$study=="Rawlins1977"] * (.$route[.$study=="Rawlins1977"]%in%"iv") / 1000
-  .
-  } %>% 
-  mutate(time = time * 3600, value = value/1000, sigma = sigma/1000) %>% 
-  select(-group, -health_status, - name_std, - name_sigma, -std, -ethnicity, -route, -dose, -substance) %>%
-  # filter(!is.na(sigma)) %>% 
-  # as.datalist() %>%
-  {.}
-```
+
 
 ### Free other parameters 1 - not good
 Here I freed some additional parameters, but since I freed "Ka_apap_sul" instead of "Ka_apap", the results don't make much additional sense.
@@ -872,19 +842,22 @@ myplot <- plotCombined(mypred5, mydatalist, name %in% names(observables))
 # plotly::ggplotly(myplot)
 myplot
 ```
-#### Look ad profiles of try 5
+
+#### Look at profiles of try 5
 ```{r}
-profile_job5 <- runbg({myprofile <- dMod::profile(obj = obj5, 
-                                                  pars = myfit5 %>% as.parframe() %>% as.parvec(),
-                                                  whichPar = names(myfit5 %>% as.parframe() %>% as.parvec()), 
-                                                  cores = 12); myprofile}, 
-                      machine = "knecht5", filename = "methacetin_profile_5")
-save(profile_job5, file = "profile_job5.rda")
+# profile_job5 <- runbg({myprofile <- dMod::profile(obj = obj5,
+#                                                   pars = myfit5 %>% as.parframe() %>% as.parvec(),
+#                                                   whichPar = names(myfit5 %>% as.parframe() %>% as.parvec()), 
+#                                                   cores = 12); myprofile}, 
+#                       machine = "knecht5", filename = "methacetin_profile_5")
+# save(profile_job5, file = "profile_job5.rda")
 ```
 
 ```{r}
 # profiles5 <- profile_job5$get()$knecht5
-
+# save(profiles5, file = "profiles5.rda")
+# profile_job5$purge()
+load("profiles5.rda")
 plotProfile(profiles5)
 ```
 
@@ -1019,9 +992,9 @@ pouter6_1[names(best_fit)] <- best_fit
 # mypred <- (g*x*p6_1)(seq(0, 48*3600, length.out = 200), pouter6_1, deriv = F)
 # plotCombined(mypred, mydatalist, name%in% names(observables))
 
-obj6_1 <- normL2(mydatalist, (g*x*p6))
+obj6_1 <- normL2(mydatalist, (g*x*p6_1))
 
-job6_1 <- runbg({myfit <- mstrust(objfun = obj6_1, center = pouter6_1, studyname = "methacetin", cores = 12, fits = 200, iterlim = 200, sd = 2); myfit}, machine = "knecht5", filename = "job6_1")
+# job6_1 <- runbg({myfit <- mstrust(objfun = obj6_1, center = pouter6_1, studyname = "methacetin", cores = 12, fits = 200, iterlim = 200, sd = 2); myfit}, machine = "knecht5", filename = "job6_1", input = global_env_without(c("mypred", "job", "myfit")))
 
 # save(job6_1, file = "job6_1.rda")
 # job6_1$check()
@@ -1209,11 +1182,11 @@ pouter8[names(myfit5 %>% as.parframe() %>% {.[2,]} %>% as.parvec())] <- myfit5 %
 
 # obj8(pouter8)
 
-job8 <- runbg({myfit <- mstrust(objfun = obj8, center = pouter8, studyname = "methacetin", cores = 12, fits = 100); myfit}, machine = "knecht5", filename = "job8", input = global_env_without(c("mypred", "job", "myfit")))
+# job8 <- runbg({myfit <- mstrust(objfun = obj8, center = pouter8, studyname = "methacetin", cores = 12, fits = 100); myfit}, machine = "knecht5", filename = "job8", input = global_env_without(c("mypred", "job", "myfit")))
 
 # save(job8, file = "job8.rda")
 
-job8$check()
+# job8$purge()
 
 ```
 
@@ -1223,7 +1196,7 @@ job8$check()
 # job8$purge()
 load("myfit8.rda")
 myfit8 %>% as.parframe()
-plotValues(myfit8 %>% as.parframe())+scale_y_log10()
+# plotValues(myfit8 %>% as.parframe())+scale_y_log10()
 
 
 mypred8 <- (g8*x*p8)(mytimes*4, myfit8 %>% as.parframe() %>% as.parvec %>% {names(.) <- names(.) %>% str_replace_all("\\.","");.}, deriv = F)
@@ -1504,8 +1477,8 @@ myplot <- data_with_errors %>%
   # geom_point(aes(color = condition, shape = which_sig))+
   facet_wrap("name", scales = "free") 
   
-myplot %>% plotly::ggplotly()
-
+# myplot %>% plotly::ggplotly()
+myplot
 ```
 
 
