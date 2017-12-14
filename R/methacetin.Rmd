@@ -185,7 +185,7 @@ f <- el %>% as.eqnvec()
 ```
 
 ## Parameters
-```{r}
+```{r Parameters}
 # get the parameters from the definition
 nsbml_parameters <- m %>% Model_getNumParameters()
 lsbml_parameters <- m %>% Model_getListOfParameters()
@@ -235,7 +235,7 @@ data.frame(par = names(sbml_parameters), value = sbml_parameters, original_unit=
 
 ## C-Code
 the odemodel() command takes a while because sensitivity equations are calculated for derivatives and then the whole system is compiled into c-code.
-```{r}
+```{r big odemodel}
 # myodemodel <- odemodel(f, modelname = "methacetin") # this compiles the ode into a c-file. you can comment out this and the next line after it has been run once to save time.
 # save(myodemodel, file = "methacetin.rda")
 
@@ -337,14 +337,14 @@ g <- Y(observables, x, parameters = free_parameters)
 
 ```
 
-```{r}
+```{r plot observables}
 (g*x)(mytimes, pars) %>% set_names("condition1") %>% plotPrediction(name %in% names(observables))
 ```
 
 
 # Data
 Load the data and transform it
-```{r data}
+```{r load data}
 myfiles <- list.files("~/Promotion/Projects/methacetin_fitting/data/", full.names = T)
 
 
@@ -376,20 +376,18 @@ data <-
     .
     } %>% 
   mutate(time = time * 3600, value = value/1000, sigma = sigma/1000) %>% 
-  select(-group, -health_status, - name_std, - name_sigma, -std, -ethnicity, -route, -dose, -n, -substance) %>%
-  filter(!is.na(sigma)) %>% 
-  as.datalist() %>% 
+  select(-group, -health_status, - name_std, - name_sigma, -std, -ethnicity, -route, -dose, -substance) %>%
+  # filter(!is.na(sigma)) %>% 
+  # as.datalist() %>% 
            {.}
+mydatalist <- data %>% filter(!is.na(sigma)) %>% select(-n) %>% as.datalist()
 
-  
-  
-
-plot(data)
+plot(mydatalist)
 ```
 
 
 Parameter transformations to define the conditions
-```{r}
+```{r parameter trafo}
 conditions <- data %>% attr("condition.grid")
 
 p_list <- lapply(1:nrow(conditions), function(i) {
@@ -413,7 +411,7 @@ plotCombined(mypred, data, name%in% names(observables))
 ```
 ## Fitting
 
-```{r Objective function}
+```{r Objective function 0}
 obj <- normL2(data, (g*x*p))
 
 
@@ -454,7 +452,7 @@ exp(fitted_pars) %>% sort()
 
 # Look at some reactions
 ```{r}
-reactions %>% filter(str_detect(rate, "APAPSUL"))
+reactions
 ```
 
 
@@ -467,6 +465,7 @@ medication <- c(names(f)[str_detect(names(f), "D_apap$")], "Ave_apap")
 
 plotCombined(mypred, data, name %in% c(names(observables), liver, medication))
 ```
+
 # Free some more parameters
 
 ```{r}
@@ -500,7 +499,8 @@ data <-
   {.}
 ```
 
-
+### Free other parameters 1 - not good
+Here I freed some additional parameters, but since I freed "Ka_apap_sul" instead of "Ka_apap", the results don't make much additional sense.
 ```{r}
 load("methacetin.rda")
 
@@ -542,8 +542,8 @@ p_list <- lapply(1:nrow(conditions), function(i) {
   p <- P(trafo, condition=rownames(conditions[i,]))
   return(p)
 })
-p <- NULL
-for(i in 1:length(p_list)) { p <<- p + p_list[[i]]}
+p1 <- NULL
+for(i in 1:length(p_list)) { p1 <<- p1 + p_list[[i]]}
 
 pouter <- log(pars[free_parameters1]) %>% set_names(paste0("log",names(.)))
 
@@ -551,12 +551,26 @@ pouter <- log(pars[free_parameters1]) %>% set_names(paste0("log",names(.)))
 # mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
 # plotCombined(mypred, mydatalist, name%in% names(observables))
 
-obj <- normL2(mydatalist, (g*x*p))
+obj1 <- normL2(mydatalist, (g*x*p1))
 
-# job1 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 20, fits = 100); myfit}, machine = "knecht3", filename = "job1")
+# job1 <- runbg({myfit <- mstrust(objfun = obj1, center = pouter, studyname = "methacetin", cores = 20, fits = 100); myfit}, machine = "knecht3", filename = "job1")
+
+```
+```{r}
+# myfit1 <- job1$get()$knecht3
+# save(myfit1, file = "myfit1.rda")
+# job1$purge()
+load("myfit1.rda")
+myfit1 %>% as.parframe()
+plotValues(myfit1 %>% as.parframe())+scale_y_log10()
+
+mypred1 <- (g*x*p1)(mytimes*4, myfit1 %>% as.parframe() %>% as.parvec)
+plotCombined(mypred1, mydatalist, name %in% names(observables))
 
 ```
 
+### Free other parameters 2 - not good
+Here I freed some less parameters than in try 1 but it suffers from the same problem
 
 ```{r}
 load("methacetin.rda")
@@ -599,8 +613,8 @@ p_list <- lapply(1:nrow(conditions), function(i) {
   p <- P(trafo, condition=rownames(conditions[i,]))
   return(p)
 })
-p <- NULL
-for(i in 1:length(p_list)) { p <<- p + p_list[[i]]}
+p2 <- NULL
+for(i in 1:length(p_list)) { p2 <<- p2 + p_list[[i]]}
 
 pouter <- log(pars[free_parameters2]) %>% set_names(paste0("log",names(.)))
 
@@ -608,14 +622,27 @@ pouter <- log(pars[free_parameters2]) %>% set_names(paste0("log",names(.)))
 # mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
 # plotCombined(mypred, mydatalist, name%in% names(observables))
 
-obj <- normL2(mydatalist, (g*x*p))
+obj2 <- normL2(mydatalist, (g*x*p2))
 
-# job2 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 12, fits = 100); myfit}, machine = "knecht4", filename = "job2")
+# job2 <- runbg({myfit <- mstrust(objfun = obj2, center = pouter, studyname = "methacetin", cores = 12, fits = 100); myfit}, machine = "knecht4", filename = "job2")
 # 
 
 ```
 
+```{r}
+# myfit2 <- job2$get()$knecht4
+# save(myfit2, file = "myfit2.rda")
+# job2$purge()
+load("myfit2.rda")
+myfit2 %>% as.parframe()
+plotValues(myfit2 %>% as.parframe())+scale_y_log10()
 
+mypred2 <- (g*x*p2)(mytimes*4, myfit2 %>% as.parframe() %>% as.parvec)
+plotCombined(mypred2, mydatalist, name %in% names(observables))
+```
+
+### Free other parameters 3 - not good
+Same problem as in tries 1 and 2
 
 ```{r}
 load("methacetin.rda")
@@ -658,8 +685,8 @@ p_list <- lapply(1:nrow(conditions), function(i) {
   p <- P(trafo, condition=rownames(conditions[i,]))
   return(p)
 })
-p <- NULL
-for(i in 1:length(p_list)) { p <<- p + p_list[[i]]}
+p3 <- NULL
+for(i in 1:length(p_list)) { p3 <<- p3 + p_list[[i]]}
 
 pouter <- log(pars[free_parameters3]) %>% set_names(paste0("log",names(.)))
 
@@ -667,19 +694,27 @@ pouter <- log(pars[free_parameters3]) %>% set_names(paste0("log",names(.)))
 # mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
 # plotCombined(mypred, mydatalist, name%in% names(observables))
 
-obj <- normL2(mydatalist, (g*x*p))
+obj3 <- normL2(mydatalist, (g*x*p3))
 
-# job3 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 15, fits = 100); myfit}, machine = "knecht1", filename = "job3")
+# job3 <- runbg({myfit <- mstrust(objfun = obj3, center = pouter, studyname = "methacetin", cores = 15, fits = 100); myfit}, machine = "knecht1", filename = "job3")
 
 ```
+
 
 ```{r}
-# save(list = c("job1", "job2", "job3"), file = "fit_jobs.rda")
+# myfit3 <- job3$get()$knecht1
+# save(myfit3, file = "myfit3.rda")
+# job3$purge()
+load("myfit3.rda")
+myfit3 %>% as.parframe()
+plotValues(myfit3 %>% as.parframe())+scale_y_log10()
+
+mypred3 <- (g*x*p3)(mytimes*4, myfit3 %>% as.parframe() %>% as.parvec)
+plotCombined(mypred3, mydatalist, name %in% names(observables))
 ```
 
-```{r}
-# load("fit_jobs.rda")
-```
+### Free other parameters 4 - not good
+Same problem as in tries 1,2,3. The only difference to try 2 is that I removed the structural non-identifiability of Ka_apap_sul and F_apap_sul.
 
 ```{r}
 load("methacetin.rda")
@@ -722,8 +757,8 @@ p_list <- lapply(1:nrow(conditions), function(i) {
   p <- P(trafo, condition=rownames(conditions[i,]))
   return(p)
 })
-p <- NULL
-for(i in 1:length(p_list)) { p <<- p + p_list[[i]]}
+p4 <- NULL
+for(i in 1:length(p_list)) { p4 <<- p4 + p_list[[i]]}
 
 pouter <- log(pars[free_parameters4]) %>% set_names(paste0("log",names(.)))
 
@@ -731,31 +766,647 @@ pouter <- log(pars[free_parameters4]) %>% set_names(paste0("log",names(.)))
 # mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
 # plotCombined(mypred, mydatalist, name%in% names(observables))
 
-obj <- normL2(mydatalist, (g*x*p))
+obj4 <- normL2(mydatalist, (g*x*p4))
 
-job4 <- runbg({myfit <- mstrust(objfun = obj, center = pouter, studyname = "methacetin", cores = 15, fits = 100); myfit}, machine = "knecht1", filename = "job4")
+# job4 <- runbg({myfit <- mstrust(objfun = obj4, center = pouter, studyname = "methacetin", cores = 15, fits = 100); myfit}, machine = "knecht1", filename = "job4")
 
-save(job4, file = "job4.rda")
+# save(job4, file = "job4.rda")
 ```
 
+```{r}
+# myfit4 <- job4$get()$knecht1
+# save(myfit4, file = "myfit4.rda")
+# job4$purge()
+load("myfit4.rda")
+myfit4 %>% as.parframe()
+plotValues(myfit4 %>% as.parframe())+scale_y_log10()
+
+mypred4 <- (g*x*p4)(mytimes*4, myfit4 %>% as.parframe() %>% as.parvec, deriv = F)
+myplot <- plotCombined(mypred4, mydatalist, name %in% names(observables))
+# plotly::ggplotly(myplot)
+myplot
+```
+
+
+## Further hypotheses
+Freeing the parameters in the upper four fits didn't help much. On the other hand, lots of the fits didn't converge. From here, I could do several things.
+
+1. Introduce scaling factors for each condition
+2. Fill the empty sigmas with fitted sigmas
+3. Run a profile likelihood analysis for the fits 1-4
+4. Re-run the fits 2 and 3 without the structural non-identifiability of Ka_apap_sul and F_apap_sul
+  1. If I re-run the fits, I can take the fitted values of the original free parameters as center for the sampling
+  2. In data, drop the column n before converting it to a datalist
+5. In the upper fits, I freed the parameters Ka_apap_sul, which of course doesn't make sense, since no apap_sul is given. I have to free the parameters Ka_apap
+
+### Free other parameters 5 - not good
+Here I freed Ka_apap which makes sense conceptually (increase absorption rate). But it doesn't improve the fits much.
+
+```{r}
+load("methacetin.rda")
+
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters5 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+
+                     "Ka_apap"#, "F_apap_sul"    ,
+                     # "Kpre_apap", "Kpki_apap", "Kpli_apap",
+                     # "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     # "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     # "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu"#,
+                     # "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     # "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters5 <- pars[!(names(pars)%in%c(free_parameters5,names(f)[1]))] %>% names
+
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist()
+
+conditions <- mydatalist %>% attr("condition.grid")
+
+p_list <- lapply(1:nrow(conditions), function(i) {
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  cond <- unlist(conditions[i,])[2:3]
+
+  trafo[names(cond)] <- cond
+  trafo[free_parameters5] <- paste0("exp(log", free_parameters5, ")")
+
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p5 <- NULL
+for(i in 1:length(p_list)) { p5 <<- p5 + p_list[[i]]}
+
+pouter <- log(pars[free_parameters5]) %>% set_names(paste0("log",names(.)))
+
+
+# mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
+# plotCombined(mypred, mydatalist, name%in% names(observables))
+
+obj5 <- normL2(mydatalist, (g*x*p5))
+
+# job5 <- runbg({myfit <- mstrust(objfun = obj5, center = pouter, studyname = "methacetin", cores = 12, fits = 100); myfit}, machine = "knecht1", filename = "job5")
+
+# save(job5, file = "job5.rda")
+```
+
+```{r}
+# myfit5 <- job5$get()$knecht1
+# save(myfit5, file = "myfit5.rda")
+# job5$purge()
+load("myfit5.rda")
+myfit5 %>% as.parframe()
+plotValues(myfit5 %>% as.parframe())+scale_y_log10()
+
+mypred5 <- (g*x*p5)(mytimes*5, myfit5 %>% as.parframe() %>% as.parvec, deriv = F)
+myplot <- plotCombined(mypred5, mydatalist, name %in% names(observables))
+# plotly::ggplotly(myplot)
+myplot
+```
+#### Look ad profiles of try 5
+```{r}
+profile_job5 <- runbg({myprofile <- dMod::profile(obj = obj5, 
+                                                  pars = myfit5 %>% as.parframe() %>% as.parvec(),
+                                                  whichPar = names(myfit5 %>% as.parframe() %>% as.parvec()), 
+                                                  cores = 12); myprofile}, 
+                      machine = "knecht5", filename = "methacetin_profile_5")
+save(profile_job5, file = "profile_job5.rda")
+```
+
+```{r}
+# profiles5 <- profile_job5$get()$knecht5
+
+plotProfile(profiles5)
+```
+
+
+### Free other parameters 6 - not enough fits converged
 
 
 ```{r}
-# original free parameters
-myfit %>% as.parframe()
-```
+load("methacetin.rda")
 
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters6 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+
+                     "Ka_apap", #"F_apap_sul"    ,
+                     "Kpre_apap", "Kpki_apap", "Kpli_apap",
+                     "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu"#,
+                     # "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     # "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters6 <- pars[!(names(pars)%in%c(free_parameters6,names(f)[1]))] %>% names
+
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% as.datalist()
+
+conditions <- mydatalist %>% attr("condition.grid")
+
+p_list <- lapply(1:nrow(conditions), function(i) {
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  cond <- unlist(conditions[i,])[2:3]
+
+  trafo[names(cond)] <- cond
+  trafo[free_parameters6] <- paste0("exp(log", free_parameters6, ")")
+
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p6 <- NULL
+for(i in 1:length(p_list)) { p6 <<- p6 + p_list[[i]]}
+
+pouter <- log(pars[free_parameters6]) %>% set_names(paste0("log",names(.)))
+best_fit <- myfit %>% as.parframe() %>% as.parvec()
+pouter[names(best_fit)] <- best_fit
+
+# mypred <- (g*x*p)(seq(0, 48*3600, length.out = 200), pouter)
+# plotCombined(mypred, mydatalist, name%in% names(observables))
+
+obj6 <- normL2(mydatalist, (g*x*p6))
+
+# job6 <- runbg({myfit <- mstrust(objfun = obj6, center = pouter, studyname = "methacetin", cores = 10, fits = 100); myfit}, machine = "knecht3", filename = "job6")
+
+# save(job6, file = "job6.rda")
+# job6$check()
+```
 
 ```{r}
-# fits2 <- job2$get()
-# myfit2 <- fits2$knecht4
+# myfit6 <- job6$get()$knecht3
+# save(myfit6, file = "myfit6.rda")
+# job6$purge()
+load("myfit6.rda")
+myfit6 %>% as.parframe()
+plotValues(myfit6 %>% as.parframe())+scale_y_log10()
 
-myfit2 %>% as.parframe()
+mypred6 <- (g*x*p6)(mytimes*4, myfit6 %>% as.parframe() %>% as.parvec)
+myplot <- plotCombined(mypred6, mydatalist, name %in% names(observables))
+# plotly::ggplotly(myplot)
+myplot
+```
+### Free other parameters 6_1 - try once again with more iterations
+In comparison to try 6, I also drop column n before converting the data to a datalist.
+I use the best fit from try 6 as center for the sampling
 
-mypred <- (g*x*p)(mytimes*4, myfit2 %>% as.parframe() %>% as.parvec())
-plotCombined(mypred, mydatalist, name %in% names(observables))
+```{r}
+load("methacetin.rda")
+
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters6 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+
+                     "Ka_apap", #"F_apap_sul"    ,
+                     "Kpre_apap", "Kpki_apap", "Kpli_apap",
+                     "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu"#,
+                     # "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     # "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters6 <- pars[!(names(pars)%in%c(free_parameters6,names(f)[1]))] %>% names
+
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% select(-n) %>% as.datalist()
+
+conditions <- mydatalist %>% attr("condition.grid")
+
+p_list <- lapply(1:nrow(conditions), function(i) {
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  cond <- unlist(conditions[i,])[2:3]
+
+  trafo[names(cond)] <- cond
+  trafo[free_parameters6] <- paste0("exp(log", free_parameters6, ")")
+
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p6_1 <- NULL
+for(i in 1:length(p_list)) { p6_1 <<- p6_1 + p_list[[i]]}
+
+pouter6_1 <- log(pars[free_parameters6]) %>% set_names(paste0("log",names(.)))
+best_fit <- myfit6 %>% as.parframe() %>% {.[2,]} %>% as.parvec() # der 2. sieht viel besser aus von der dynamik her
+pouter6_1[names(best_fit)] <- best_fit
+
+# mypred <- (g*x*p6_1)(seq(0, 48*3600, length.out = 200), pouter6_1, deriv = F)
+# plotCombined(mypred, mydatalist, name%in% names(observables))
+
+obj6_1 <- normL2(mydatalist, (g*x*p6))
+
+job6_1 <- runbg({myfit <- mstrust(objfun = obj6_1, center = pouter6_1, studyname = "methacetin", cores = 12, fits = 200, iterlim = 200, sd = 2); myfit}, machine = "knecht5", filename = "job6_1")
+
+# save(job6_1, file = "job6_1.rda")
+# job6_1$check()
 ```
 
+```{r}
+global_env_without <- function(reg) ls(.GlobalEnv)[!(ls(.GlobalEnv) %>% sapply(. %>% str_detect(reg) %>% any))]
+```
+
+## Scaling factors
+
+### Introduce scaling factors 7 - not enough fits converged, but in principle not bad
+
+```{r Job7 with different observation function}
+load("methacetin.rda")
+
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters7 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+
+                     "Ka_apap"#, #"F_apap_sul"    ,
+                     # "Kpre_apap", "Kpki_apap", "Kpli_apap",
+                     # "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     # "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     # "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu"#,
+                     # "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     # "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters7 <- pars[!(names(pars)%in%c(free_parameters7,names(f)[1]))] %>% names
+
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% select(-n) %>% as.datalist()
+conditions <- mydatalist %>% attr("condition.grid")
+
+
+observables7 <- c(apap = "Ave_apap/(BW*FVve)*scale_apap", 
+                 apap_glu = "Ave_apap_glu/(BW*FVve)*scale_apap_glu", 
+                 apap_sul = "Ave_apap_sul/(BW*FVve)*scale_apap_sul", 
+                 apap_cys = "Ave_apap_cys/(BW*FVve)*scale_apap_cys")
+scale_parameters7 <- paste0("scale_apap", c("", "_glu", "_sul", "_cys")) %>% set_names(.,.)
+
+# free_parameters7 <- c(free_parameters7, scale_parameters7)
+     
+
+i <- 2
+p_list <- lapply(1:nrow(conditions), function(i) {
+  cond <- unlist(conditions[i,])[2:3]
+  
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  trafo[names(cond)] <- cond
+  trafo[free_parameters7] <- paste0("exp(log", free_parameters7, ")")
+
+  scales <- rownames(conditions)[i] %>% {repar("x~exp(log_x_y)", scale_parameters7, x = scale_parameters7, y = .)} %>% str_replace_all("\\.", "") %>% set_names(scale_parameters7)
+  scales[names(scales) %>% sapply(. %>% str_detect(mydatalist[[i]][["name"]] %>% unique() %>% paste0("$")) %>% any %>% not)] <- 1
+  
+  trafo <- c(trafo, scales)
+    
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p7 <- NULL
+for(i in 1:length(p_list)) { p7 <<- p7 + p_list[[i]]}
+
+g7 <- Y(observables7, x)#, parameters = c(free_parameters7, scale_parameters7))  
+
+obj7 <- normL2(mydatalist, (g7*x*p7))
+
+pouter7 <- rep(0, length(getParameters(obj7))) %>% set_names(getParameters(obj7))
+pouter7[names(myfit5 %>% as.parframe() %>% {.[2,]} %>% as.parvec())] <- myfit5 %>% as.parframe() %>% {.[2,]} %>% as.parvec()
+
+# job7 <- runbg({myfit <- mstrust(objfun = obj7, center = pouter7, studyname = "methacetin", cores = 12, fits = 100); myfit}, machine = "knecht5", filename = "job7", input = global_env_without(c("mypred", "job", "myfit")))
+
+# save(job7, file = "job7.rda")
+# job7$check()
+
+```
+
+```{r}
+# myfit7 <- job7$get()$knecht5
+# save(myfit7, file = "myfit7.rda")
+# job7$purge()
+load("myfit7.rda")
+myfit7 %>% as.parframe()
+plotValues(myfit7 %>% as.parframe())+scale_y_log10()
+
+
+mypred7 <- (g7*x*p7)(mytimes*4, myfit7 %>% as.parframe() %>% as.parvec %>% {names(.) <- names(.) %>% str_replace_all("\\.","");.}, deriv = F)
+myplot <- plotCombined(mypred7, mydatalist, name %in% names(observables))
+# plotly::ggplotly(myplot)
+myplot
+```
+
+
+
+
+
+## Error model
+
+### 8 Introduce error model and scaling factors in the dynamic model - very weird results. Negative objfun value??
+Mistake: Don't remove the rows with sigma=NA! Stupid...
+```{r Job8 with error model in dynamic model}
+load("methacetin.rda")
+
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters8 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+
+                     "Ka_apap"#, #"F_apap_sul"    ,
+                     # "Kpre_apap", "Kpki_apap", "Kpli_apap",
+                     # "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     # "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     # "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu"#,
+                     # "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     # "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters8 <- pars[!(names(pars)%in%c(free_parameters8,names(f)[1]))] %>% names
+
+mydatalist <- data  %>% filter(!is.na(sigma)) %>% select(-n) %>% as.datalist()
+conditions <- mydatalist %>% attr("condition.grid")
+
+
+observables8 <- c(apap = "Ave_apap/(BW*FVve)*scale_apap", 
+                 apap_glu = "Ave_apap_glu/(BW*FVve)*scale_apap_glu", 
+                 apap_sul = "Ave_apap_sul/(BW*FVve)*scale_apap_sul", 
+                 apap_cys = "Ave_apap_cys/(BW*FVve)*scale_apap_cys")
+scale_parameters8 <- paste0("scale_apap", c("", "_glu", "_sul", "_cys")) %>% set_names(.,.)
+
+# free_parameters8 <- c(free_parameters8, scale_parameters8)
+
+error_model8 <- c(apap = "srel_apap*apap^2 +s0_apap", 
+                 apap_glu = "srel_apap_glu*apap_glu^2 +s0_apap_glu", 
+                 apap_sul = "srel_apap_sul*apap_sul^2 +s0_apap_sul", 
+                 apap_cys = "srel_apap_cys*apap_cys^2 +s0_apap_cys")
+error_parameters8 <- setdiff(getSymbols(error_model8), names(error_model8)) %>% set_names(.,.)
+
+i <- 1
+p_list <- lapply(1:nrow(conditions), function(i) {
+  cond <- unlist(conditions[i,])[2:3]
+  
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  trafo[names(cond)] <- cond
+  trafo[free_parameters8] <- paste0("exp(log", free_parameters8, ")")
+
+  scales <- rownames(conditions)[i] %>% {repar("x~exp(log_x_y)", scale_parameters8, x = scale_parameters8, y = .)} 
+  scales <- scales[names(scales) %>% sapply(. %>% str_detect(mydatalist[[i]][["name"]] %>% unique() %>% paste0("$")) %>% any)]
+  
+  errors <- rownames(conditions)[i] %>% {repar("x~exp(log_x_y)", error_parameters8, x = error_parameters8, y = .)}
+  errors <- errors[names(errors) %>% sapply(. %>% str_detect(mydatalist[[i]][["name"]] %>% unique() %>% paste0("$")) %>% any)]
+  
+  trafo <- c(trafo, scales, errors)
+    
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p8 <- NULL
+for(i in 1:length(p_list)) { p8 <<- p8 + p_list[[i]]}
+
+g8 <- Y(observables8, x)#, parameters = c(free_parameters8, scale_parameters8))  
+
+err8 <- Y(error_model8, g8)
+
+obj8 <- normL2(mydatalist, (g8*x*p8), errmodel = err8)
+
+pouter8 <- rep(0, length(getParameters(obj8))) %>% set_names(getParameters(obj8))
+pouter8[names(myfit5 %>% as.parframe() %>% {.[2,]} %>% as.parvec())] <- myfit5 %>% as.parframe() %>% {.[2,]} %>% as.parvec()
+
+# obj8(pouter8)
+
+job8 <- runbg({myfit <- mstrust(objfun = obj8, center = pouter8, studyname = "methacetin", cores = 12, fits = 100); myfit}, machine = "knecht5", filename = "job8", input = global_env_without(c("mypred", "job", "myfit")))
+
+# save(job8, file = "job8.rda")
+
+job8$check()
+
+```
+
+```{r}
+# myfit8 <- job8$get()$knecht5
+# save(myfit8, file = "myfit8.rda")
+# job8$purge()
+load("myfit8.rda")
+myfit8 %>% as.parframe()
+plotValues(myfit8 %>% as.parframe())+scale_y_log10()
+
+
+mypred8 <- (g8*x*p8)(mytimes*4, myfit8 %>% as.parframe() %>% as.parvec %>% {names(.) <- names(.) %>% str_replace_all("\\.","");.}, deriv = F)
+myplot <- plotCombined(mypred8, mydatalist, name %in% names(observables))
+# plotly::ggplotly(myplot)
+myplot
+```
+
+### 9 Introduce error model and scaling factors in the dynamic model - 
+
+```{r Job9 with error model in dynamic model and sanitized names}
+load("methacetin.rda")
+
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters9 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+
+                     "Ka_apap"#, #"F_apap_sul"    ,
+                     # "Kpre_apap", "Kpki_apap", "Kpli_apap",
+                     # "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     # "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     # "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu"#,
+                     # "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     # "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters9 <- pars[!(names(pars)%in%c(free_parameters9,names(f)[1]))] %>% names
+
+mydatalist <- data  %>% select(-n) %>% as.datalist()
+conditions <- mydatalist %>% attr("condition.grid")
+
+
+observables9 <- c(apap = "Ave_apap/(BW*FVve)*scale_apap", 
+                 apap_glu = "Ave_apap_glu/(BW*FVve)*scale_apap_glu", 
+                 apap_sul = "Ave_apap_sul/(BW*FVve)*scale_apap_sul", 
+                 apap_cys = "Ave_apap_cys/(BW*FVve)*scale_apap_cys")
+scale_parameters9 <- paste0("scale_apap", c("", "_glu", "_sul", "_cys")) %>% set_names(.,.)
+
+# free_parameters9 <- c(free_parameters9, scale_parameters9)
+
+error_model9 <- c(apap = "srel_apap*apap^2 +s0_apap", 
+                 apap_glu = "srel_apap_glu*apap_glu^2 +s0_apap_glu", 
+                 apap_sul = "srel_apap_sul*apap_sul^2 +s0_apap_sul", 
+                 apap_cys = "srel_apap_cys*apap_cys^2 +s0_apap_cys")
+error_parameters9 <- setdiff(getSymbols(error_model9), names(error_model9)) %>% set_names(.,.)
+
+i <- 1
+p_list <- lapply(1:nrow(conditions), function(i) {
+  cond <- unlist(conditions[i,])[2:3]
+  
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  trafo[names(cond)] <- cond
+  trafo[free_parameters9] <- paste0("exp(log", free_parameters9, ")")
+
+  scales <- rownames(conditions)[i] %>% {repar("x~exp(log_x_y)", scale_parameters9, x = scale_parameters9, y = .)} %>% str_replace_all("\\.", "") %>% set_names(scale_parameters9)
+  scales <- scales[names(scales) %>% sapply(. %>% str_detect(mydatalist[[i]][["name"]] %>% unique() %>% paste0("$")) %>% any)]
+  
+  errors <- rownames(conditions)[i] %>% {repar("x~exp(log_x_y)", error_parameters9, x = error_parameters9, y = .)}%>% str_replace_all("\\.", "") %>% set_names(error_parameters9)
+  errors <- errors[names(errors) %>% sapply(. %>% str_detect(mydatalist[[i]][["name"]] %>% unique() %>% paste0("$")) %>% any)]
+  
+  trafo <- c(trafo, scales, errors)
+    
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p9 <- NULL
+for(i in 1:length(p_list)) { p9 <<- p9 + p_list[[i]]}
+
+g9 <- Y(observables9, x)#, parameters = c(free_parameters9, scale_parameters9))  
+
+err9 <- Y(error_model9, g9)
+
+obj9 <- normL2(mydatalist, (g9*x*p9), errmodel = err9)
+
+pouter9 <- rep(0, length(getParameters(obj9))) %>% set_names(getParameters(obj9))
+pouter9[names(myfit5 %>% as.parframe() %>% {.[2,]} %>% as.parvec())] <- myfit5 %>% as.parframe() %>% {.[2,]} %>% as.parvec()
+
+# obj9(pouter9)
+
+# job9 <- runbg({myfit <- mstrust(objfun = obj9, center = pouter9, studyname = "methacetin", cores = 16, fits = 200); myfit}, machine = "ruprecht2", filename = "job9", input = global_env_without(c("mypred", "job", "myfit")))
+
+# save(job9, file = "job9.rda")
+
+# job9$check()
+# 
+```
+
+
+### 10 Introduce error model only 
+Mistake: Don't remove the rows with sigma=NA! Stupid...
+
+```{r Job10 only error model in dynamic model and no scaling}
+load("methacetin.rda")
+
+x <- Xs(myodemodel) # make prediction function
+loadDLL(x)
+
+# get the only the parameters needed for x
+pars <- all_pars[getParameters(x)]
+
+free_parameters10 <- c("APAPGLU_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPSUL_HLM_CL",  # Vmax value
+                     "APAPGLU_Km",  # Km value
+                     "APAPCYS_HLM_CL",  # Vmax value
+                     "APAPCYS_Km",  # Km value
+
+                     "Ka_apap"#, #"F_apap_sul"    ,
+                     # "Kpre_apap", "Kpki_apap", "Kpli_apap",
+                     # "Kpre_apap_cys", "Kpki_apap_cys", "Kpli_apap_cys",
+                     # "Kpre_apap_glu", "Kpki_apap_glu", "Kpli_apap_glu",
+                     # "Kpre_apap_sul", "Kpre_apap_glu", "Kpli_apap_glu"#,
+                     # "Kpre_co2c13", "Kpre_co2c13", "Kpli_co2c13",
+                     # "Kpre_metc13", "Kpre_metc13", "Kpli_metc13"
+                     )
+
+fixed_parameters10 <- pars[!(names(pars)%in%c(free_parameters10,names(f)[1]))] %>% names
+
+mydatalist <- data %>% select(-n) %>% as.datalist()
+conditions <- mydatalist %>% attr("condition.grid")
+
+
+observables10 <- c(apap = "Ave_apap/(BW*FVve)*scale_apap",
+                 apap_glu = "Ave_apap_glu/(BW*FVve)*scale_apap_glu",
+                 apap_sul = "Ave_apap_sul/(BW*FVve)*scale_apap_sul",
+                 apap_cys = "Ave_apap_cys/(BW*FVve)*scale_apap_cys")
+scale_parameters10 <- paste0("scale_apap", c("", "_glu", "_sul", "_cys")) %>% set_names(.,.)
+
+# free_parameters10 <- c(free_parameters10, scale_parameters10)
+
+error_model10 <- c(apap = "srel_apap*apap^2 +s0_apap", 
+                 apap_glu = "srel_apap_glu*apap_glu^2 +s0_apap_glu", 
+                 apap_sul = "srel_apap_sul*apap_sul^2 +s0_apap_sul", 
+                 apap_cys = "srel_apap_cys*apap_cys^2 +s0_apap_cys")
+error_parameters10 <- setdiff(getSymbols(error_model10), names(error_model10)) %>% set_names(.,.)
+
+p_list <- lapply(1:nrow(conditions), function(i) {
+  cond <- unlist(conditions[i,])[2:3]
+  
+  trafo <- as.character(pars) %>% set_names(names(pars))
+  trafo[names(cond)] <- cond
+  trafo[free_parameters10] <- paste0("exp(log", free_parameters10, ")")
+
+  scales <- rownames(conditions)[i] %>% {repar("x~exp(log_x_y)", scale_parameters10, x = scale_parameters10, y = .)} %>% str_replace_all("\\.", "") %>% set_names(scale_parameters10)
+  scales[1:length(scales)] <- "1"
+  
+  errors <- rownames(conditions)[i] %>% {repar("x~exp(log_x_y)", error_parameters10, x = error_parameters10, y = .)}%>% str_replace_all("\\.", "") %>% set_names(error_parameters10)
+  errors <- errors[names(errors) %>% sapply(. %>% str_detect(mydatalist[[i]][["name"]] %>% unique() %>% paste0("$")) %>% any)]
+  
+  trafo <- c(trafo, scales, errors)
+    
+  p <- P(trafo, condition=rownames(conditions[i,]))
+  return(p)
+})
+p10 <- NULL
+for(i in 1:length(p_list)) { p10 <<- p10 + p_list[[i]]}
+
+g10 <- Y(observables10, x)#, parameters = c(free_parameters10, scale_parameters10))  
+
+err10 <- Y(error_model10, g10)
+
+obj10 <- normL2(mydatalist, (g10*x*p10), errmodel = err10)
+
+
+pouter10 <- rep(0, length(getParameters(obj10))) %>% set_names(getParameters(obj10))
+pouter10[names(myfit5 %>% as.parframe() %>% {.[2,]} %>% as.parvec())] <- myfit5 %>% as.parframe() %>% {.[2,]} %>% as.parvec()
+
+# job10 <- runbg({myfit <- mstrust(objfun = obj10, center = pouter10, studyname = "methacetin", cores = 16, fits = 200); myfit}, machine = "ruprecht1", filename = "job10", input = global_env_without(c("mypred", "job", "myfit")))
+
+# save(job10, file = "job10.rda")
+
+# job10$check()
+
+```
 
 
 
