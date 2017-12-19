@@ -164,18 +164,18 @@ static double range[2];
 #define tmax range[1]
 
 
-void methacetin_initmod(void (* odeparms)(int *, double *)) {
+void methacetin_reduced_initmod(void (* odeparms)(int *, double *)) {
 	 int N=149;
 	 odeparms(&N, parms);
 }
 
-void methacetin_initforc(void (* odeforcs)(int *, double *)) {
+void methacetin_reduced_initforc(void (* odeforcs)(int *, double *)) {
 	 int N=0;
 	 odeforcs(&N, forc);
 }
 
 /** Derivatives (ODE system) **/
-void methacetin_derivs (int *n, double *t, double *y, double *ydot, double *RPAR, int *IPAR) {
+void methacetin_reduced_derivs (int *n, double *t, double *y, double *ydot, double *RPAR, int *IPAR) {
 
 	 double time = *t;
 
