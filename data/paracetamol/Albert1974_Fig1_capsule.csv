@@ -1,0 +1,12 @@
+study	n	application	time_min	time	apap	apap_cv	apap_sd
+Albert1974	10	soft gelatin capsule	10	0.1666666667	0.02	160	0.032
+Albert1974	10	soft gelatin capsule	20	0.3333333333	1.73	135	2.3355
+Albert1974	10	soft gelatin capsule	30	0.5	2.38	83.4	1.98492
+Albert1974	10	soft gelatin capsule	40	0.6666666667	3.26	42.7	1.39202
+Albert1974	10	soft gelatin capsule	60	1	4.82	24.6	1.18572
+Albert1974	10	soft gelatin capsule	120	2	5.36	23	1.2328
+Albert1974	10	soft gelatin capsule	240	4	3.13	13	0.4069
+Albert1974	10	soft gelatin capsule	360	6	1.84	13.8	0.25392
+Albert1974	10	soft gelatin capsule	480	8	1.22	21.7	0.26474
+Albert1974	10	soft gelatin capsule	720	12	0.52	22.6	0.11752
+
