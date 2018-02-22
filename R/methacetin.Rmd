@@ -32,7 +32,7 @@ library(libSBML)
 This is basically copied from a libSBML-example
 ```{r}
 
-filename <- "/home/denial/Promotion/Projects/methacetin_fitting/model/met13_pkpd_7.xml" # Attention: tilde expansion doesn't work
+filename <- "/home/dl140/Promotion/Projects/methacetin_fitting/model/limax_pkpd_37.xml" # Attention: tilde expansion doesn't work
 d <-  readSBML(filename)
 
 m <- SBMLDocument_getModel(d)
@@ -63,25 +63,8 @@ cat( "\n" );
 
 ```
 
-
-### Einschub: der Pipe-Operator %>% 
 ```{r}
-# Mit dem Pipe-Operator kann man Funktionen verketten
-# Standardmäßig wird das vorherige Ergebnis als erstes Argument von der nächsten Funktion eingesetzt. wenn man das nicht will, kann man es als . woanders hinsetzen
 
-f <- function(x) x^2;
-g <- function(x,y) x-y;
-
-2 %>% f # f(2)
-2 %>% f %>% g(3) # g(f(2),3) = 4-3 = 1
-2 %>% f %>% g(3,.) # g(3,f(2)) = 3-4 = -1
-
-# Man kann auch Funktionen definieren, die mit . losgehen, was dann das Argument für die Funktion ist.
-h <- . %>% sqrt %>% add(5)
-h(4)
-# Das ist besonders nützlich in lapply, sapply und so weiter, wo man über eine liste(oder einen vektor) immer wieder die gleiche funktion laufen lässt (syntactic sugar für for-loops)
-sapply(1:4, function(i) i^2 +5)
-sapply(1:4 , . %>% raise_to_power(2) %>% add(5) ) # dassselbe
 ```
 
 
@@ -90,6 +73,22 @@ sapply(1:4 , . %>% raise_to_power(2) %>% add(5) ) # dassselbe
 
 1. Get the assignment rules as string
 2. Apply the assignment rules onto themselves with str_replace. This is for assigments that convert parameters into other parameters
+
+```{r str_replace_pow}
+str_replace_pow <- . %>%  
+  str_replace_all("pow\\(([^,]*|(?!pow)),([^)]*)\\)", " ((\\1)^(\\2)) ") %>% # Do it a few times because of potenital nesting
+  str_replace_all("pow\\(([^,]*|(?!pow)),([^)]*)\\)", " ((\\1)^(\\2)) ") %>%
+  str_replace_all("pow\\(([^,]*|(?!pow)),([^)]*)\\)", " ((\\1)^(\\2)) ")
+
+# replaceOperation("^", "pow", "(x^2 + y^2)^.5") %>% str_replace_pow()
+```
+
+
+```{r}
+sapply(0:(nrules-1), . %>% ListOfRules_get(lrules,.) %>% Rule_isRate)
+```
+
+
 ```{r Asssignment Rules}
 # get rules
 nrules <- Model_getNumRules(m)
@@ -102,28 +101,49 @@ rulenames <- names(rules)
 # A "bad" rule would be eg "QC = CO*3600/100", since I take care of the Units later. Therefore, the rule should be only "QC = CO" 
 rules <- rules %>% str_replace_all(c("1000" = "1", "3600" = "1", "\\b60\\b" = 1)) %>% set_names(rulenames)
 
+rules <- rules %>% str_replace_pow() %>% set_names(rulenames)
 
 # Apply the rules onto themselves to insert parameter transformations
 # Final goal is to have a named vector where 
   # names are the "inner" parameters that are used within the model
   # values are functions of "outer" parameters that are fed into the model
 
-# apply rules 1st time
-rules <- paste0("(", rules, ")") %>% set_names(paste0("\\b", rulenames, "\\b"))
-rules <- str_replace_all(rules, rules) %>% set_names(rulenames)
+# apply rules onto themselves
+apply_rules_onto_themselves <- function(rules) {
+   rulenames <- names(rules)
+   paste0("(", rules, ")") %>% set_names(paste0("\\b", rulenames, "\\b")) %>% str_replace_all(., .) %>% set_names(rulenames)
+ }
 
-# apply rules 2nd time
-rules <- paste0("(", rules, ")") %>% set_names(paste0("\\b", rulenames, "\\b"))
-rules <- str_replace_all(rules, rules) %>% set_names(rulenames)
+rules <- rules %>% 
+  apply_rules_onto_themselves() %>% #do it a few times because of nesting
+  apply_rules_onto_themselves() %>% 
+  apply_rules_onto_themselves()
+
 
 # check if any of the rules are functions of other rules
 indices <- rules %>% sapply(. %>% str_detect(paste0("\\b",rulenames, "\\b")) %>% any)
-rules %>% extract(indices) %>% sapply(. %>% str_detect(paste0("\\b",rulenames, "\\b")) %>% extract(rulenames,.)) # check works, none of the 
+rules %>% extract(indices) %>% sapply(. %>% str_detect(paste0("\\b",rulenames, "\\b")) %>% extract(rulenames,.))# check works, none of the 
 
+rules  %>% .[order(names(.))] 
 # print(rules)
 
 # getSymbols(rules) # These are the "outer" parameters
 ```
+
+### Rate rules
+
+This is some werid stuff: These are ODEs which don't apply for species, but for *parameters*.
+This is not my understanding of a parameter, since in this case, for example the parameter D_co2c13 is not a parameter, but a state. The initial value of this state however, is of course a parameter.
+
+[] I need to append all the names of the rate rules to the states, this is done automatically by constructing the eqnlist
+[] Solve the problem with the rate laws multiplied by the Mr-factors
+
+```{r}
+is_rate_rule <- sapply(0:(nrules-1), . %>% ListOfRules_get(lrules,.) %>% Rule_isRate)
+rate_rules <- rules[is_rate_rule]
+```
+
+
 
 ## Reactions
 
@@ -131,8 +151,10 @@ rules %>% extract(indices) %>% sapply(. %>% str_detect(paste0("\\b",rulenames, "
 # get reactions
 nreactions <- Model_getNumReactions(m)
 lreactions <- Model_getListOfReactions(m)
+i <- 8
 reactions <- lapply(0:(nreactions-1), function(i) {
-  
+    # print(i)
+
   reaction <-  ListOfReactions_get(lreactions,i)
 
   nreactants <- reaction %>% Reaction_getNumReactants()
@@ -140,9 +162,9 @@ reactions <- lapply(0:(nreactions-1), function(i) {
     lreactants <- reaction %>% Reaction_getListOfReactants()
     myreactant_stoichiometries <- lapply(0:(nreactants-1), . %>% ListOfSpeciesReferences_get(lreactants,.) %>% SpeciesReference_getStoichiometry)
     myreactant_IDs <- lapply(0:(nreactants-1), . %>% ListOfSpeciesReferences_get(lreactants,.) %>% SimpleSpeciesReference_getSpecies)
-    from = paste0(paste0("(", myreactant_stoichiometries, "*", myreactant_IDs, ")"), collapse = "+")
+    from  <-  paste0(paste0("(", myreactant_stoichiometries, "*", myreactant_IDs, ")"), collapse = "+")
   } else {
-    from = ""
+    from  <-  ""
   }
 
   nproducts <- reaction %>% Reaction_getNumProducts()
@@ -150,31 +172,40 @@ reactions <- lapply(0:(nreactions-1), function(i) {
     lproducts <- reaction %>% Reaction_getListOfProducts()
     myproduct_stoichiometries <- lapply(0:(nproducts-1), . %>% ListOfSpeciesReferences_get(lproducts,.) %>% SpeciesReference_getStoichiometry)
     myproduct_IDs <- lapply(0:(nproducts-1), . %>% ListOfSpeciesReferences_get(lproducts,.) %>% SimpleSpeciesReference_getSpecies)
-    to = paste0(paste0("(", myproduct_stoichiometries, "*", myproduct_IDs, ")"), collapse = "+")
+    to <- paste0(paste0("(", myproduct_stoichiometries, "*", myproduct_IDs, ")"), collapse = "+")
   } else {
-    to = ""
+    to <-  ""
   }
 
   # Apply rules to rate expressions
-  myrules <- rules
-  mynames <- names(myrules)
-  absorption_indices <- str_detect(myrules, "Absorption") 
-  absorption_rules <- myrules[absorption_indices] %>% structure(names = mynames[absorption_indices])
-  myrules <- structure(myrules[!str_detect(myrules, "Absorption")], names = paste0("\\b", mynames[!str_detect(myrules, "Absorption")], "\\b"))
+  # myrules <- rules
+  # mynames <- names(myrules)
+  is_rate_rule <- sapply(0:(nrules-1), . %>% ListOfRules_get(lrules,.) %>% Rule_isRate)
+  myrules <-  rules[!is_rate_rule] %>% set_names(paste0("\\b", names(.), "\\b"))
+  rate_rules <- rules[is_rate_rule]
+  # absorption_indices <- str_detect(myrules, "Absorption") 
+  # absorption_rules <- myrules[absorption_indices] %>% structure(names = mynames[absorption_indices])
+  # myrules <- structure(myrules[!str_detect(myrules, "Absorption")], names = paste0("\\b", mynames[!str_detect(myrules, "Absorption")], "\\b"))
 
   rate <-  reaction %>% Reaction_getKineticLaw() %>% KineticLaw_getFormula() %>% str_replace_all(myrules)
   
   description <- reaction %>% Reaction_getId()
 
+  if(any(str_detect(rate_rules, description))) {
+    from[2] <- names(rate_rules)[rate_rules %>% str_detect(description)]
+    to[2] <- ""
+    rate[2] <- str_replace(rate_rules[rate_rules %>% str_detect(description)])
+    description[2] <- description
+  }
+  
   # Incorporate the absorption:
   # For this I add another reaction which absorbs the oral dose, e.g. D_apap_sul
   if(description %>% str_detect("Absorption")) {
-    from[2] <- names(absorption_rules)[absorption_rules %>% str_detect(paste0(description, "\\)*$"))]
+    from[2] <- names(absorption_rules)[absorption_rules %>% str_detect(description)]
     to[2] <- ""
     rate[2] <- rate
     description[2] <- description
   }
-  # print(i)
   
   return(data.frame(from = from, to  = to, rate = rate, description = description, stringsAsFactors = F))
 }) %>% do.call(rbind,.) # make one big data.frame out of it
@@ -191,7 +222,17 @@ f <- el %>% as.eqnvec()
 # This is the ODE when every rule is applied
 print(f %>% head)
 
+
+
 ```
+
+
+
+```{r}
+f %>% names
+```
+
+
 
 ## Parameters
 ```{r Parameters}
@@ -245,14 +286,19 @@ data.frame(par = names(sbml_parameters), value = sbml_parameters, original_unit=
 # rules[str_detect(rules, "MET2APAP")]
 # rules[str_detect(rules, "CO")]
 
+
+
 ```
+
+
+
 
 ## C-Code
 the odemodel() command takes a while because sensitivity equations are calculated for derivatives and then the whole system is compiled into c-code.
 ```{r big odemodel}
 # myodemodel <- odemodel(f, modelname = "methacetin") # this compiles the ode into a c-file. you can comment out this and the next line after it has been run once to save time.
-# save(myodemodel, file = "methacetin.rda")
-load("methacetin.rda")
+# saveRDS(myodemodel, file = "myodemodel_37.rds")
+myodemodel <- readRDS("myodemodel_37.rds")
 ```
 
 ## Prediction function
@@ -264,6 +310,12 @@ loadDLL(x)
 
 # get the only the parameters needed for x
 pars <- all_pars[getParameters(x)]
+
+x1 <- names(all_pars)
+
+x2 <- getParameters(x) %>% sort
+
+setdiff(x2,x1)
 ```
 
 ## Example plot
