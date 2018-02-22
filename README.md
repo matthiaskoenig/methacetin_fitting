@@ -11,6 +11,17 @@ A HTML model report is provided in the model directory as
 ./model/limax_pkpd_*.html
 ```
 
+### Python notebook
+Example simulations are available in the ipython notebook.
+For installation setup a python virtual environment with the requirements listed
+in requirements.txt
+```
+mkvirtualenv methacetin_fitting -p python3
+pip install -r requirements.txt
+
+```
+
+
 ## Free Parameters
 Parameters to optimize in the model
 ```
