@@ -119,7 +119,7 @@ apply_get_functions <- function(myobject) {
   
   # populate n
   # n <- eval(call(function_names %>% str_subset("getNum"), myobject))
-  n <- sbml_object_numbers[["Compartments"]]
+  n <- sbml_object_numbers[[myclass %>% str_replace_all("^_p_", "") %>% paste0("s")]]
   
   
   has_integer_arguments <- sapply(function_arguments, function(myargs) "integer" %in% myargs)
