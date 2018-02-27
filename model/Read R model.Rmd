@@ -1,0 +1,38 @@
+---
+title: "Read the Model"
+output: html_document
+---
+
+Load all important libraries
+```{r, message="FALSE, warning="FALSE, eval="TRUE}
+library(dMod)
+library(stringr) # Um bequem mit strings zu arbeiten
+library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für schöne plots
+library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
+library(conveniencefunctions)
+```
+
+# Read model
+```{r}
+source("limax_pkpd_39.R")
+```
+
+
+```{r}
+pars <- c(x0, p)
+pars_to_optimize <- c("Ka_apap", "APAPD_HLM_CL", "APAPD_Km_apap")
+
+# get all parameters occuring in dxdt_dmod
+pars_in_dxdtdmod <- c(getSymbols(dxdt_dmod), names(dxdt_dmod))
+```
+
+# parameters occuring in the ode, but not in "pars"
+```{r}
+setdiff(pars_in_dxdtdmod, names(pars))
+```
+
+# parameters occuring in "pars", but not in the ode
+```{r}
+setdiff(names(pars), pars_in_dxdtdmod) 
+```
+
