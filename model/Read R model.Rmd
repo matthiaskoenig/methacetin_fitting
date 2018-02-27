@@ -9,7 +9,7 @@ library(dMod)
 library(stringr) # Um bequem mit strings zu arbeiten
 library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für schöne plots
 library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
-library(conveniencefunctions)
+# library(conveniencefunctions)
 ```
 
 # Read model
