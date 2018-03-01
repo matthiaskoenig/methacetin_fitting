@@ -1,0 +1,377 @@
+---
+title: "Fitting model 39"
+output: html_document
+---
+
+Load all important libraries
+```{r, message=FALSE, warning=FALSE, eval=TRUE}
+library(dMod)
+library(stringr) # Um bequem mit strings zu arbeiten
+library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für schöne plots
+library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
+library(conveniencefunctions)
+```
+
+# Read model
+```{r}
+source("../model/limax_pkpd_39.R")
+```
+
+
+```{r}
+pars <- c(x0, p)
+pars_to_optimize <- c("Ka_apap", "APAPD_HLM_CL", "APAPD_Km_apap") 
+
+# get all parameters occuring in dxdt_dmod
+pars_in_dxdtdmod <- c(getSymbols(dxdt_dmod), names(dxdt_dmod))
+```
+
+## parameters occuring in the ode, but not in "pars"
+```{r}
+setdiff(pars_in_dxdtdmod, names(pars))
+```
+
+## parameters occuring in "pars", but not in the ode
+```{r}
+setdiff(names(pars), pars_in_dxdtdmod) 
+```
+
+## Odemodel and predicition function
+```{r}
+myodemodel <- odemodel(dxdt_dmod, fixed = setdiff(pars_in_dxdtdmod, c(pars_to_optimize, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+saveRDS(myodemodel, "odemodel.rds")
+myodemodel <- readRDS("odemodel.rds")
+x <- Xs(myodemodel)
+loadDLL(x)
+```
+
+
+## Observation function
+```{r}
+observables <- y_dmod[c("Mve_apap", "DOB")] %>% set_names(c("apap", "dob"))
+
+g <- Y(observables, x)
+```
+
+## Data
+Read and transform to dMod-style
+```{r}
+files <- file.path("../data", list.files("../data", pattern = ".csv", recursive = T))
+
+data <- lapply(files, . %>% read_tsv) %>% do.call(dMod::combine,.)
+
+data <- data %>% 
+  mutate(apap_se = apap_sd/sqrt(n)) %>% 
+  mutate(name = "apap") %>% 
+  
+  mutate(dose = replace(dose, is.na(dose), "")) %>% 
+  mutate(route = replace(route, is.na(route), "")) %>% 
+  mutate(application = replace(application, str_detect(application, "capsule"), "capsule"),
+         application = replace(application, is.na(application), "")) %>% 
+  
+  unite("study", study, application, route, dose, sep = "") %>% 
+  
+  select(study, n, name, time, value = apap, sigma = apap_se) %>% 
+  filter(!is.na(value)) %>% 
+  {.}
+
+data <- fitErrorModel(data, factors = c("study"))
+
+doses <- tibble(study =  unique(data$study), 
+                dose = c(650, 650, 1500,5600,1400,1000,1000,2000,500),
+                dosepar = c(rep("PODOSE_apap", 5), "IVDOSE_apap", rep("PODOSE_apap", 3)))
+
+
+data <- full_join(data, doses)
+data <-  data %>% select(-n)
+```
+
+
+## Prepare conditions
+```{r}
+covtable <- data %>% as.datalist() %>% covariates()
+
+dosepars <- doses$dosepar %>% unique
+outer_pars <- sort(c(dosepars, pars_to_optimize))
+
+
+
+trafo <-
+  pars %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% outer_pars), outer_pars) %>% 
+  branch(covtable) %>% 
+  define("dosepar~dose", dosepar = dosepar, dose = dose) %>% #insert values for the doses
+  insert("remainingdosepar~0", remainingdosepar = dosepars) %>% 
+  insert("x~exp(X)", x = pars_to_optimize, X = toupper(pars_to_optimize)) 
+
+p_0 <- P(trafo)
+
+mypars <- log(pars[pars_to_optimize]) %>% set_names(toupper(pars_to_optimize))
+
+```
+
+### Plot
+```{r}
+times <- seq(0,24, 0.1)
+plotCombined((g*x*p_0)(times, mypars, deriv = F), data = data %>% as.datalist, name %in% names(observables))
+```
+
+
+### Fit
+```{r}
+obj <- normL2(data %>% as.datalist, (g*x*p_0))
+
+myfits_0 <- mstrust(obj, mypars, "first_fits", result_path = "intermediate_results", sd = 5, fits = 20, cores = 4, blather = T)
+```
+
+```{r}
+myfits_0 %>% as.parframe()
+```
+
+```{r}
+plotCombined((g*x*p_0)(times, myfits_0 %>% as.parframe() %>% as.parvec(), deriv = F), data = data %>% as.datalist, name %in% names(observables))
+```
+
+To me it looks as if the data of Albert1974 capsule is shifted to the right, since its rise starts later.
+In the end this makes sense, because the capsule first needs to burst. The question is, how do we deal with this?
+
+
+# Allow for different Aborption speeds
+
+In a first step, let's assume all studies have a different absorption rate Ka_apap.
+
+
+## Data
+Read and transform to dMod-style
+```{r}
+files <- file.path("../data", list.files("../data", pattern = ".csv", recursive = T))
+
+data <- lapply(files, . %>% read_tsv) %>% do.call(dMod::combine,.)
+
+data <- data %>% 
+  mutate(apap_se = apap_sd/sqrt(n)) %>% 
+  mutate(name = "apap") %>% 
+  
+  mutate(dose = replace(dose, is.na(dose), "")) %>%
+  mutate(route = replace(route, is.na(route), "")) %>% 
+  mutate(application = replace(application, str_detect(application, "capsule"), "capsule"),
+         application = replace(application, is.na(application), "")) %>% 
+  
+  # unite("study", study, application, route, dose, sep = "") %>% 
+  
+  select(study, application, route, dose, n, name, time, value = apap, sigma = apap_se) %>% 
+  filter(!is.na(value)) %>% 
+  {.}
+
+data <- fitErrorModel(data, factors = c("study", "application", "route", "dose"), plotting = F)
+
+plotData(as.datalist(data))
+
+
+doses <- data.frame(unique(data[c("study", "application", "route", "dose")])[-4] %>% as.list, 
+                dose = as.character(c(650, 650, 1500,5600,1400,1000,1000,2000,500)),
+                dosepar = c(rep("PODOSE_apap", 5), "IVDOSE_apap", rep("PODOSE_apap", 3)),
+                stringsAsFactors = F)
+
+
+data
+
+data <-
+  rbind(
+  left_join(data %>% select(-dose), doses) %>% filter(!str_detect(study, "Rawlins1977")), 
+  right_join(data, doses) %>% filter(!is.na(value))
+)
+data <-  data %>% select(-n)
+
+plotData(as.datalist(data))
+```
+
+
+## Prepare conditions
+```{r}
+covtable <- data %>% as.datalist() %>% covariates()
+
+dosepars <- doses$dosepar %>% unique
+
+outer_pars <- sort(c(dosepars, pars_to_optimize))
+
+
+trafo <-
+  pars %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% outer_pars), outer_pars) %>% 
+  branch(covtable) %>% 
+  define("dosepar~dose", dosepar = dosepar, dose = dose) %>% #insert values for the doses
+  insert("remainingdosepar~0", remainingdosepar = dosepars) %>% # replace the other dose_par by zero
+  
+  insert("x~x_study_application", x = "Ka_apap", study = study, application = application) %>% 
+  
+  # insert("x~exp(X)", x = pars_to_optimize, X = toupper(pars_to_optimize)) 
+  insert("x~exp(X)", x = mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))], X = toupper(mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))]))  # hacking insert()...
+
+## trafo %>% head(1)
+p_1 <- P(trafo)
+
+
+
+mypars_1 <- getParameters(p_1) %>% are_names_of(0)
+
+
+dxdt_dmod %>% .[str_detect(.,"Km_apap")]
+
+```
+
+### Plot
+```{r}
+times <- seq(0,24, 0.1)
+plotCombined((g*x*p_1)(times, mypars, deriv = F), data = data %>% as.datalist, name %in% names(observables))
+```
+
+
+## Fit
+```{r}
+obj <- normL2(data %>% as.datalist, (g*x*p_1))
+
+myfits_1 <- mstrust(obj, mypars_1, "second_fits", result_path = "intermediate_results", sd = 5, fits = 20, cores = 4, blather = T)
+```
+
+```{r}
+myfits_1 %>% as.parframe()
+```
+
+Making the Ka_apap parameters condition specific improves the fit.
+```{r}
+plotCombined((g*x*p_1)(times, myfits_1 %>% as.parframe() %>% as.parvec(3), deriv = F), data = data %>% as.datalist, name %in% c("apap"))
+# plotly::ggplotly()
+```
+
+
+
+
+# Allow for different doses
+
+Maybe, we should we can try to adjust the dosing (in the end this might help to account for the different bodyweights)
+
+## Data
+Read and transform to dMod-style
+```{r}
+files <- file.path("../data", list.files("../data", pattern = ".csv", recursive = T))
+
+data <- lapply(files, . %>% read_tsv) %>% do.call(dMod::combine,.)
+
+data <- data %>% 
+  mutate(apap_se = apap_sd/sqrt(n)) %>% 
+  mutate(name = "apap") %>% 
+  
+  mutate(dose = replace(dose, is.na(dose), "")) %>%
+  mutate(route = replace(route, is.na(route), "")) %>% 
+  mutate(application = replace(application, str_detect(application, "capsule"), "capsule"),
+         application = replace(application, is.na(application), "")) %>% 
+  
+  # unite("study", study, application, route, dose, sep = "") %>% 
+  
+  select(study, application, route, dose, n, name, time, value = apap, sigma = apap_se) %>% 
+  filter(!is.na(value)) %>% 
+  {.}
+
+data <- fitErrorModel(data, factors = c("study", "application", "route", "dose"), plotting = F)
+
+plotData(as.datalist(data))
+
+
+doses <- data.frame(unique(data[c("study", "application", "route", "dose")])[-4] %>% as.list, 
+                dose = as.character(c(650, 650, 1500,5600,1400,1000,1000,2000,500)),
+                dosepar = c(rep("PODOSE_apap", 5), "IVDOSE_apap", rep("PODOSE_apap", 3)),
+                stringsAsFactors = F)
+
+
+data
+
+data <-
+  rbind(
+  left_join(data %>% select(-dose), doses) %>% filter(!str_detect(study, "Rawlins1977")), 
+  right_join(data, doses) %>% filter(!is.na(value))
+)
+data <-  data %>% select(-n)
+
+plotData(as.datalist(data))
+```
+
+
+## Prepare conditions
+```{r}
+covtable <- data %>% as.datalist() %>% covariates()
+
+dosepars <- doses$dosepar %>% unique
+
+outer_pars <- sort(c(dosepars, pars_to_optimize))
+
+
+trafo <-
+  pars %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% outer_pars), outer_pars) %>% 
+  branch(covtable) %>% 
+  define("dosepar~DOSE_study_dose", dosepar = dosepar, dose = dose, study = study) %>% #insert values for the doses
+  insert("remainingdosepar~0", remainingdosepar = dosepars) %>% # replace the other dose_par by zero
+  
+  insert("x~x_study_application", x = "Ka_apap", study = study, application = application) %>% 
+  
+  # insert("x~exp(X)", x = pars_to_optimize, X = toupper(pars_to_optimize)) 
+  insert("x~exp(X)", x = mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))], X = toupper(mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))]))  # hacking insert()...
+
+# trafo %>% head(1)
+p_2 <- P(trafo)
+
+
+
+mypars_2 <- getParameters(p_2) %>% are_names_of(0)
+
+
+
+```
+
+
+
+## Fit
+Fit with condition specific Ka_apap and Dosing
+
+Apply a l2 prior on the dose.
+```{r}
+obj <- normL2(data %>% as.datalist, (g*x*p_2))
+
+mypars_2[str_detect(names(mypars_2), "DOSE")] <-  names(mypars_2[str_detect(names(mypars_2), "DOSE")]) %>% str_extract("\\d{3,4}$") %>% as.numeric() %>% log()
+
+constraint <- constraintL2(mypars_2[str_detect(names(mypars_2), "DOSE")], sigma = 1) # set L2 constraint on the dose_parameters
+
+myfits_2 <- mstrust((obj+constraint), mypars_2, "third_fits", result_path = "intermediate_results", sd = 1, fits = 4, cores = 4, blather = T)
+```
+
+## potential bug
+```{r}
+## mstrust(obj1 + obj2, pars,...) doesnt throw an error, even though it should be mstrust((obj1 + obj2), pars,...) (with more brackets)
+
+```
+
+Wieso sind die dose_parameters exakt auf ihren angegebenen Werten gelandet?
+```{r}
+myfits_2 %>% as.parframe()
+
+myfits_2 %>% as.parframe() %>% as.parvec() %>% exp
+```
+
+
+```{r}
+plotCombined((g*x*p_2)(times, myfits_2 %>% as.parframe() %>% as.parvec(3), deriv = F), data = data %>% as.datalist, name %in% c("apap"))
+## plotly::ggplotly()
+```
+
+
+```{r}
+save.image()
+```
+
+
+
+
