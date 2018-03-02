@@ -329,3 +329,32 @@ PODOSE_metc13 = 150.0  # [mg] (1 [mg/kg])
 time, subjects, recovery ± recovery_sd, cum ± cum_sd 
 PODOSE_metc13 = 75.0  # [mg]
 ```
+
+## [C] LiMAx
+
+### Observer Functions
+```
+apap = Mve_apap     # [mg/dl] paracetamol concentration plasma
+metc13 = Mve_metc13  # [mg/dl] paracetamol concentration plasma
+dob = DOB
+```
+
+### Free Parameters
+```
+CYP1A2MET_CL    # Vmax value hepatic clearance
+CYP1A2MET_Km_met  # [mM] Km value for methacetin
+```
+
+### Studies
+
+*** Taheri2013_2mg ***
+```
+time, subjects, apap ± apap_sd, metc13 ± metc13_sd, dob ± dob_sd  
+IVDOSE_metc13 = 150.0  # [mg] (2 [mg/kg])
+```
+
+*** Taheri2013_4mg ***
+```
+time, subjects, apap ± apap_sd, metc13 ± metc13_sd, dob ± dob_sd  
+IVDOSE_metc13 = 150.0  # [mg] (2 [mg/kg])
+```
