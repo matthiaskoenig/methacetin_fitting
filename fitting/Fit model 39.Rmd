@@ -27,50 +27,105 @@ load("2018-03-01 16-10 workspace.rda")
 source("../model/limax_pkpd_39.R")
 ```
 
-
 ```{r}
-pars <- c(x0, p)
-pars_to_optimize <- c("Ka_apap", "APAPD_HLM_CL", "APAPD_Km_apap") 
-
-# get all parameters occuring in dxdt_dmod
+pars_raw <- c(x0, p) 
 pars_in_dxdtdmod <- c(getSymbols(dxdt_dmod), names(dxdt_dmod))
 ```
 
-## parameters occuring in the ode, but not in "pars"
-```{r}
-setdiff(pars_in_dxdtdmod, names(pars))
+# Odemodels and predicition function
+
+## Apap
+```{r odemodel_apap}
+free_pars_apap <- c("Ka_apap", "APAPD_HLM_CL", "APAPD_Km_apap", "Aar_apap")
+odemodel_apap <- odemodel(dxdt_dmod, modelname = "odemodel_apap", fixed = setdiff(pars_in_dxdtdmod, free_pars_apap)) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+x_apap <- Xs(odemodel_apap)
 ```
 
-## parameters occuring in "pars", but not in the ode
-```{r}
-setdiff(names(pars), pars_in_dxdtdmod) 
+```{r odemodel_apap_doses}
+free_pars_apap_doses <- c(free_pars_apap, "PODOSE_apap", "IVDOSE_apap")
+odemodel_apap <- odemodel(dxdt_dmod, modelname = "odemodel_apap_doses", fixed = setdiff(pars_in_dxdtdmod, free_pars_apap_doses)) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+x_apap <- Xs(odemodel_apap)
 ```
 
-## Odemodel and predicition function
-```{r, eval=TRUE}
-# myodemodel <- odemodel(dxdt_dmod, fixed = setdiff(pars_in_dxdtdmod, c(pars_to_optimize, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
-# saveRDS(myodemodel, "odemodel.rds")
-myodemodel <- readRDS("odemodel.rds")
-x <- Xs(myodemodel)
-loadDLL(x)
+## Bicarbonate
+
+```{r odemodel_bic}
+free_pars_bic <- c("Ka_co2c13", "KLU_EXCO2", "CO2FIX_HLM_CL", "KBO_FIXCO2", "KBO_RELCO2", "KBO_MAXCO2")
+odemodel_bic <- odemodel(dxdt_dmod, modelname = "odemodel_bic", fixed = setdiff(pars_in_dxdtdmod, free_pars_bic)) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+x_bic <- Xs(odemodel_bic)
+```
+
+## Metc13
+
+```{r odemodel_met}
+free_pars_met <- c("Ka_metc13", "CYP1A2MET_CL", "CYP1A2Met_Km_met")
+odemodel_met <- odemodel(dxdt_dmod, modelname = "odemodel_met", fixed = setdiff(pars_in_dxdtdmod, free_pars_met)) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+x_met <- Xs(odemodel_met)
+```
+
+## Combined
+
+```{r odemodel_apap_bic_met}
+free_pars_apap_bic_met <- c(free_pars_apap_doses, free_pars_bic, free_pars_met) %>% unique
+odemodel_apap_bic_met <- odemodel(dxdt_dmod, modelname = "odemodel_apap_bic_met", fixed = setdiff(pars_in_dxdtdmod, free_pars_apap_bic_met)) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+x_apap_bic_met <- Xs(odemodel_apap_bic_met)
 ```
 
 
-## Observation function
-```{r}
-observables <- y_dmod[c("Mve_apap", "DOB")] %>% set_names(c("apap", "dob"))
+# Observation functions
 
-g <- Y(observables, x)
+## Apap, Apap_dose
+
+```{r g_apap}
+observables_apap <- y_dmod[c("Mve_apap", "DOB")] %>% set_names(c("apap", "dob_apap"))
+g_apap <- Y(observables, x_apap)
 ```
 
-## Data
-Read and transform to dMod-style
+## Bicarbonate
+
+```{r g_bic}
+recovery_bic <- paste(y_dmod["Exhalation_co2c13"], "/ 60 *", y_dmod["Mre_co2c13"], "/ Ri_co2c13 * 100")
+observables_bic <- c(recovery_bic, y_dmod[c("DOB", "P_CO2Fc13")])
+names(observables_bic) <- c("recovery_bic", "dob_bic", "co2_ratio_bic")
+
+g_bic <- Y(observables_bic, x_bic)
+```
+
+## Metc13
+
+```{r g_met}
+recovery_met <- paste(y_dmod["Exhalation_co2c13"], "/ PODOSE_metc13 * Mr_metc13 * 100" )
+cum_met <- paste( dxdt_dmod["Abreath_co2c13"], "/ PODOSE_metc13 * Mr_metc13 * 100")
+observables_met <- c(recovery_met, cum_met) %>% set_names(c("recovery_met", "cum_met"))
+
+g_met <- Y(observables_met, x_met)
+```
+
+## Combined
+
+```{r g_apap_bic_met}
+observables_apap_bic_met <- c(observables_apap, observables_bic, observables_met) %>% 
+g_apap_bic_met <- Y(observables_apap_bic_met, x_apap_bic_met)
+```
+
+
+# Data and condition preparation
+Read data and transform to dMod-style, generate the different conditions
+
+## Apap 
+
+### Read data
 ```{r}
 files <- file.path("../data", list.files("../data", pattern = ".csv", recursive = T))
 
-data_0 <- lapply(files, . %>% read_tsv) %>% do.call(dMod::combine,.)
+data_apap <- lapply(files, . %>% read_tsv) %>% do.call(dMod::combine,.)
 
-data_0 <- data_0 %>% 
+data_apap <- data_apap %>% 
   mutate(apap_se = apap_sd/sqrt(n)) %>% 
   mutate(name = "apap") %>% 
   
@@ -85,66 +140,68 @@ data_0 <- data_0 %>%
   filter(!is.na(value)) %>% 
   {.}
 
-data_0 <- fitErrorModel(data_0, factors = c("study"))
+data_apap <- fitErrorModel(data_apap, factors = c("study"), plotting = F)
 
-doses <- tibble(study =  unique(data_0$study), 
+doses <- tibble(study =  unique(data_apap$study), 
                 dose = c(650, 650, 1500,5600,1400,1000,1000,2000,500),
                 dosepar = c(rep("PODOSE_apap", 5), "IVDOSE_apap", rep("PODOSE_apap", 3)))
 
 
-data_0 <- full_join(data_0, doses)
-data_0 <-  data_0 %>% select(-n)
+data_apap <- full_join(data_apap, doses)
+data_apap <-  data_apap %>% select(-n)
 ```
 
 
-## Prepare conditions
+### Prepare conditions
 ```{r}
-covtable <- data_0 %>% as.datalist() %>% covariates()
+covtable <- data_apap %>% as.datalist() %>% covariates()
 
 dosepars <- doses$dosepar %>% unique
-outer_pars <- sort(c(dosepars, pars_to_optimize))
+outer_pars <- sort(c(dosepars, free_pars_apap))
 
 
 
 trafo <-
-  pars %>% 
+  pars_raw %>% 
   sort_by_name() %>% 
   replace((names(.) %in% outer_pars), outer_pars) %>% 
   branch(covtable) %>% 
   define("dosepar~dose", dosepar = dosepar, dose = dose) %>% #insert values for the doses
   insert("remainingdosepar~0", remainingdosepar = dosepars) %>% 
-  insert("x~exp(X)", x = pars_to_optimize, X = toupper(pars_to_optimize)) 
+  insert("x~exp(X)", x = free_pars_apap, X = toupper(free_pars_apap)) 
 
-p_0 <- P(trafo)
+p_apap <- P(trafo)
 
-mypars <- log(pars[pars_to_optimize]) %>% set_names(toupper(pars_to_optimize))
-
+pars_apap <- log(pars_raw[free_pars_apap]) %>% set_names(toupper(free_pars_apap))
 ```
 
 ### Plot
 ```{r, eval=TRUE}
 times <- seq(0,24, 0.1)
-plotCombined((g*x*p_0)(times, mypars, deriv = F), data = data_0 %>% as.datalist, name %in% names(observables))
+plotCombined((g*x_apap*p_apap)(times, pars_apap, deriv = F), data = data_apap %>% as.datalist, name %in% names(observables))
 ```
 
 
 ## Fit
 ```{r}
-obj <- normL2(data_0 %>% as.datalist, (g*x*p_0))
+obj_apap <- normL2(data_apap %>% as.datalist, (g*x_apap*p_apap))
 
-myfits_0 <- mstrust(obj, mypars, "first_fits", result_path = "intermediate_results", sd = 5, fits = 20, cores = 4, blather = T)
+# obj_apap(pars_apap)
+
+myfits_apap <- mstrust(obj_apap, pars, "first_fits", result_path = "intermediate_results", sd = 5, fits = 20, cores = 3, blather = T)
 ```
 
 
+
 ```{r, eval=TRUE}
-myfits_0 %>% as.parframe()%>% head(7)
+myfits_apap %>% as.parframe() %>% head(7)
 ```
 
 ### Plot the best fit
 ```{r, eval=TRUE}
-myfits_0 %>% as.parframe() %>% as.parvec()
-plotCombined((g*x*p_0)(times, myfits_0 %>% as.parframe() %>% as.parvec(), deriv = F), data = data_0 %>% as.datalist, name %in% c("apap")) + 
-  ggtitle(paste("           -2LL =", myfits_0 %>% as.parframe() %>% .[1,"value"] %>% unlist %>% round(2)))
+myfits_apap %>% as.parframe() %>% as.parvec() %>% exp()
+plotCombined((g*x_apap*p_apap)(times, myfits_apap %>% as.parframe() %>% as.parvec(), deriv = F), data = data_apap %>% as.datalist, name %in% c("apap")) + 
+  ggtitle(paste("           -2LL =", myfits_apap %>% as.parframe() %>% .[1,"value"] %>% unlist %>% round(2)))
 ```
 
 To me it looks as if the data of Albert1974 capsule is shifted to the right, since its rise starts later.
@@ -164,7 +221,7 @@ Read and transform to dMod-style
 ```{r}
 files <- file.path("../data", list.files("../data", pattern = ".csv", recursive = T))
 
-data_1 <- lapply(files, . %>% read_tsv) %>% do.call(dMod::combine,.)
+data_1 <- lapply(files, . %>% read_tsv) %>% do.call(dMod::combine,.)htop
 
 data_1 <- data_1 %>% 
   mutate(apap_se = apap_sd/sqrt(n)) %>% 
@@ -212,11 +269,11 @@ covtable <- data_1 %>% as.datalist() %>% covariates()
 
 dosepars <- doses$dosepar %>% unique
 
-outer_pars <- sort(c(dosepars, pars_to_optimize))
+outer_pars <- sort(c(dosepars, free_pars_apap))
 
 
 trafo <-
-  pars %>% 
+  pars_raw %>% 
   sort_by_name() %>% 
   replace((names(.) %in% outer_pars), outer_pars) %>% 
   branch(covtable) %>% 
@@ -225,7 +282,7 @@ trafo <-
   
   insert("x~x_study_application", x = "Ka_apap", study = study, application = application) %>% 
   
-  # insert("x~exp(X)", x = pars_to_optimize, X = toupper(pars_to_optimize)) 
+  # insert("x~exp(X)", x = free_pars_apap, X = toupper(free_pars_apap)) 
   insert("x~exp(X)", x = mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))], X = toupper(mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))]))  # hacking insert()...
 
 ## trafo %>% head(1)
@@ -233,7 +290,7 @@ p_1 <- P(trafo)
 
 
 
-mypars_1 <- getParameters(p_1) %>% are_names_of(0)
+pars_1 <- getParameters(p_1) %>% are_names_of(0)
 
 
 dxdt_dmod %>% .[str_detect(.,"Km_apap")]
@@ -244,9 +301,9 @@ dxdt_dmod %>% .[str_detect(.,"Km_apap")]
 
 ## Fit
 ```{r}
-obj <- normL2(data_1 %>% as.datalist, (g*x*p_1))
+obj_1 <- normL2(data_1 %>% as.datalist, (g*x_apap*p_1))
 
-myfits_1 <- mstrust(obj, mypars_1, "second_fits", result_path = "intermediate_results", sd = 5, fits = 20, cores = 4, blather = T)
+myfits_1 <- mstrust(obj_1, pars_1, "second_fits", result_path = "intermediate_results", sd = 5, fits = 20, cores = 4, blather = T)
 ```
 
 Show which fits converged
@@ -257,9 +314,51 @@ myfits_1 %>% as.parframe() %>% head(7)
 ### Plot the best fit
 Making the Ka_apap parameters condition specific improves the fit.
 ```{r, eval=TRUE}
-plotCombined((g*x*p_1)(times, myfits_1 %>% as.parframe() %>% as.parvec(1), deriv = F), data = data_1 %>% as.datalist, name %in% c("apap")) + 
+plotCombined((g*x_apap*p_1)(times, myfits_1 %>% as.parframe() %>% as.parvec(1), deriv = F), data = data_1 %>% as.datalist, name %in% c("apap")) + 
   ggtitle(paste("           -2LL =", myfits_1 %>% as.parframe() %>% .[1,"value"] %>% unlist %>% round(2)))
 # plotly::ggplotly()
+```
+
+
+## Run a profile likelihood analysis
+```{r}
+profile_job <- runbg(profile(obj_1, myfits_1 %>% as.parframe() %>% as.parvec(), names(pars_1), cores = 20), machine = "knecht6")
+
+profiles_1 <- profile_job$get()$knecht6
+profile_job$purge()
+```
+
+
+
+```{r}
+
+transform_profile_pars <- function(profiles_1, par_value_fun) {
+
+  my_expr <- rlang::enquo(par_value_fun)
+  
+# quo(
+  profiles_1 %>% 
+    gather(key = "par", value = "par_value", 7:length(.)) %>%  
+    # mutate(par_value = !!my_expr) %>%
+    mutate(par_value = UQ(rlang::enquo(par_value_fun))) %>%
+    spread(key = par, value = par_value) %>% 
+    structure(class = c("parframe", "data.frame")) %>% 
+    {.}
+  
+# )
+  
+  
+}
+
+
+
+transform_profile_pars(profiles_1, exp(par_value)) %>% plotProfile()
+profiles_1 %>% plotProfile()
+```
+
+
+```{r}
+prf1 %>% plotProfile()
 ```
 
 
@@ -272,11 +371,10 @@ It seems as if the specified dosing is too low in many cases. Therefore, we shou
 
 ## Prediction function with sensitivites also for doses
 ```{r}
-# myodemodel_2 <- odemodel(dxdt_dmod, fixed = setdiff(pars_in_dxdtdmod, c(pars_to_optimize, "Aar_apap", "PODOSE_apap", "IVDOSE_apap")), modelname = "odemodel_2") # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
-# saveRDS(myodemodel_2, "odemodel_2.rds")
-myodemodel_2 <- readRDS("odemodel_2.rds")
-x_2 <- Xs(myodemodel_2)
-loadDLL(x_2)
+odemodel_apap_doses <- odemodel(dxdt_dmod, fixed = setdiff(pars_in_dxdtdmod, c(free_pars_apap, "Aar_apap", "PODOSE_apap", "IVDOSE_apap")), modelname = "odemodel_2") # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+x_apap_doses <- Xs(odemodel_apap_doses)
+loadDLL(x_apap_doses)
 ```
 
 
@@ -333,11 +431,11 @@ covtable <- data_2 %>% as.datalist() %>% covariates()
 
 dosepars <- doses$dosepar %>% unique
 
-outer_pars <- sort(c(dosepars, pars_to_optimize))
+outer_pars <- sort(c(dosepars, free_pars_apap))
 
 
 trafo <-
-  pars %>% 
+  pars_raw %>% 
   sort_by_name() %>% 
   replace((names(.) %in% outer_pars), outer_pars) %>% 
   branch(covtable) %>% 
@@ -346,7 +444,7 @@ trafo <-
   
   insert("x~x_study_application", x = "Ka_apap", study = study, application = application) %>% 
   
-  # insert("x~exp(X)", x = pars_to_optimize, X = toupper(pars_to_optimize)) 
+  # insert("x~exp(X)", x = free_pars_apap, X = toupper(free_pars_apap)) 
   insert("x~exp(X)", x = mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))], X = toupper(mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))]))  # hacking insert()..., ignore the warnings, they're wanted :)
 
 # trafo %>% head(1)
@@ -354,7 +452,7 @@ p_2 <- P(trafo)
 
 
 
-mypars_2 <- getParameters(p_2) %>% are_names_of(0)
+pars_2 <- getParameters(p_2) %>% are_names_of(0)
 
 
 
@@ -367,13 +465,13 @@ Fit with condition specific Ka_apap and Dosing
 
 Apply a l2 prior on the dose.
 ```{r}
-obj <- normL2(data_2 %>% as.datalist, (g*x_2*p_2))
+obj <- normL2(data_2 %>% as.datalist, (g*x_apap_doses*p_2))
 
-mypars_2[str_detect(names(mypars_2), "DOSE")] <-  names(mypars_2[str_detect(names(mypars_2), "DOSE")]) %>% str_extract("\\d{3,4}$") %>% as.numeric() %>% log()
+pars_2[str_detect(names(pars_2), "DOSE")] <-  names(pars_2[str_detect(names(pars_2), "DOSE")]) %>% str_extract("\\d{3,4}$") %>% as.numeric() %>% log()
 
-constraint <- constraintL2(mypars_2[str_detect(names(mypars_2), "DOSE")], sigma = .5) # set L2 constraint on the dose_parameters
+constraint <- constraintL2(pars_2[str_detect(names(pars_2), "DOSE")], sigma = .5) # set L2 constraint on the dose_parameters
 
-# myfits_2 <- runbg({mstrust((obj+constraint), mypars_2, "third_fits", result_path = "third_fits", sd = 3, fits = 96, cores = detectFreeCores(), blather = T)}, machine = "knecht6")
+# myfits_2 <- runbg({mstrust((obj+constraint), pars_2, "third_fits", result_path = "third_fits", sd = 3, fits = 96, cores = detectFreeCores(), blather = T)}, machine = "knecht6")
 ```
 
 
@@ -392,7 +490,7 @@ myfits_2 %>% as.parframe() %>% as.parvec() %>% exp
 ```
 
 ```{r, eval=TRUE}
-plotCombined((g*x*p_2)(times, myfits_2 %>% as.parframe() %>% as.parvec(1), deriv = F), data = data_2 %>% as.datalist, name %in% c("apap"))+ 
+plotCombined((g*x_apap_doses*p_2)(times, myfits_2 %>% as.parframe() %>% as.parvec(1), deriv = F), data = data_2 %>% as.datalist, name %in% c("apap"))+ 
   ggtitle(paste("           -2LL =", myfits_2 %>% as.parframe() %>% .[1,"value"] %>% unlist %>% round(2)))
 ## plotly::ggplotly()
 ```
@@ -406,7 +504,7 @@ myfits_2 %>% as.parframe(5) %>% as.parvec() %>% exp
 ```
 
 ```{r, eval=TRUE}
-plotCombined((g*x*p_2)(times, myfits_2 %>% as.parframe() %>% as.parvec(5), deriv = F), data = data_2 %>% as.datalist, name %in% c("apap"))+ 
+plotCombined((g*x_apap_doses*p_2)(times, myfits_2 %>% as.parframe() %>% as.parvec(5), deriv = F), data = data_2 %>% as.datalist, name %in% c("apap"))+ 
   ggtitle(paste("           -2LL =", myfits_1 %>% as.parframe() %>% .[5,"value"] %>% unlist %>% round(2)))
 ## plotly::ggplotly()
 ```
@@ -414,7 +512,7 @@ plotCombined((g*x*p_2)(times, myfits_2 %>% as.parframe() %>% as.parvec(5), deriv
 
 
 ```{r}
-# save.image(file = tpaste0("workspace.rda"))
+save.image(file = tpaste0("workspace.rda"))
 ```
 
 
