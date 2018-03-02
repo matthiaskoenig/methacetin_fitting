@@ -40,7 +40,7 @@ Datasets are separated in paracetamol, bicarbonate and limax data sets.
 
 ## [A] paracetamol
 
-## Observer Functions
+### Observer Functions
 On the left of the equation are the names in the data files, on the right are the calculated values
 based on model variables
 ```
@@ -48,7 +48,7 @@ apap = Mve_apap     # [mg/dl] paracetamol concentration plasma
 dob = DOB           # [‰] Delta over baseline  
 ```
 
-## Free Parameters
+### Free Parameters
 Parameters to optimize in the model
 ```
 # paracetamol (apap)
@@ -136,6 +136,7 @@ recovery = Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0  # [%] revovery after 
 ```
 Ka_co2c13       # [1/hr] absorption bicarbonate gut
 KLU_EXCO2       # CO2 rate of disposal in air [1/min]
+CO2FIX_HLM_CL   # CO2 fixation liver?
 KBO_FIXCO2      # CO2 storage slow pool [1/min],
 KBO_RELCO2      # CO2 release slow pool [1/min]"),
 KBO_MAXCO2      # CO2 pool size [mg]"),
@@ -210,4 +211,121 @@ Ri_co2c13 = 0.79  # [mg/min]
 ```
 time, n, recovery ± recovery_sd
 Ri_co2c13 = 0.79  # [mg/min]
+```
+
+
+## [C] methacetin
+
+### Observer Functions
+```
+recovery = Exhalation_co2c13/(PODOSE_metc13/Mr_metc13) * 100 # [% dose/h] momentary recovery
+cum = Abreath_co2c13/(dose/Mr_metc13) * 100  # [% dose] cummulative recovery
+```
+
+### Free Parameters
+```
+Ka_metc13       # [1/hr] absorption methacetin gut
+CYP1A2MET_CL    # Vmax value hepatic clearance
+CYP1A2MET_Km_met  # [mM] Km value for methacetin
+
+# the tissue distribution coefficients could be important (but must be changed together)
+```
+
+### Studies
+
+*** Kasicka-Jonderko2008_young ***
+```
+time, subjects, recovery ± recovery_sd, cum ± cum_sd 
+PODOSE_metc13 = 75.0  # [mg]
+```
+
+*** Kasicka-Jonderko2008_middle-aged ***
+```
+time, subjects, recovery ± recovery_sd, cum ± cum_sd 
+PODOSE_metc13 = 75.0  # [mg]
+```
+
+*** Kasicka-Jonderko2011_2d ***
+```
+time, subjects, recovery ± recovery_sd 
+PODOSE_metc13 = 75.0  # [mg]
+```
+
+*** Kasicka-Jonderko2011_18d ***
+```
+time, subjects, recovery ± recovery_sd 
+PODOSE_metc13 = 75.0  # [mg]
+```
+
+*** Kasicka-Jonderko2011_baseline1 ***
+```
+time, subjects, recovery ± recovery_sd 
+PODOSE_metc13 = 75.0  # [mg]
+```
+
+*** Kasicka-Jonderko2011_baseline2 ***
+```
+time, subjects, recovery ± recovery_sd 
+PODOSE_metc13 = 75.0  # [mg]
+```
+
+*** Kasicka-Jonderko2013a_HBMI_BMAD ***
+```
+time, subjects, recovery ± recovery_sd, cum ± cum_sd 
+PODOSE_metc13 = 75.0  # [mg]
+```
+
+*** Kasicka-Jonderko2013a_HBMI_FX75 ***
+```
+time, subjects, recovery ± recovery_sd, cum ± cum_sd 
+PODOSE_metc13 = 75.0  # [mg]
+```
+
+*** Kasicka-Jonderko2013a_LBMI_BMAD ***
+```
+time, subjects, recovery ± recovery_sd, cum ± cum_sd 
+PODOSE_metc13 = 75.0  # [mg]
+```
+
+*** Kasicka-Jonderko2013a_LBMI_FX75 ***
+```
+time, subjects, recovery ± recovery_sd, cum ± cum_sd 
+PODOSE_metc13 = 75.0  # [mg]
+```
+
+*** Ciccocioppo2003_adult ***
+```
+time, subjects, recovery ± recovery_sd, cum ± cum_sd 
+PODOSE_metc13 = 75.0  # [mg] (1 [mg/kg])
+BW = 75  # [kg]
+```
+
+*** Ciccocioppo2003_elderly ***
+```
+time, subjects, recovery ± recovery_sd, cum ± cum_sd 
+PODOSE_metc13 = 75.0  # [mg] (1 [mg/kg])
+```
+
+*** Krumbiegel1985_AC01 ***
+```
+time, subjects, recovery 
+PODOSE_metc13 = 375.0  # [mg] (5 [mg/kg])
+```
+
+*** Krumbiegel1985_AC03 ***
+```
+time, subjects, recovery 
+PODOSE_metc13 = 375.0  # [mg] (5 [mg/kg])
+```
+
+*** Holtmeier2006 ***
+```
+time, subjects, cum ± cum_sd 
+PODOSE_metc13 = 150.0  # [mg] (1 [mg/kg])
+```
+
+*** Lalazar2008 ***
+```
+time, subjects, recovery ± recovery_sd, cum ± cum_sd 
+PODOSE_metc13 = 75.0  # [mg]
 ```

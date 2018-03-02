@@ -1,0 +1,11 @@
+study	group	n	time	recovery	recovery_pm_se	recovery_se	recovery_sd	cum	cum_pm_se	cum_se	cum_sd
+Ciccocioppo2003	elderly	29	0	0.00	0.70	0.70	3.71	0.00	0.65	0.65	3.42
+Ciccocioppo2003	elderly	29	15	30.63	33.78	3.15	16.66	3.42	2.91	0.51	2.67
+Ciccocioppo2003	elderly	29	30	21.81	24.03	2.21	11.72	10.08	9.43	0.65	3.44
+Ciccocioppo2003	elderly	29	45	17.27	18.94	1.67	8.84	14.95	14.12	0.83	4.39
+Ciccocioppo2003	elderly	29	60	14.40	15.80	1.40	7.40	18.08	17.00	1.08	5.73
+Ciccocioppo2003	elderly	29	75	15.02	13.55	1.48	7.81	22.80	21.50	1.30	6.87
+Ciccocioppo2003	elderly	29	90	10.09	11.14	1.05	5.55	25.61	24.13	1.48	7.83
+Ciccocioppo2003	elderly	29	105	9.32	10.21	0.89	4.73	29.03	27.26	1.77	9.36
+Ciccocioppo2003	elderly	29	120	8.55	7.58	0.97	5.14	33.02	31.00	2.02	10.69
+
