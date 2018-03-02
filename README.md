@@ -125,18 +125,25 @@ BW = 75  # [kg] (10 males)
 
 ## [B] bicarbonate
 
-## Observer Functions
+### Observer Functions
 ```
 dob = DOB           # [‰] Delta over baseline
-P_CO2F
+co2_ratio = P_CO2Fc13  
+recovery = Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0  # [%] revovery after continous IV injection
 ```
 
-## Free Parameters
+### Free Parameters
 ```
-Ka_apap         # [1/hr] absorption apap gut
-APAPD_HLM_CL    # Vmax value hepatic clearance
-APAPD_Km_apap   # [mM] Km value for apap
+Ka_co2c13       # [1/hr] absorption bicarbonate gut
+KLU_EXCO2       # CO2 rate of disposal in air [1/min]
+KBO_FIXCO2      # CO2 storage slow pool [1/min],
+KBO_RELCO2      # CO2 release slow pool [1/min]"),
+KBO_MAXCO2      # CO2 pool size [mg]"),
+
+# the tissue distribution coefficients could be important (but must be changed together)
 ```
+
+### Studies
 
 *** Mohr2018 ***
 ```
@@ -159,32 +166,48 @@ IVDOSE_co2c13 = 73  # [mg]
 
 *** Meinecke1993_12.5 ***
 ```
-time, n, apap ± apap_sd
+time, n, co2_ratio
 PODOSE_co2c13 = 12.5  # [mg]
 ```
 
-*** Meinecke1993_25 ***
+*** Meinecke1993_25A ***
 ```
-time, n, apap ± apap_sd
+time, n, co2_ratio
 PODOSE_co2c13 = 25  # [mg]
 ```
 
-*** Meinecke1993_25 ***
+*** Meinecke1993_25B ***
 ```
-time, n, apap ± apap_sd
+time, n, co2_ratio
 PODOSE_co2c13 = 25  # [mg]
 ```
 
 *** Meinecke1993_50 ***
 ```
-time, n, apap ± apap_sd
+time, n, co2_ratio
 PODOSE_co2c13 = 50  # [mg]
 ```
 
 *** Meinecke1993_100 ***
 ```
-time, n, apap ± apap_sd
+time, n, co2_ratio
 PODOSE_co2c13 = 100  # [mg]
 ```
 
+*** Leijssen1996 ***
+```
+time, n, recovery ± recovery_sd
+Ri_co2c13 = 1.0  # [mg/min]
+```
 
+*** Fuller2000_C13 ***
+```
+time, n, recovery ± recovery_sd
+Ri_co2c13 = 0.79  # [mg/min]
+```
+
+*** Fuller2000_C14 ***
+```
+time, n, recovery ± recovery_sd
+Ri_co2c13 = 0.79  # [mg/min]
+```
