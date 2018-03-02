@@ -30,9 +30,6 @@ devtools::install_github("dkaschek/dMod")
 devtools::install_github("dkaschek/cOde")
 ```
 
-
-
-
 ## Datasets
 All datasets contain column n with number of subjects, columns with standard deviation are named with "_sd" suffix.
 Datasets are separated in paracetamol, bicarbonate and limax data sets.
@@ -219,7 +216,7 @@ Ri_co2c13 = 0.79  # [mg/min]
 ### Observer Functions
 ```
 recovery = Exhalation_co2c13/(PODOSE_metc13/Mr_metc13) * 100 # [% dose/h] momentary recovery
-cum = Abreath_co2c13/(dose/Mr_metc13) * 100  # [% dose] cummulative recovery
+cum = Abreath_co2c13/(PODOSE_metc13/Mr_metc13) * 100  # [% dose] cummulative recovery
 ```
 
 ### Free Parameters
