@@ -26,8 +26,8 @@ Required packages devtools & dMod
 
 ```
 devtools::install_github("dlill/conveniencefunctions")
-devtools::install_github("dkaschek/dMod")
 devtools::install_github("dkaschek/cOde")
+devtools::install_github("dkaschek/dMod")
 ```
 
 ## Datasets
