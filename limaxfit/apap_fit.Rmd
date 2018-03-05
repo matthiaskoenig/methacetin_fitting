@@ -1,11 +1,11 @@
 ---
-title: "Fitting model 39"
+title: "Fitting LiMAx model"
 output: 
   html_document:
     toc: TRUE
 ---
 
-Load all important libraries
+Load required libraries
 ```{r, message=FALSE, warning=FALSE, eval=TRUE, echo=FALSE}
 knitr::opts_chunk$set(eval = FALSE)
 knitr::opts_chunk$set(echo = FALSE)
@@ -19,15 +19,16 @@ library(conveniencefunctions)
 ```
 
 ```{r load old workspace, eval=TRUE}
-load("2018-03-01 16-10 workspace.rda")
+# load("2018-03-01 16-10 workspace.rda")
 ```
 
 # Read model
+SBML model was converted to R code for model fitting
 ```{r}
 source("../model/limax_pkpd_39.R")
 ```
 
-
+Reading parameters and setting fitting parameters
 ```{r}
 pars <- c(x0, p)
 pars_to_optimize <- c("Ka_apap", "APAPD_HLM_CL", "APAPD_Km_apap") 
@@ -46,15 +47,17 @@ setdiff(pars_in_dxdtdmod, names(pars))
 setdiff(names(pars), pars_in_dxdtdmod) 
 ```
 
-## Odemodel and predicition function
+## ODE model and prediction function
+dMod model definition
 ```{r, eval=TRUE}
-# myodemodel <- odemodel(dxdt_dmod, fixed = setdiff(pars_in_dxdtdmod, c(pars_to_optimize, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
-# saveRDS(myodemodel, "odemodel.rds")
-myodemodel <- readRDS("odemodel.rds")
+myodemodel <- odemodel(dxdt_dmod, fixed = setdiff(pars_in_dxdtdmod, c(pars_to_optimize, "Aar_apap"))) 
+# Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+saveRDS(myodemodel, "odemodel.rds")
+modemodel <- readRDS("odemodel.rds")
 x <- Xs(myodemodel)
 loadDLL(x)
 ```
-
 
 ## Observation function
 ```{r}
@@ -104,8 +107,6 @@ covtable <- data_0 %>% as.datalist() %>% covariates()
 dosepars <- doses$dosepar %>% unique
 outer_pars <- sort(c(dosepars, pars_to_optimize))
 
-
-
 trafo <-
   pars %>% 
   sort_by_name() %>% 
@@ -134,6 +135,7 @@ obj <- normL2(data_0 %>% as.datalist, (g*x*p_0))
 
 # sampling (sd on top of the log transformed parameters)
 myfits_0 <- mstrust(obj, mypars, "first_fits", result_path = "intermediate_results", sd = 5, fits = 20, cores = 12, blather = T)
+# myfits_2 <- runbg({mstrust((obj+constraint), mypars_2, "third_fits", result_path = "third_fits", sd = 3, fits = 96, cores = detectFreeCores(), blather = T)}, machine = "knecht6")
 ```
 
 
