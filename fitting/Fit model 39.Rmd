@@ -44,15 +44,15 @@ x_apap <- Xs(odemodel_apap)
 
 ```{r odemodel_apap_doses}
 free_pars_apap_doses <- c(free_pars_apap, "PODOSE_apap", "IVDOSE_apap")
-odemodel_apap <- odemodel(dxdt_dmod, modelname = "odemodel_apap_doses", fixed = setdiff(pars_in_dxdtdmod, free_pars_apap_doses)) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+odemodel_apap_doses <- odemodel(dxdt_dmod, modelname = "odemodel_apap_doses", fixed = setdiff(pars_in_dxdtdmod, free_pars_apap_doses)) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
 
-x_apap <- Xs(odemodel_apap)
+x_apap_doses <- Xs(odemodel_apap_doses)
 ```
 
 ## Bicarbonate
 
 ```{r odemodel_bic}
-free_pars_bic <- c("Ka_co2c13", "KLU_EXCO2", "CO2FIX_HLM_CL", "KBO_FIXCO2", "KBO_RELCO2", "KBO_MAXCO2")
+free_pars_bic <- c("Ka_co2c13", "KLU_EXCO2", "CO2FIX_HLM_CL", "KBO_FIXCO2", "KBO_RELCO2", "KBO_MAXCO2", "Aar_apap")
 odemodel_bic <- odemodel(dxdt_dmod, modelname = "odemodel_bic", fixed = setdiff(pars_in_dxdtdmod, free_pars_bic)) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
 
 x_bic <- Xs(odemodel_bic)
@@ -61,7 +61,7 @@ x_bic <- Xs(odemodel_bic)
 ## Metc13
 
 ```{r odemodel_met}
-free_pars_met <- c("Ka_metc13", "CYP1A2MET_CL", "CYP1A2Met_Km_met")
+free_pars_met <- c("Ka_metc13", "CYP1A2MET_CL", "CYP1A2Met_Km_met", "Aar_apap")
 odemodel_met <- odemodel(dxdt_dmod, modelname = "odemodel_met", fixed = setdiff(pars_in_dxdtdmod, free_pars_met)) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
 
 x_met <- Xs(odemodel_met)
@@ -109,7 +109,7 @@ g_met <- Y(observables_met, x_met)
 ## Combined
 
 ```{r g_apap_bic_met}
-observables_apap_bic_met <- c(observables_apap, observables_bic, observables_met) %>% 
+observables_apap_bic_met <- c(observables_apap, observables_bic, observables_met)
 g_apap_bic_met <- Y(observables_apap_bic_met, x_apap_bic_met)
 ```
 
@@ -121,9 +121,9 @@ Read data and transform to dMod-style, generate the different conditions
 
 ### Read data
 ```{r}
-files <- file.path("../data", list.files("../data", pattern = ".csv", recursive = T))
+files_apap <- file.path("../data/paracetamol/", list.files("../data/paracetamol/", pattern = ".csv", recursive = T))
 
-data_apap <- lapply(files, . %>% read_tsv) %>% do.call(dMod::combine,.)
+data_apap <- lapply(files_apap, . %>% read_tsv) %>% do.call(dMod::combine,.)
 
 data_apap <- data_apap %>% 
   mutate(apap_se = apap_sd/sqrt(n)) %>% 
@@ -142,35 +142,31 @@ data_apap <- data_apap %>%
 
 data_apap <- fitErrorModel(data_apap, factors = c("study"), plotting = F)
 
-doses <- tibble(study =  unique(data_apap$study), 
+doses_apap <- tibble(study =  unique(data_apap$study), 
                 dose = c(650, 650, 1500,5600,1400,1000,1000,2000,500),
                 dosepar = c(rep("PODOSE_apap", 5), "IVDOSE_apap", rep("PODOSE_apap", 3)))
 
 
-data_apap <- full_join(data_apap, doses)
+data_apap <- full_join(data_apap, doses_apap)
 data_apap <-  data_apap %>% select(-n)
 ```
 
 
 ### Prepare conditions
 ```{r}
-covtable <- data_apap %>% as.datalist() %>% covariates()
+dosepars_apap <- doses$dosepar %>% unique
+outer_pars_apap <- sort(c(dosepars_apap, free_pars_apap))
 
-dosepars <- doses$dosepar %>% unique
-outer_pars <- sort(c(dosepars, free_pars_apap))
-
-
-
-trafo <-
+trafo_apap <-
   pars_raw %>% 
   sort_by_name() %>% 
-  replace((names(.) %in% outer_pars), outer_pars) %>% 
-  branch(covtable) %>% 
+  replace((names(.) %in% outer_pars_apap), outer_pars_apap) %>% 
+  branch(data_apap %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
   define("dosepar~dose", dosepar = dosepar, dose = dose) %>% #insert values for the doses
-  insert("remainingdosepar~0", remainingdosepar = dosepars) %>% 
+  insert("remainingdosepar~0", remainingdosepar = dosepars_apap) %>% 
   insert("x~exp(X)", x = free_pars_apap, X = toupper(free_pars_apap)) 
 
-p_apap <- P(trafo)
+p_apap <- P(trafo_apap)
 
 pars_apap <- log(pars_raw[free_pars_apap]) %>% set_names(toupper(free_pars_apap))
 ```
@@ -178,8 +174,90 @@ pars_apap <- log(pars_raw[free_pars_apap]) %>% set_names(toupper(free_pars_apap)
 ### Plot
 ```{r, eval=TRUE}
 times <- seq(0,24, 0.1)
-plotCombined((g*x_apap*p_apap)(times, pars_apap, deriv = F), data = data_apap %>% as.datalist, name %in% names(observables))
+plotCombined((g_apap*x_apap*p_apap)(times, pars_apap, deriv = F), data = data_apap %>% as.datalist, name %in% names(observables))
 ```
+
+
+## Bicarbonate
+
+### Read Data
+```{r}
+files_bic <- file.path("../data/bicarbonate", list.files("../data/bicarbonate/", pattern = ".csv", recursive = T))
+
+data_bic <- lapply(files_bic, function(filename) filename %>% read_tsv %>% mutate(study = filename)) %>% do.call(dMod::combine,.) # some had missing col "study", get the study col from the filename
+
+data_bic <- data_bic %>% 
+  mutate(study = str_replace_all(study, c("../data/bicarbonate/" = "", "\\.csv" = "", "_.*$" = ""))) %>% # clean the "study"-col
+  
+  mutate(time = replace(time, 
+                        study %in% c("Barstow1990", "Irving1983", "Meineke1993"), 
+                        time[study %in% c("Barstow1990", "Irving1983", "Meineke1993")]/60)) %>%  # Convert minutes into hours
+  
+  gather("name", "value", dob, co2_production, co2_ratio, recovery) %>% 
+  gather("name2", "sigma", dob_sd, co2_production_sd, recovery_sd) %>% 
+  {df <- .;
+  df2 <- df %>% mutate(name2 = "co2_ratio_sd", sigma = NA)
+  rbind(df,df2)
+  } %>% 
+  mutate(name2 = str_replace(name2, "_sd", "")) %>% 
+  filter(name == name2) %>% 
+  filter(!(is.na(value)&is.na(sigma))) %>% 
+  unique() %>% 
+  
+  select(-name2, -exercise, -period, -recovery_pm_sd) %>% # only keep necessary covariates
+  
+  mutate(sigma = sigma/sqrt(n)) %>% # convert sd to se
+  select(-n) %>% 
+  
+  # arrange(trial, dose) %>% 
+  # mutate(wup = paste(trial,dose)) %>% 
+  # ggplot(aes(time,value, group = study, color = wup))+geom_path() + facet_wrap(~name, scales = "free_y") # seems as if trial can also be dropped
+  select(-trial) %>% 
+  
+  filter(!(name %in% "co2_production")) %>% 
+  
+  mutate(name = paste0(name, "_bic")) %>% 
+
+  {.}
+
+doses_bic <-
+  as.tibble(unique(data_bic[c("study","dose")])) %>% arrange(study, dose) %>% 
+    cbind(dose2 = c(73, 0.79,46.5, 1.0, 12.5,25,50,100,16.54),
+          dosepar = c("IVDOSE_co2c13", "Ri_co2c13", "IVDOSE_co2c13", "Ri_co2c13", rep("PODOSE_co2c13", 4), "IVDOSE_co2c13")) %>% 
+  select(-dose) %>% 
+  rename(dose = dose2)
+
+
+# NEXT: insert doses into data_bic
+left_join(doses_bic, data_bic)
+
+```
+
+
+
+### Prepare conditions
+```{r}
+dosepars_bic <- doses$dosepar %>% unique
+outer_pars_bic <- sort(c(dosepars_bic, free_pars_bic))
+
+trafo_bic <-
+  pars_raw %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% outer_pars_bic), outer_pars_bic) %>% 
+  branch(data_bic %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  define("dosepar~dose", dosepar = dosepar, dose = dose) %>% #insert values for the doses
+  insert("remainingdosepar~0", remainingdosepar = dosepars_bic) %>% 
+  insert("x~exp(X)", x = free_pars_bic, X = toupper(free_pars_bic)) 
+
+p_bic <- P(trafo_bic)
+
+pars_bic <- log(pars_raw[free_pars_bic]) %>% set_names(toupper(free_pars_bic))
+```
+
+
+
+
+
 
 
 ## Fit
