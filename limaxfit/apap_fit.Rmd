@@ -134,14 +134,36 @@ plotCombined((g*x*p_0)(times, mypars, deriv = F), data = data_0 %>% as.datalist,
 obj <- normL2(data_0 %>% as.datalist, (g*x*p_0))
 
 # sampling (sd on top of the log transformed parameters)
-myfits_0 <- mstrust(obj, mypars, "first_fits", result_path = "intermediate_results", sd = 5, fits = 20, cores = 12, blather = T)
-# myfits_2 <- runbg({mstrust((obj+constraint), mypars_2, "third_fits", result_path = "third_fits", sd = 3, fits = 96, cores = detectFreeCores(), blather = T)}, machine = "knecht6")
+myfits_0 <- mstrust(obj, mypars, "first_fits", result_path = "intermediate_results", sd = 5, fits = 10, cores = 12, blather = T)
 ```
 
-
+List the fit results
 ```{r, eval=TRUE}
-myfits_0 %>% as.parframe()%>% head(20)
+myfits_0%>% as.parframe()%>% head(20)
 ```
+
+Running the fit as a background process or on other machines:
+```{r}
+out_job1 <- runbg({mstrust(obj, mypars, "test_fits", result_path = "test_fits", sd = 5, fits = 10, cores = detectFreeCores(), blather = T)}, machine = "localhost")
+```
+
+
+```{r}
+ready = F
+while (ready == F){
+  ready = out_job1$check()
+  Sys.sleep(3)
+}
+
+# Retrieve fit results from the background process.
+out_job1$get()
+myfits_1 <- .runbgOutput
+myfits_1[[1]] %>% as.parframe()%>% head(20)
+```
+```{r}
+out_job1$purge()
+```
+
 
 ### Plot the best fit
 ```{r, eval=TRUE}
