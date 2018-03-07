@@ -25,6 +25,11 @@ pip install -r requirements.txt
 Required packages devtools & dMod 
 
 ```
+sudo -E add-apt-repository -y ppa:marutter/rrutter
+sudo -E apt-get update
+sudo -E apt-get -y install r-base-core r-base r-base-dev r-recommended libssl-dev libcurl4-openssl-dev
+libxml2-dev liblzma-dev lzma lzma-dev
+install.packages("devtools)
 devtools::install_github("dlill/conveniencefunctions")
 devtools::install_github("dkaschek/cOde")
 devtools::install_github("dkaschek/dMod")
