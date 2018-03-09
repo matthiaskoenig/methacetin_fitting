@@ -5,6 +5,7 @@ output:
     toc: TRUE
 ---
 
+
 Load all important libraries
 ```{r, message=FALSE, warning=FALSE, eval=TRUE, echo=FALSE}
 knitr::opts_chunk$set(eval = FALSE)
@@ -31,10 +32,11 @@ merge_col2_into_col1 <- function(.data, col1, col2) {
     select(-UQ(c2))
 }
 
-# load("workspace.rda")
+load("2018_03_09_17_17_workspace.rda")
 
+
+for(i in lsdMod(classlist = "prdfn")) {loadDLL(i)}
 ```
-
 
 
 # Read model
@@ -114,7 +116,7 @@ g_bic <- Y(observables_bic, x_bic)
 ```
 
 ## Metc13
-
+init_PODOSE
 ```{r g_met}
 recovery_met <- paste(y_dmod["Exhalation_co2c13"], "/ PODOSE_metc13 * Mr_metc13 * 100" )
 cum_met <- paste( dxdt_dmod["Abreath_co2c13"], "/ PODOSE_metc13 * Mr_metc13 * 100")
@@ -275,21 +277,21 @@ data_met <- full_join(data_met, doses_met)
 ```
 
 ## Combine data
+
+Combine all the data sets to ensure that all data sets share the same structure.
+Then, redefine the original data to be a subset of the "whole" data set. This ensures that every data set has the same structure.
+
 ```{r}
 data <- dMod::combine(data_apap, data_bic, data_met) %>% replace_na(list(group = "", dosing_strategy = ""))
+
 ```
 
 
 
 # Parameter trafos
-
-```{r}
-# save.image("workspace.rda")
-```
-
-
 ## Apap
 ```{r p_apap}
+
 data_apap <- filter(data, str_detect(dosepar, "apap"))
 
 dosepars_apap <- data$dosepar %>% unique
@@ -323,8 +325,6 @@ plotCombined((g_apap*x_apap*p_apap)(times, pars_apap, deriv = F), data = data_ap
 
 ## Apap, study-specific aborption rates
 ```{r, warning=FALSE}
-data_apap <- filter(data, str_detect(dosepar, "apap"))
-
 dosepars_apap <- data$dosepar %>% unique
 outer_pars_apap <- sort(c(dosepars_apap, free_pars_apap))
 
@@ -354,6 +354,11 @@ pars_apap_free_ka <- getParameters(p_apap_free_ka) %>% are_names_of(0)
 
 
 ## Bicarbonate
+
+Some studies don't have sigmas. Estimate the errors for them while fitting. For this, we need to define an error model.
+1. Split the data into studies a) with errors "_bic" and b) without errors "_bic_sigma_NA"
+2. Define the error model (technically, this will also be an observation function: It "observes" the outputs of the model, e.g. "recovery", and calculates another variable from it, the error)
+3. For both sets of data, "_bic", and "bic_sigma_NA", we now need condition specific parameters. Additionally, in "_bic_sigma_NA", we need to supply the parameters of our error model.
 
 ### Error model
 ```{r e_bic}
@@ -391,12 +396,12 @@ pars_bic <- getParameters(p_bic) %>% are_names_of(0)
 ```
 
 ```{r p_bic_sigma_NA}
-pars_errors_bic_sigma_NA <- getParameters(e_bic_sigma_NA) %>% are_names_of(1)
+pars_errors_bic_sigma_NA <- getSymbols(errors_bic_sigma_NA) %>% str_subset("^s") %>% are_names_of(1)
 
 dosepars_bic <- doses_bic$dosepar %>% unique
 outer_pars_bic <- sort(c(dosepars_bic, free_pars_bic, names(pars_errors_bic_sigma_NA)))
 
-trafo_bic_sigma_NA <-
+# trafo_bic_sigma_NA <-
   c(pars_raw, pars_errors_bic_sigma_NA) %>% 
   sort_by_name() %>% 
   replace((names(.) %in% outer_pars_bic), outer_pars_bic) %>% 
@@ -434,6 +439,9 @@ observables_bic
 
 
 ## Metc13
+
+The same game for the data sets without sigmas applies here. Read the description for Bic.
+
 ### Error model
 ```{r e_met}
 data_met <- data %>% filter(str_detect(dosepar, "met"))
@@ -471,7 +479,7 @@ pars_met <- getParameters(p_met) %>% are_names_of(0)
 
 
 ```{r p_met_sigma_NA}
-pars_errors_met_sigma_NA <- getParameters(e_met_sigma_NA) %>% are_names_of(1)
+pars_errors_met_sigma_NA <- getSymbols(errors_met_sigma_NA) %>% str_subset("^s") %>%  are_names_of(1)
 
 dosepars_met <- doses_met$dosepar %>% unique
 outer_pars_met <- sort(c(dosepars_met, free_pars_met, names(pars_errors_met_sigma_NA)))
@@ -507,6 +515,8 @@ loadDLL(x_met)
 
 ## Objective functions
 
+Now, we define all necessary objective functions, which are handed to the optimizers.
+
 ```{r objective functions}
 obj_apap <- normL2(data_apap %>% as.datalist, (g_apap*x_apap*p_apap))
 obj_apap_free_ka <- normL2(data_apap %>% as.datalist, (g_apap*x_apap*p_apap_free_ka))
@@ -516,29 +526,27 @@ obj_met <- normL2(data_met %>% as.datalist, (g_met*x_met*p_met))
 obj_met_sigma_NA <- normL2(data_met_sigma_NA %>% as.datalist, (g_met*x_met*p_met_sigma_NA), errmodel = e_met_sigma_NA)
 ```
 
+Automated calls of the objective functions to see if it works
 ```{r testing the objfuns}
-ls(pattern = "obj")[4] %>% lapply(function(i) {
+c("obj_apap", "obj_apap_free_ka", "obj_bic", "obj_met") %>% lapply(function(i) {
   identifier <- str_replace(i, "obj_", "")
   paste0(i, "(pars_", identifier, ")") %>% parse(text=.) %>% eval()
 })
 ```
 
-Fit the objfuns without the data which doesn't contain sigmas
+Fit the objfuns without the data which doesn't contain sigmas. I uncommented this after running it so it doesn't run again.
 ```{r fitting the objfuns}
-# i <- ls(pattern = "obj")[1]
-myjobs <- ls(pattern = "obj")[c(1,2,3,5)] %>% lapply(function(i) {
-  identifier <- str_replace(i, "obj_", "")
-  # paste0(i, "(pars_", identifier, ")")
-  paste0("runbg(mstrust(", i, ",pars_", identifier, ",sd = 5, fits = 100, cores = 6), machine = 'ruprecht1')")  %>% parse(text=.) %>% eval()
-})
+# myjobs <- 
+#   ls(pattern = "obj")[c(1,2,3,5)] %>% lapply(function(i) {
+#   identifier <- str_replace(i, "obj_", "")
+#   # paste0(i, "(pars_", identifier, ")")
+#   paste0("runbg(mstrust(", i, ",pars_", identifier, ",sd = 5, fits = 100, cores = 6), machine = 'ruprecht1')")  %>% parse(text=.) %>% eval()
+# })
 ```
 
-
-```{r}
-myjobs[[1]]$check()
-```
 
 ## Include data without sigmas
+I forgot to include the data without the sigma. Adding the respective objective functions gives me a combined objective function.
 
 ```{r adding the respective objfuns together}
 obj_met_all <- (obj_met + obj_met_sigma_NA)
@@ -546,352 +554,73 @@ obj_bic_all <- (obj_bic + obj_bic_sigma_NA)
 ```
 
 ```{r fitting the added objuns}
-myjobs_all <- ls(pattern = "obj_(bic|met)_all") %>% lapply(function(i) {
-  identifier <- str_replace_all(i, c("obj_" = "", "_all" = ""))
-  # paste0(i, "(pars_", identifier, ")")
-  paste0("runbg(mstrust(", i, ",pars_", identifier, ",sd = 5, fits = 100, cores = 5), machine = 'knecht1')")  %>% parse(text=.) %>% eval()
+# myjobs_all <-
+#   c("obj_apap", "obj_apap_free_ka", "obj_bic", "obj_met") %>% lapply(function(i) {
+#   identifier <- i %>%  str_replace_all(c("obj_" = "", "_all" = "")) %>% paste0(., "_sigma_NA")
+#   # paste0(i, "(pars_", identifier, ")")
+#   paste0("runbg(mstrust(", i, ",pars_", identifier, ",sd = 5, fits = 40, cores = 3), machine = c('knecht3', 'knecht4', 'knecht5', 'ruprecht1', 'ruprecht1'))")  %>% parse(text=.) %>% eval()
+# })
+```
+
+```{r}
+save.image(tpaste0("workspace.rda"))
+```
+
+
+
+# Analyze the fits
+The object "all_fits" is saved in the current workspace. It includes all upper six fits, their names are referring to the objective functions that were used in this fit.
+```{r}
+# all_jobs <- c(myjobs, myjobs_all)
+# names(all_jobs) <- c("obj_apap", "obj_apap_free_ka", "obj_bic", "obj_met",  "obj_bic_all", "obj_met_all")
+
+# all_fits <- lapply(all_jobs, function(j) {
+#   fits_j <- paste0("j$get()") %>% parse(text = .) %>% eval()
+# })
+
+# all_fits <- all_fits %>% lapply(. %>% reduce(.f = c))
+
+# lapply(all_jobs, function(j) {
+#   paste0("j$purge()") %>% parse(text = .) %>% eval()
+# })
+
+# names(all_fits) <- names(all_fits) %>% str_replace("obj", "")
+
+```
+
+
+To conveniently call the prediction functions (g_i*x_i*p_i) by giving them names as the other objects.
+Instead of (g_apap*x_apap*p_apap), I now have prd_apap
+```{r}
+identifiers <- names(all_fits) %>% set_names(names(all_fits)) %>% .[1:4]
+g_apap_free_ka <- g_apap
+x_apap_free_ka <- x_apap
+lapply(identifiers, function(identifier) {
+  paste0("prd", identifier, " <- (g", identifier, "*x", identifier, "*p", identifier, ")") %>% parse(text = .) %>% eval(envir = .GlobalEnv)
 })
 ```
 
-
-
+Automated calling of the prediction functions with the fitted parameters. 
+Furthermore, plot the predictions returned by the best parameters.
 ```{r}
-# save.image(tpaste0("workspace.rda"))
+mypreds <- lapply(identifiers, function(identifier) {
+  paste0("prd", identifier, "(times, all_fits[['", identifier, "']] %>% as.parframe %>% as.parvec(1), deriv = F )") %>% parse(text = .) %>% eval(envir = .GlobalEnv)
+}) %>% set_names(identifiers)
+
+
+# Plot 
+lapply(identifiers, function(identifier) {
+  paste0("plotCombined( mypreds[['", identifier, "']], data = data", identifier, " %>% as.datalist(), name %in% names(observables", identifier,"))")  %>% parse(text = .) %>% eval(envir = .GlobalEnv)
+})
+
 ```
 
-
-
-# Analyse the fits!
-
-
-
-
-
-
-```{r, eval=TRUE}
-myfits_apap %>% as.parframe() %>% head(7)
-```
-
-### Plot the best fit
-```{r, eval=TRUE}
-myfits_apap %>% as.parframe() %>% as.parvec() %>% exp()
-
-## Apap_
-plotCombined((g*x_apap*p_apap)(times, myfits_apap %>% as.parframe() %>% as.parvec(), deriv = F), data = data_apap %>% as.datalist, name %in% c("apap")) + 
-  ggtitle(paste("           -2LL =", myfits_apap %>% as.parframe() %>% .[1,"value"] %>% unlist %>% round(2)))
-```
-
-To me it looks as if the data of Albert1974 capsule is shifted to the right, since its rise starts later.
-In the end this makes sense, because the capsule first needs to burst. The question is, how do we deal with this?
-
-
-# Allow for different Aborption speeds
-
-To me it looks as if the data of Albert1974 capsule is shifted to the right, since its rise starts later.
-In the end this makes sense, because the capsule first needs to burst. The question is, how do we deal with this?
-
-In a first step, let's assume all studies have a different absorption rate Ka_apap.
-
-
-## Data
-Read and transform to dMod-style
+Save the current workspace
 ```{r}
-files <- file.path("../data/paracetamol", list.files("../data/paracetamol/", pattern = ".csv", recursive = T))
-
-data_1 <- lapply(files, . %>% read_tsv) %>% do.call(dMod::combine,.)
-
-data_1 <- data_1 %>% 
-  mutate(apap_se = apap_sd/sqrt(n)) %>% 
-  mutate(name = "apap") %>% 
-  
-  mutate(dose = replace(dose, is.na(dose), "")) %>%
-  mutate(route = replace(route, is.na(route), "")) %>% 
-  mutate(application = replace(application, str_detect(application, "capsule"), "capsule"),
-         application = replace(application, is.na(application), "")) %>% 
-  
-  # unite("study", study, application, route, dose, sep = "") %>% 
-  
-  select(study, application, route, dose, n, name, time, value = apap, sigma = apap_se) %>% 
-  filter(!is.na(value)) %>% 
-  {.}
-
-data_1 <- fitErrorModel(data_1, factors = c("study", "application", "route", "dose"), plotting = F)
-
-plotData(as.datalist(data_1))
-
-
-doses <- data.frame(unique(data_1[c("study", "application", "route", "dose")])[-4] %>% as.list, 
-                dose = as.character(c(650, 650, 1500,5600,1400,1000,1000,2000,500)),
-                dosepar = c(rep("PODOSE_apap", 5), "IVDOSE_apap", rep("PODOSE_apap", 3)),
-                stringsAsFactors = F)
-
-
-data_1
-
-data_1 <-
-  rbind(
-  left_join(data_1 %>% select(-dose), doses) %>% filter(!str_detect(study, "Rawlins1977")), 
-  right_join(data_1, doses) %>% filter(!is.na(value))
-)
-data_1 <-  data_1 %>% select(-n)
-
-plotData(as.datalist(data_1))
+# "2018_03_09_17_17_workspace.rda"
+save.image(tpaste0("workspace.rda"))
+tpaste0("workspace.rda")
 ```
-
-
-
-## Prepare conditions
-```{r}
-covtable <- data_1 %>% as.datalist() %>% covariates()
-
-dosepars <- doses$dosepar %>% unique
-
-outer_pars <- sort(c(dosepars, free_pars_apap))
-
-
-trafo <-
-  pars_raw %>% 
-  sort_by_name() %>% 
-  replace((names(.) %in% outer_pars), outer_pars) %>% 
-  branch(covtable) %>% 
-  define("dosepar~dose", dosepar = dosepar, dose = dose) %>% #insert values for the doses
-  insert("remainingdosepar~0", remainingdosepar = dosepars) %>% # replace the other dose_par by zero
-  
-  insert("x~x_study_application", x = "Ka_apap", study = study, application = application) %>% 
-  
-  # insert("x~exp(X)", x = free_pars_apap, X = toupper(free_pars_apap)) 
-  insert("x~exp(X)", x = mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))], X = toupper(mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))]))  # hacking insert()...
-
-## trafo %>% head(1)
-p_1 <- P(trafo)
-
-
-
-pars_1 <- getParameters(p_1) %>% are_names_of(0)
-
-
-dxdt_dmod %>% .[str_detect(.,"Km_apap")]
-
-```
-
-
-
-## Fit
-```{r}
-obj_1 <- normL2(data_1 %>% as.datalist, (g*x_apap*p_1))
-
-myfits_1 <- mstrust(obj_1, pars_1, "second_fits", result_path = "intermediate_results", sd = 5, fits = 20, cores = 4, blather = T)
-```
-
-Show which fits converged
-```{r, eval=TRUE}
-myfits_1 %>% as.parframe() %>% head(7)
-```
-
-### Plot the best fit
-Making the Ka_apap parameters condition specific improves the fit.
-```{r, eval=TRUE}
-plotCombined((g*x_apap*p_1)(times, myfits_1 %>% as.parframe() %>% as.parvec(1), deriv = F), data = data_1 %>% as.datalist, name %in% c("apap")) + 
-  ggtitle(paste("           -2LL =", myfits_1 %>% as.parframe() %>% .[1,"value"] %>% unlist %>% round(2)))
-# plotly::ggplotly()
-```
-
-
-## Run a profile likelihood analysis
-```{r}
-profile_job <- runbg(profile(obj_1, myfits_1 %>% as.parframe() %>% as.parvec(), names(pars_1), cores = 20), machine = "knecht6")
-
-profiles_1 <- profile_job$get()$knecht6
-profile_job$purge()
-```
-
-
-
-```{r}
-
-transform_profile_pars <- function(profiles_1, par_value_fun) {
-
-  my_expr <- rlang::enquo(par_value_fun)
-  
-# quo(
-  profiles_1 %>% 
-    gather(key = "par", value = "par_value", 7:length(.)) %>%  
-    # mutate(par_value = !!my_expr) %>%
-    mutate(par_value = UQ(rlang::enquo(par_value_fun))) %>%
-    spread(key = par, value = par_value) %>% 
-    structure(class = c("parframe", "data.frame")) %>% 
-    {.}
-  
-# )
-  
-  
-}
-
-
-
-transform_profile_pars(profiles_1, exp(par_value)) %>% plotProfile()
-profiles_1 %>% plotProfile()
-```
-
-
-```{r}
-prf1 %>% plotProfile()
-```
-
-
-
-
-# Allow for different doses
-
-It seems as if the specified dosing is too low in many cases. Therefore, we should try to adjust the dosing. This might help to account for the different bodyweights, different absorption efficiencies, etc...
-
-
-## Prediction function with sensitivites also for doses
-```{r}
-odemodel_apap_doses <- odemodel(dxdt_dmod, fixed = setdiff(pars_in_dxdtdmod, c(free_pars_apap, "Aar_apap", "PODOSE_apap", "IVDOSE_apap")), modelname = "odemodel_2") # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
-
-x_apap_doses <- Xs(odemodel_apap_doses)
-loadDLL(x_apap_doses)
-```
-
-
-
-## Data
-Read and transform to dMod-style
-```{r}
-files <- file.path("../data", list.files("../data", pattern = ".csv", recursive = T))
-
-data_2 <- lapply(files, . %>% read_tsv) %>% do.call(dMod::combine,.)
-
-data_2 <- data_2 %>% 
-  mutate(apap_se = apap_sd/sqrt(n)) %>% 
-  mutate(name = "apap") %>% 
-  
-  mutate(dose = replace(dose, is.na(dose), "")) %>%
-  mutate(route = replace(route, is.na(route), "")) %>% 
-  mutate(application = replace(application, str_detect(application, "capsule"), "capsule"),
-         application = replace(application, is.na(application), "")) %>% 
-  
-  # unite("study", study, application, route, dose, sep = "") %>% 
-  
-  select(study, application, route, dose, n, name, time, value = apap, sigma = apap_se) %>% 
-  filter(!is.na(value)) %>% 
-  {.}
-
-data_2 <- fitErrorModel(data_2, factors = c("study", "application", "route", "dose"), plotting = F)
-
-plotData(as.datalist(data_2))
-
-
-doses <- data.frame(unique(data_2[c("study", "application", "route", "dose")])[-4] %>% as.list, 
-                dose = as.character(c(650, 650, 1500,5600,1400,1000,1000,2000,500)),
-                dosepar = c(rep("PODOSE_apap", 5), "IVDOSE_apap", rep("PODOSE_apap", 3)),
-                stringsAsFactors = F)
-
-
-data_2
-
-data_2 <-
-  rbind(
-  left_join(data_2 %>% select(-dose), doses) %>% filter(!str_detect(study, "Rawlins1977")), 
-  right_join(data_2, doses) %>% filter(!is.na(value))
-)
-data_2 <-  data_2 %>% select(-n)
-
-plotData(as.datalist(data_2))
-```
-
-
-## Prepare conditions
-```{r, warning=FALSE}
-covtable <- data_2 %>% as.datalist() %>% covariates()
-
-dosepars <- doses$dosepar %>% unique
-
-outer_pars <- sort(c(dosepars, free_pars_apap))
-
-
-trafo <-
-  pars_raw %>% 
-  sort_by_name() %>% 
-  replace((names(.) %in% outer_pars), outer_pars) %>% 
-  branch(covtable) %>% 
-  define("dosepar~DOSE_study_dose", dosepar = dosepar, dose = dose, study = study) %>% #insert values for the doses
-  insert("remainingdosepar~0", remainingdosepar = dosepars) %>% # replace the other dose_par by zero
-  
-  insert("x~x_study_application", x = "Ka_apap", study = study, application = application) %>% 
-  
-  # insert("x~exp(X)", x = free_pars_apap, X = toupper(free_pars_apap)) 
-  insert("x~exp(X)", x = mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))], X = toupper(mytrafo[[i]][is.na(as.numeric(mytrafo[[i]]))]))  # hacking insert()..., ignore the warnings, they're wanted :)
-
-# trafo %>% head(1)
-p_2 <- P(trafo)
-
-
-
-pars_2 <- getParameters(p_2) %>% are_names_of(0)
-
-
-
-```
-
-
-
-## Fit
-Fit with condition specific Ka_apap and Dosing
-
-Apply a l2 prior on the dose.
-```{r}
-obj <- normL2(data_2 %>% as.datalist, (g*x_apap_doses*p_2))
-
-pars_2[str_detect(names(pars_2), "DOSE")] <-  names(pars_2[str_detect(names(pars_2), "DOSE")]) %>% str_extract("\\d{3,4}$") %>% as.numeric() %>% log()
-
-constraint <- constraintL2(pars_2[str_detect(names(pars_2), "DOSE")], sigma = .5) # set L2 constraint on the dose_parameters
-
-# myfits_2 <- runbg({mstrust((obj+constraint), pars_2, "third_fits", result_path = "third_fits", sd = 3, fits = 96, cores = detectFreeCores(), blather = T)}, machine = "knecht6")
-```
-
-
-```{r, eval=TRUE}
-myfits_2 %>% as.parframe() %>% head(7)
-
-```
-
-
-
-
-### Plot des erstbesten Fits
-Zuerst die Parameter
-```{r, eval=TRUE}
-myfits_2 %>% as.parframe() %>% as.parvec() %>% exp
-```
-
-```{r, eval=TRUE}
-plotCombined((g*x_apap_doses*p_2)(times, myfits_2 %>% as.parframe() %>% as.parvec(1), deriv = F), data = data_2 %>% as.datalist, name %in% c("apap"))+ 
-  ggtitle(paste("           -2LL =", myfits_2 %>% as.parframe() %>% .[1,"value"] %>% unlist %>% round(2)))
-## plotly::ggplotly()
-```
-
-
-### Plot des zweitbesten Fits
-Unterschied in Baraka 1990
-
-```{r, eval=TRUE}
-myfits_2 %>% as.parframe(5) %>% as.parvec() %>% exp
-```
-
-```{r, eval=TRUE}
-plotCombined((g*x_apap_doses*p_2)(times, myfits_2 %>% as.parframe() %>% as.parvec(5), deriv = F), data = data_2 %>% as.datalist, name %in% c("apap"))+ 
-  ggtitle(paste("           -2LL =", myfits_1 %>% as.parframe() %>% .[5,"value"] %>% unlist %>% round(2)))
-## plotly::ggplotly()
-```
-
-
-
-```{r}
-save.image(file = tpaste0("workspace.rda"))
-```
-
 
 
 
