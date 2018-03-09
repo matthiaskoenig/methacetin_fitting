@@ -116,10 +116,10 @@ g_bic <- Y(observables_bic, x_bic)
 ```
 
 ## Metc13
-init_PODOSE
+
 ```{r g_met}
-recovery_met <- paste(y_dmod["Exhalation_co2c13"], "/ PODOSE_metc13 * Mr_metc13 * 100" )
-cum_met <- paste( dxdt_dmod["Abreath_co2c13"], "/ PODOSE_metc13 * Mr_metc13 * 100")
+recovery_met <- paste(y_dmod["Exhalation_co2c13"], "/ init_PODOSE_metc13 * Mr_metc13 * 100" )
+cum_met <- paste( "Abreath_co2c13/ init_PODOSE_metc13 * Mr_metc13 * 100")
 observables_met <- c(recovery_met, cum_met) %>% set_names(c("recovery_met", "cum_met"))
 
 g_met <- Y(observables_met, x_met)
@@ -468,8 +468,11 @@ trafo_met<-
   branch(data_met %>% as.datalist() %>% covariates()) %>%  # The table of covariates includes dosepar and dose, which are used in the next line
   
   define("dosepar~dose", dosepar = dosepar, dose = dose) %>% #insert values for the doses
+  
   insert("remainingdosepar~0", remainingdosepar = dosepars_met) %>% 
   
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+    
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) 
 
 p_met <- P(trafo_met)
@@ -494,6 +497,8 @@ trafo_met_sigma_NA <-
   define("dosepar~dose", dosepar = dosepar, dose = dose) %>% # insert values for the doses
   insert("remainingdosepar~0", remainingdosepar = dosepars_met) %>% 
   
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+  
   insert("s~s_study", s = names(pars_errors_met_sigma_NA), study = study) %>% 
   
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) 
@@ -508,7 +513,6 @@ pars_met_sigma_NA <- getParameters(p_met_sigma_NA) %>% are_names_of(0)
 loadDLL(x_met)
 (g_met*x_met*p_met_sigma_NA)(times*10, pars_met_sigma_NA, deriv = F) %>% plotPrediction(name %in% names(observables_met))
 ```
-
 
 
 # Fit
@@ -533,6 +537,13 @@ c("obj_apap", "obj_apap_free_ka", "obj_bic", "obj_met") %>% lapply(function(i) {
   paste0(i, "(pars_", identifier, ")") %>% parse(text=.) %>% eval()
 })
 ```
+
+# To do:
+1. Define all other objects necessary to allow automated calls of all objfns, prdfns, ...
+  For example, if I have obj_met_all (combination of obj_met and obj_met_sigma_NA), I also need to have parameters which are called pars_met_all.
+2. Before fitting, find out, why so many derivatives wrt s0 and srel-pars are zero
+3. Run test-fits on the local machine to see if it works before starting lots of useless fits 
+
 
 Fit the objfuns without the data which doesn't contain sigmas. I uncommented this after running it so it doesn't run again.
 ```{r fitting the objfuns}
