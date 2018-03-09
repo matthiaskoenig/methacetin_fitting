@@ -143,8 +143,11 @@ myfits_0%>% as.parframe()%>% head(20)
 ```
 
 Running the fit as a background process or on other machines:
+
+sudo apt-get install r-base-core
+
 ```{r}
-out_job1 <- runbg({mstrust(obj, mypars, "test_fits", result_path = "test_fits", sd = 5, fits = 10, cores = detectFreeCores(), blather = T)}, machine = "localhost")
+out_job1 <- runbg({mstrust(obj, mypars, "test_fits", result_path = "test_fits", sd = 5, fits = 100, cores = detectFreeCores(), blather = T)}, machine = "trip2")
 ```
 
 

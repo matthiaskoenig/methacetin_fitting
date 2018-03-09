@@ -219,9 +219,11 @@ Ri_co2c13 = 0.79  # [mg/min]
 ## [C] methacetin
 
 ### Observer Functions
+Recovery and cummulative recovery calculate how much of the initial given dose is recovered over
+time.
 ```
-recovery = Exhalation_co2c13/(PODOSE_metc13/Mr_metc13) * 100 # [% dose/h] momentary recovery
-cum = Abreath_co2c13/(PODOSE_metc13/Mr_metc13) * 100  # [% dose] cummulative recovery
+recovery = Exhalation_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100 # [% dose/h] momentary recovery
+cum = Abreath_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100  # [% dose] cummulative recovery
 ```
 
 ### Free Parameters
