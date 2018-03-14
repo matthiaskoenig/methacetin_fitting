@@ -144,27 +144,26 @@ myfits_0%>% as.parframe()%>% head(20)
 
 Running the fit as a background process or on other machines:
 
-sudo apt-get install r-base-core
 
 ```{r}
-out_job1 <- runbg({mstrust(obj, mypars, "test_fits", result_path = "test_fits", sd = 5, fits = 100, cores = detectFreeCores(), blather = T)}, machine = "trip2")
+out_job2 <- runbg({mstrust(obj, mypars, "test_fits", result_path = "test_fits", sd = 5, fits = 50, cores = detectFreeCores(), blather = T)}, machine = c("trip1", "trip2"))
+# How to abort jobs in the background?
 ```
-
 
 ```{r}
 ready = F
 while (ready == F){
-  ready = out_job1$check()
-  Sys.sleep(3)
+  ready = out_job2$check()
+  Sys.sleep(5)
 }
 
 # Retrieve fit results from the background process.
-out_job1$get()
-myfits_1 <- .runbgOutput
-myfits_1[[1]] %>% as.parframe()%>% head(20)
-```
-```{r}
-out_job1$purge()
+out_job2$get()
+myfits_2 <- .runbgOutput
+
+myfits_2$trip1 %>% as.parframe()%>% head(20)
+myfits_2$trip2 %>% as.parframe()%>% head(20)
+out_job2$purge()
 ```
 
 

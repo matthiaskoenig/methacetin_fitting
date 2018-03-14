@@ -284,6 +284,7 @@ Then, redefine the original data to be a subset of the "whole" data set. This en
 ```{r}
 data <- dMod::combine(data_apap, data_bic, data_met) %>% replace_na(list(group = "", dosing_strategy = ""))
 
+data %>% spread(dosepar, dose) %>% write.csv("data.csv")
 ```
 
 
@@ -361,6 +362,8 @@ Some studies don't have sigmas. Estimate the errors for them while fitting. For 
 3. For both sets of data, "_bic", and "bic_sigma_NA", we now need condition specific parameters. Additionally, in "_bic_sigma_NA", we need to supply the parameters of our error model.
 
 ### Error model
+TODO: FIX ERROR MODEL (Parameter)
+
 ```{r e_bic}
 data_bic <- data %>% filter(str_detect(dosepar, "co2c13"))
 
