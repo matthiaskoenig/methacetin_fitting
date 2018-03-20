@@ -140,23 +140,23 @@ g <- Y(observables_apap_bic_met, x_apap_bic_met)
 dMod.frame <- add_column(dMod.frame, g = list(g_apap, g_apap, g_bic, g_met))
 ```
 
-
-
 # Data 
-Read data 
-```{r}
-data <- read.csv("data.csv")
+Read data, insert the default values for the parameters supplied in the data sheet. 
+```{r, message=FALSE}
+data <- read_csv("data.csv") %>% as.data.frame
+supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
+data[supplied_pars][is.na(data[supplied_pars])] <- 0
+
 ```
 
 
 # Parameter trafos
 ## Apap
 ```{r p_apap}
-
-data_apap <- filter(data, str_detect(dosepar, "apap"))
-
-dosepars_apap <- data$dosepar %>% unique
-outer_pars_apap <- sort(c(dosepars_apap, free_pars_apap))
+data_apap <- data %>% 
+  filter((IVDOSE_apap!=0)|(PODOSE_apap!=0))
+  
+outer_pars_apap <- sort(c(supplied_pars, free_pars_apap))
 
 trafo_apap <-
   pars_raw %>% 
@@ -165,10 +165,7 @@ trafo_apap <-
   
   branch(data_apap %>% as.datalist() %>% covariates()) %>% 
   
-  define("dosepar~dose", dosepar = dosepar, dose = dose) %>% # insert values for the doses
-  insert("remainingdosepar~0", remainingdosepar = dosepars_apap) %>% 
-  
-  define("BW~bodyweight", bodyweight = BW) %>% # insert body weights
+  minsert(supplied_pars) %>% 
   
   insert("x~exp(X)", x = free_pars_apap, X = toupper(free_pars_apap)) # backtrafo to linear pars from log-pars
 
@@ -186,8 +183,7 @@ plotCombined((g_apap*x_apap*p_apap)(times, pars_apap, deriv = F), data = data_ap
 
 ## Apap, study-specific aborption rates
 ```{r, warning=FALSE}
-dosepars_apap <- data$dosepar %>% unique
-outer_pars_apap <- sort(c(dosepars_apap, free_pars_apap))
+outer_pars_apap <- sort(c(supplied_pars, free_pars_apap))
 
 trafo_apap_free_ka <-
   pars_raw %>% 
@@ -196,17 +192,15 @@ trafo_apap_free_ka <-
   
   branch(data_apap %>% as.datalist() %>% covariates()) %>% 
   
-  define("dosepar~dose", dosepar = dosepar, dose = dose) %>% # insert values for the doses
-  insert("remainingdosepar~0", remainingdosepar = dosepars_apap) %>% 
-  
-  define("BW~bodyweight", bodyweight = BW) %>% # insert body weights
+  minsert(supplied_pars) %>% 
   
   insert("x~x_study_group", x = "Ka_apap", study = study, group = group) %>% 
   
-  # insert("x~exp(X)", x = free_pars_apap, X = toupper(free_pars_apap)) 
   insert("x~exp(X)", 
          x = getSymbols(mytrafo[[i]]), 
          X = toupper(getSymbols(mytrafo[[i]])))  # hacking insert()...
+
+
 
 p_apap_free_ka <- P(trafo_apap_free_ka)
 
@@ -225,7 +219,8 @@ Some studies don't have sigmas. Estimate the errors for them while fitting. For 
 TODO: FIX ERROR MODEL (Parameter)
 
 ```{r e_bic}
-data_bic <- data %>% filter(str_detect(dosepar, "co2c13"))
+data_bic <- data %>% 
+  filter((IVDOSE_co2c13!=0)|(PODOSE_co2c13!=0)|Ri_co2c13!=0)
 
 studies_with_sigma_na <- data_bic %>% filter(is.na(sigma)) %>% .[["study"]] %>% unique
 data_bic_sigma_NA <- data_bic %>% filter(study %in% studies_with_sigma_na)
@@ -238,8 +233,7 @@ e_bic_sigma_NA <- Y(g = errors_bic_sigma_NA, f= (g_bic*x_bic))
 
 ### Parameter trafo
 ```{r p_bic}
-dosepars_bic <- doses_bic$dosepar %>% unique
-outer_pars_bic <- sort(c(dosepars_bic, free_pars_bic))
+outer_pars_bic <- sort(c(supplied_pars, free_pars_bic))
 
 trafo_bic<-
   c(pars_raw) %>% 
@@ -248,9 +242,8 @@ trafo_bic<-
   
   branch(data_bic %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
   
-  define("dosepar~dose", dosepar = dosepar, dose = dose) %>% #insert values for the doses
-  insert("remainingdosepar~0", remainingdosepar = dosepars_bic) %>% 
-  
+  minsert(supplied_pars) %>% 
+
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) 
 
 p_bic <- P(trafo_bic)
@@ -261,18 +254,16 @@ pars_bic <- getParameters(p_bic) %>% are_names_of(0)
 ```{r p_bic_sigma_NA}
 pars_errors_bic_sigma_NA <- getSymbols(errors_bic_sigma_NA) %>% str_subset("^s") %>% are_names_of(1)
 
-dosepars_bic <- doses_bic$dosepar %>% unique
-outer_pars_bic <- sort(c(dosepars_bic, free_pars_bic, names(pars_errors_bic_sigma_NA)))
+outer_pars_bic <- sort(c(supplied_pars, free_pars_bic, names(pars_errors_bic_sigma_NA)))
 
-# trafo_bic_sigma_NA <-
+trafo_bic_sigma_NA <-
   c(pars_raw, pars_errors_bic_sigma_NA) %>% 
   sort_by_name() %>% 
   replace((names(.) %in% outer_pars_bic), outer_pars_bic) %>% 
   
   branch(data_bic_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
   
-  define("dosepar~dose", dosepar = dosepar, dose = dose) %>% # insert values for the doses
-  insert("remainingdosepar~0", remainingdosepar = dosepars_bic) %>% 
+  minsert(supplied_pars) %>% 
   
   insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = study) %>% 
   
@@ -307,7 +298,7 @@ The same game for the data sets without sigmas applies here. Read the descriptio
 
 ### Error model
 ```{r e_met}
-data_met <- data %>% filter(str_detect(dosepar, "met"))
+data_met <- data %>% filter((PODOSE_metc13!=0))
 
 studies_with_sigma_na <- data_met %>% filter(is.na(sigma)) %>% .[["study"]] %>% unique
 data_met_sigma_NA <- data_met %>% filter(study %in% studies_with_sigma_na)
@@ -320,8 +311,7 @@ e_met_sigma_NA <- Y(g = errors_met_sigma_NA, f= (g_met*x_met))
 
 ### Parameter trafo
 ```{r p_met}
-dosepars_met <- doses_met$dosepar %>% unique
-outer_pars_met <- sort(c(dosepars_met, free_pars_met))
+outer_pars_met <- sort(c(supplied_pars, free_pars_met))
 
 trafo_met<-
   c(pars_raw) %>% 
@@ -330,10 +320,8 @@ trafo_met<-
   
   branch(data_met %>% as.datalist() %>% covariates()) %>%  # The table of covariates includes dosepar and dose, which are used in the next line
   
-  define("dosepar~dose", dosepar = dosepar, dose = dose) %>% #insert values for the doses
-  
-  insert("remainingdosepar~0", remainingdosepar = dosepars_met) %>% 
-  
+  minsert(supplied_pars) %>% 
+
   define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
     
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) 
@@ -347,8 +335,7 @@ pars_met <- getParameters(p_met) %>% are_names_of(0)
 ```{r p_met_sigma_NA}
 pars_errors_met_sigma_NA <- getSymbols(errors_met_sigma_NA) %>% str_subset("^s") %>%  are_names_of(1)
 
-dosepars_met <- doses_met$dosepar %>% unique
-outer_pars_met <- sort(c(dosepars_met, free_pars_met, names(pars_errors_met_sigma_NA)))
+outer_pars_met <- sort(c(supplied_pars, free_pars_met, names(pars_errors_met_sigma_NA)))
 
 trafo_met_sigma_NA <-
   c(pars_raw, pars_errors_met_sigma_NA) %>% 
@@ -357,8 +344,7 @@ trafo_met_sigma_NA <-
   
   branch(data_met_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
   
-  define("dosepar~dose", dosepar = dosepar, dose = dose) %>% # insert values for the doses
-  insert("remainingdosepar~0", remainingdosepar = dosepars_met) %>% 
+  minsert(supplied_pars) %>% 
   
   define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
   
@@ -374,8 +360,20 @@ pars_met_sigma_NA <- getParameters(p_met_sigma_NA) %>% are_names_of(0)
 ### Example plot
 ```{r}
 loadDLL(x_met)
-(g_met*x_met*p_met_sigma_NA)(times*10, pars_met_sigma_NA, deriv = F) %>% plotPrediction(name %in% names(observables_met))
+(g_met*x_met*p_met_sigma_NA)(times*100, pars_met_sigma_NA, deriv = F) %>% plotPrediction(name %in% names(observables_met))
 ```
+
+
+
+```{r}
+dMod.frame <- add_column(dMod.frame, p = list(p_apap, p_apap_free_ka, p_bic, p_met),
+                        data = list(data_apap, data_apap, data_bic, data_met),
+                        p_sig = list(NULL, NULL, p_bic_sigma_NA, p_met_sigma_NA),
+                        e = list(NULL, NULL, e_bic_sigma_NA, e_met_sigma_NA),
+                        data_sig = list(NULL, NULL, data_bic_sigma_NA, data_met_sigma_NA)
+                        )
+```
+
 
 
 # Fit
@@ -383,6 +381,88 @@ loadDLL(x_met)
 ## Objective functions
 
 Now, we define all necessary objective functions, which are handed to the optimizers.
+
+```{r}
+cfn <- function(p1,p2) {
+  if(is.null(p1)|is.null(p2)) {
+    return(NULL)
+    } else {
+  dMod:::`*.fn`(p1,p2)
+    }
+}
+# cfn(x_apap,p_apap)
+
+bla <- dMod.frame %>% 
+  mutate(data = map(data, as.datalist),
+         data_sig = map(data_sig, as.datalist)) %>% 
+  mutate(prd = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p[[i]]))),
+         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
+  mutate(obj_0 = map(seq_along(x), function(i) normL2(data[[i]], prd[[i]])),
+         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
+  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]]))
+
+
+# for testing
+obj_apap <- cf_normL2(data_apap %>% as.datalist, (g_apap*x_apap*p_apap))
+obj_apap <- cf_normL2(NULL, (g_apap*x_apap*p_apap))
+obj_apap <- cf_normL2(data_apap %>% as.datalist, NULL)
+obj_apap(pars_apap)
+
+# why is this?
+NULL + obj_apap
+obj_apap + NULL
+```
+
+```{r}
+checkout_hypothesis <- function(dMod.frame, hypothesis) {
+  mydMod.frame <- dMod.frame[dMod.frame[["hypothesis"]]==hypothesis,]
+  map(seq_along(mydMod.frame), function(i)  {
+    value <- mydMod.frame[[i]]
+    if(is.list(value)&length(value)==1) value = value[[1]]
+    assign(x = names(mydMod.frame)[i],
+           value = value,
+           pos = .GlobalEnv)})
+}
+
+
+# testing
+a <- 3
+myfun <- function(x) {a * x^2}
+testframe <- tibble(hypothesis = c("apap", "penner"),
+                    schwurbel = list(qplot(1:10,1:10), "Penis"),
+                    wupwup = list("moep", diamonds),
+                    myfun = list(function(x) {a * x^3}, myfun),
+                    a = c(1:2))
+
+checkout_hypothesis(testframe, "apap")
+myfun
+schwurbel
+wupwup
+hypothesis
+```
+
+```{r}
+dMod.frame <- tibble(hypothesis = c("cell specific pars with prior", "no cell specifc pars, no prior"), 
+       x = list(x,x), 
+       g = list(g,g),
+       p = list(p_1, p_2),
+       pars = list(pars_1, pars2),
+       data = list(mydatalist, mydatalist)) %>% 
+  mutate(prd = list((g*x*p_1), (g*x*p_2))) %>% 
+  mutate(prior = list(constraintL2(mu1, sigma1), NULL)) %>% 
+  mutate(obj = lapply(seq_along(x), function(i) normL2(data[[i]], prd[[i]]) + prior[[i]])) %>% 
+  mutate(machine = list(c("knecht1", "knecht2"), c("knecht3"))) %>%   
+  mutate(fits = lapply(seq_along(x), function(i) runbg(mstrust(obj[[i]], pars[[i]]), machine = machine[[i]]) ))
+# wait a little
+dMod.frame <- dMod.frame %>% 
+  mutate(fits = lapply(seq_along(x), function(i) fits[[i]][["get"]]()[[machine[[i]]]] )) %>% 
+  mutate(fits = lapply(fits, as.parframe)) %>% 
+  mutate(plots = lapply(seq_along(x), function(i) plotCombined(prd(mytimes, as.parvec(fits[[i]]), data = data[[i]])) ))
+# and so on
+```
+
+
+
 
 ```{r objective functions}
 obj_apap <- normL2(data_apap %>% as.datalist, (g_apap*x_apap*p_apap))
