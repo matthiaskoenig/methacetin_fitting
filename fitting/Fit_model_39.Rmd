@@ -425,6 +425,8 @@ checkout_hypothesis <- function(dMod.frame, hypothesis) {
 }
 
 
+
+
 # testing
 a <- 3
 myfun <- function(x) {a * x^2}
@@ -441,25 +443,57 @@ wupwup
 hypothesis
 ```
 
+
 ```{r}
-dMod.frame <- tibble(hypothesis = c("cell specific pars with prior", "no cell specifc pars, no prior"), 
-       x = list(x,x), 
-       g = list(g,g),
-       p = list(p_1, p_2),
-       pars = list(pars_1, pars2),
-       data = list(mydatalist, mydatalist)) %>% 
-  mutate(prd = list((g*x*p_1), (g*x*p_2))) %>% 
-  mutate(prior = list(constraintL2(mu1, sigma1), NULL)) %>% 
-  mutate(obj = lapply(seq_along(x), function(i) normL2(data[[i]], prd[[i]]) + prior[[i]])) %>% 
-  mutate(machine = list(c("knecht1", "knecht2"), c("knecht3"))) %>%   
-  mutate(fits = lapply(seq_along(x), function(i) runbg(mstrust(obj[[i]], pars[[i]]), machine = machine[[i]]) ))
-# wait a little
-dMod.frame <- dMod.frame %>% 
-  mutate(fits = lapply(seq_along(x), function(i) fits[[i]][["get"]]()[[machine[[i]]]] )) %>% 
-  mutate(fits = lapply(fits, as.parframe)) %>% 
-  mutate(plots = lapply(seq_along(x), function(i) plotCombined(prd(mytimes, as.parvec(fits[[i]]), data = data[[i]])) ))
+testframe2 <- tibble(doedel = "blabal")
+
+checkin_hypothesis <- function(testframe, exclude = NULL) {
+  
+  # possible future feature: set those of variables in exclude to list(NULL)
+  # another way could be to specify include...
+  
+  mynames <- names(testframe)
+
+  new_hypothesis <- lapply(mynames, function(n)  {
+    
+    myobject <- mget(n, envir = .GlobalEnv, ifnotfound = list(NULL))[[1]]
+    if (!is.atomic(myobject) | is.null(myobject)) {myobject <- list(myobject)}
+    return(myobject)
+    })
+  names(new_hypothesis) <- mynames
+  
+  return(rbind(testframe, as.tibble(new_hypothesis)))
+}
+
+
+hypothesis <- "motherfucker"
+checkin_hypothesis(testframe)
+```
+
+
+
+
+```{r}
+# dMod.frame <- tibble(hypothesis = c("cell specific pars with prior", "no cell specifc pars, no prior"), 
+#        x = list(x,x), 
+#        g = list(g,g),
+#        p = list(p_1, p_2),
+#        pars = list(pars_1, pars2),
+#        data = list(mydatalist, mydatalist)) %>% 
+#   mutate(prd = list((g*x*p_1), (g*x*p_2))) %>% 
+#   mutate(prior = list(constraintL2(mu1, sigma1), NULL)) %>% 
+#   mutate(obj = lapply(seq_along(x), function(i) normL2(data[[i]], prd[[i]]) + prior[[i]])) %>% 
+#   mutate(machine = list(c("knecht1", "knecht2"), c("knecht3"))) %>%   
+#   mutate(fits = lapply(seq_along(x), function(i) runbg(mstrust(obj[[i]], pars[[i]]), machine = machine[[i]]) ))
+# # wait a little
+# dMod.frame <- dMod.frame %>% 
+#   mutate(fits = lapply(seq_along(x), function(i) fits[[i]][["get"]]()[[machine[[i]]]] )) %>% 
+#   mutate(fits = lapply(fits, as.parframe)) %>% 
+#   mutate(plots = lapply(seq_along(x), function(i) plotCombined(prd(mytimes, as.parvec(fits[[i]]), data = data[[i]])) ))
 # and so on
 ```
+
+
 
 
 
