@@ -18,19 +18,7 @@ library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für sc
 library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
 library(conveniencefunctions)
 
-merge_col2_into_col1 <- function(.data, col1, col2) {
-  
-  c1 <- enquo(col1)
-  c2 <- enquo(col2)
-  
-  c1name <- quo_name(c1)
-  c2name <- quo_name(c1)
-  
-  UQ <- rlang::UQ
 
-  mutate(.data, UQ(c1name) := replace(UQ(c1), is.na(UQ(c1)), UQ(c2)[is.na(UQ(c1))])) %>% 
-    select(-UQ(c2))
-}
 
 # load("2018_03_09_17_17_workspace.rda")
 # for(i in lsdMod(classlist = "prdfn")) {loadDLL(i)}
@@ -180,7 +168,7 @@ plotCombined((g_apap*x_apap*p_apap)(times, pars_apap, deriv = F), data = data_ap
 ```
 
 ## Apap, study-specific aborption rates
-```{r, warning=FALSE}
+```{r trafo apap_free_ka, warning=FALSE}
 outer_pars_apap <- sort(c(supplied_pars, free_pars_apap))
 
 trafo_apap_free_ka <-
@@ -290,12 +278,6 @@ loadDLL(x_bic)
 (g_bic*x_bic*p_bic)(times*10, pars_bic, deriv = F) %>%  
   # lapply(. %>% as.tibble)
   plotPrediction(name %in% names(observables_bic))
-
-dosepars_bic
-data_bic %>% 
-  # filter(str_detect(name, "rec"))
-  filter(study %>% str_detect("Lei"))
-observables_bic
 ```
 
 
@@ -402,7 +384,6 @@ fitted_pars[[4]]["S0_RECOVERY_MET_KRUMBIEGEL1985"] <- -1
 ```
 
 
-
 ```{r dMod.frame objfuns}
 dMod.frame <- dMod.frame %>% 
   mutate(data = map(data, as.datalist),
@@ -423,212 +404,146 @@ dMod.frame <- dMod.frame %>%
 
 ```{r save dMod.frame}
 saveRDS(dMod.frame, tpaste0("dMod.frame.rds"))
+save.image(tpaste0("workspace.rda"))
 tpaste0("dMod.frame.rds")
 ```
+```{r}
+load("2018_03_23_16_59_workspace.rda")
 
-Test if the objective functions work
-```{r testframe}
-testframe <- dMod.frame %>% mutate(test = map(seq_along(x), function(i) {obj[[i]](pars[[i]])}))
-```
-
-```{r fit_frame}
-fit_frame <- dMod.frame %>% 
-  mutate(obj = map(seq_along(x), function(i) obj[[i]] + constraintL2(mu = (names(pars[[i]]) %>% are_names_of(0))))) %>% 
-  mutate(hypothesis = paste(hypothesis, "with prior"))
-
-fit_frame <- rbind(dMod.frame, fit_frame)
-
-testframe <- fit_frame %>% mutate(test = map(seq_along(x), function(i) {obj[[i]](pars[[i]])}))
-testframe[["test"]] %>% map("value")
+map(dMod.frame$x, loadDLL)
 ```
 
 
 
-Try to fit
+Fit
 ```{r start fits}
-fit_frame <- fit_frame %>% 
-  mutate(fits = map(seq_along(x), function(i) {
-    assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-    assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-    assign("fit_studyname", paste0("fits",hypothesis[[i]]), pos = .GlobalEnv)
-    mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, blather = T, cores = 8)
+fit_job <- runbg({dMod.frame %>%
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, 
+              sd = 3,
+              blather = T, cores = 20, fits = 200)
     }))
-# fit_frame[["fits"]] %>% str1
-saveRDS(testframe, tpaste0("fit_frame.rds"))
+  }, machine = "fermi", filename = "tmp_test")
+
+
+
+saveRDS(fit_job, tpaste0("fit_job.rds"))
+save.image(tpaste0("workspace_with_fits.rda"))
 tpaste0("fit_frame.rds")
 ```
 
 
-# analysis of the fits
+```{r}
+fit_job$check()
+# fit_frame <- fit_job$get()$fermi
+# fit_job$purge()
+# 
+# saveRDS(fit_frame, tpaste0("fit_frame.rds"))
+# save.image(tpaste0("workspace_with_fit_frame.rda"))
+# tpaste0("fit_frame.rds")
+```
+
+```{r}
+# fit_frame <- readRDS()
+```
+
+
+
+# Analysis of the first fits
 ```{r analysis_frame}
 analysis_frame <-
   fit_frame %>% 
-    mutate(parframes = map(fits, as.parframe)) %>% 
-    mutate(parvecs = map(parframes, as.parvec)) %>% 
-  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd[[i]]),
+    mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd[[i]]),
          data = map(seq_along(x), function(i) data_sig[[i]]+data[[i]])) %>% 
-  mutate(pred = map(seq_along(x), function(i) prd[[i]](times = seq(0, max(as.data.frame(data[[i]])$time),length.out = 100), pars = parvecs[[i]], deriv = F) )) %>% 
-  mutate(plot_value = map(parframes, plotValues),
-         plot_pars = map(parframes, plotPars),
-         plot_combined = map(seq_along(x), function(i) plotCombined(pred[[i]], data[[i]]))) %>% 
-  mutate(plot_value = map(seq_along(x), function(i) plot_value[[i]] + ggtitle(label = hypothesis[[i]])),
-         plot_pars = map(seq_along(x), function(i) plot_pars[[i]] + ggtitle(label = hypothesis[[i]])),
-         plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + ggtitle(label = hypothesis[[i]])))
+    mutate(conditions = map(data, names) %>% map(. %>% str_trunc(10))) %>% 
+    dMf_expand_fits %>% 
+    dMf_append_plots
 ```
-
-```{r add reduced condition names for plotting, message=FALSE}
-
-analysis_frame <- analysis_frame %>%  mutate(conditions = map(data, names) %>% map(. %>% str_trunc(10))) %>% 
-    mutate(
-      # plot_value = map(seq_along(x), function(i) plot_value[[i]] + scale_color_dMod(labels = conditions[[i]])),
-         # plot_pars = map(seq_along(x), function(i) plot_pars[[i]] + scale_color_dMod(labels = conditions[[i]])),
-         plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + scale_color_dMod(labels = conditions[[i]])))
-
-```
-
 
 ```{r}
 names(analysis_frame)
 ```
-
 
 ```{r waterfall plots}
 valplots <- analysis_frame$plot_value %>% set_names(analysis_frame$hypothesis)
 valplots
 ```
 
-```{r converged}
-map(analysis_frame$parframes, "converged") %>% set_names(analysis_frame$hypothesis)
-```
-
-```{r}
+```{r print parframes}
 analysis_frame$parframes
 ```
 
-
-```{r plotpars}
+```{r plot_pars}
 analysis_frame$plot_pars
 ```
 
-```{r plotcombined}
-analysis_frame$plot_combined %>% set_names(analysis_frame$hypothesis) %>% .[[3]] %>% ggplotly()
+```{r plot_combined}
+analysis_frame$plot_combined
 ```
 
 
 
-
-
-```{r objective functions}
-obj_apap <- normL2(data_apap %>% as.datalist, (g_apap*x_apap*p_apap))
-obj_apap_free_ka <- normL2(data_apap %>% as.datalist, (g_apap*x_apap*p_apap_free_ka))
-obj_bic <- normL2(data_bic %>% as.datalist, (g_bic*x_bic*p_bic))
-obj_bic_sigma_NA <- normL2(data_bic_sigma_NA %>% as.datalist, (g_bic*x_bic*p_bic_sigma_NA), errmodel = e_bic_sigma_NA)
-obj_met <- normL2(data_met %>% as.datalist, (g_met*x_met*p_met))
-obj_met_sigma_NA <- normL2(data_met_sigma_NA %>% as.datalist, (g_met*x_met*p_met_sigma_NA), errmodel = e_met_sigma_NA)
-```
-
-Automated calls of the objective functions to see if it works
-```{r testing the objfuns}
-c("obj_apap", "obj_apap_free_ka", "obj_bic", "obj_met") %>% lapply(function(i) {
-  identifier <- str_replace(i, "obj_", "")
-  paste0(i, "(pars_", identifier, ")") %>% parse(text=.) %>% eval()
-})
-```
-
-# To do:
-1. Define all other objects necessary to allow automated calls of all objfns, prdfns, ...
-  For example, if I have obj_met_all (combination of obj_met and obj_met_sigma_NA), I also need to have parameters which are called pars_met_all.
-2. Before fitting, find out, why so many derivatives wrt s0 and srel-pars are zero
-3. Run test-fits on the local machine to see if it works before starting lots of useless fits 
-
-
-Fit the objfuns without the data which doesn't contain sigmas. I uncommented this after running it so it doesn't run again.
-```{r fitting the objfuns}
-# myjobs <- 
-#   ls(pattern = "obj")[c(1,2,3,5)] %>% lapply(function(i) {
-#   identifier <- str_replace(i, "obj_", "")
-#   # paste0(i, "(pars_", identifier, ")")
-#   paste0("runbg(mstrust(", i, ",pars_", identifier, ",sd = 5, fits = 100, cores = 6), machine = 'ruprecht1')")  %>% parse(text=.) %>% eval()
-# })
-```
-
-
-## Include data without sigmas
-I forgot to include the data without the sigma. Adding the respective objective functions gives me a combined objective function.
-
-```{r adding the respective objfuns together}
-obj_met_all <- (obj_met + obj_met_sigma_NA)
-obj_bic_all <- (obj_bic + obj_bic_sigma_NA)
-```
-
-```{r fitting the added objuns}
-# myjobs_all <-
-#   c("obj_apap", "obj_apap_free_ka", "obj_bic", "obj_met") %>% lapply(function(i) {
-#   identifier <- i %>%  str_replace_all(c("obj_" = "", "_all" = "")) %>% paste0(., "_sigma_NA")
-#   # paste0(i, "(pars_", identifier, ")")
-#   paste0("runbg(mstrust(", i, ",pars_", identifier, ",sd = 5, fits = 40, cores = 3), machine = c('knecht3', 'knecht4', 'knecht5', 'ruprecht1', 'ruprecht1'))")  %>% parse(text=.) %>% eval()
-# })
-```
+# Allow for other free parameters
 
 ```{r}
-save.image(tpaste0("workspace.rda"))
+observables_bic
 ```
 
 
-
-# Analyze the fits
-The object "all_fits" is saved in the current workspace. It includes all upper six fits, their names are referring to the objective functions that were used in this fit.
 ```{r}
-# all_jobs <- c(myjobs, myjobs_all)
-# names(all_jobs) <- c("obj_apap", "obj_apap_free_ka", "obj_bic", "obj_met",  "obj_bic_all", "obj_met_all")
-
-# all_fits <- lapply(all_jobs, function(j) {
-#   fits_j <- paste0("j$get()") %>% parse(text = .) %>% eval()
-# })
-
-# all_fits <- all_fits %>% lapply(. %>% reduce(.f = c))
-
-# lapply(all_jobs, function(j) {
-#   paste0("j$purge()") %>% parse(text = .) %>% eval()
-# })
-
-# names(all_fits) <- names(all_fits) %>% str_replace("obj", "")
-
+pars_bic
 ```
 
 
-To conveniently call the prediction functions (g_i*x_i*p_i) by giving them names as the other objects.
-Instead of (g_apap*x_apap*p_apap), I now have prd_apap
-```{r}
-identifiers <- names(all_fits) %>% set_names(names(all_fits)) %>% .[1:4]
-g_apap_free_ka <- g_apap
-x_apap_free_ka <- x_apap
-lapply(identifiers, function(identifier) {
-  paste0("prd", identifier, " <- (g", identifier, "*x", identifier, "*p", identifier, ")") %>% parse(text = .) %>% eval(envir = .GlobalEnv)
-})
+```{r bic more free pars}
+(data_bic_sigma_NA$PODOSE_co2c13 != 0) %>% any
+
+trafo_sig_bic_free_sigma <- trafo_bic_sigma_NA %>%
+  insert2("x~x_study", x = "KA_CO2C13", study = study, condition_sub = "Meineke") %>%
+  insert2("x~x_study", x = "KBO_MAXCO2", study = study)
+
+trafp_bic_free <- trafo_bic %>% 
+  insert2("x~x_study", x = "KBO_MAXCO2", study = study)
+
+p_bic_free <- P(trafo_bic_free)
+p_sig_bic_free <- P(trafo_sig_bic_free) 
+pars_bic_free <- getParameters(p_sig_bic_free) %>% are_names_of(0)
+
+prd_bic_free <- cfn(g_bic, cfn(x_bic, p_bic_free))
+prd_sig_bic_free <- cfn(g_bic, cfn(x_bic, p_sig_bic_free))
+
+prd_bic_free <- prd_bic_free_0 + prd_bic_free_sig
+
+e_bic_free <- map(getConditions(p_bic_sigma_NA), function(cond) Y(errors_bic_sigma_NA, g_bic, condition = cond)) %>% Reduce("+",.)
+
+obj_0_bic_free <- normL2(data_bic %>% as.datalist(), (g_bic*x_bic*p_bic_free))
+obj_bic_free_sig <- normL2(data_bic_sigma_NA %>% as.datalist, (g_bic*x_bic * p_sig_bic_free), e_bic_free)
+
+obj_bic_free <- obj_bic_free + obj_sig_bic_free
+
+
+hypothesis_bic_free <- "bic, free KA and KBO"
+
+dMod.frame <- readRDS("2018_03_23_16_59_dMod.frame.rds")
+dMod.frame <- dMod.frame %>% 
+  rbind(.,.[3,])
+dMod.frame$hypothesis[5] <- hypothesis_bic_free
+dMod.frame <- update_hypothesis(suffix = "_bic_free")
 ```
 
-Automated calling of the prediction functions with the fitted parameters. 
-Furthermore, plot the predictions returned by the best parameters.
-```{r}
-mypreds <- lapply(identifiers, function(identifier) {
-  paste0("prd", identifier, "(times, all_fits[['", identifier, "']] %>% as.parframe %>% as.parvec(1), deriv = F )") %>% parse(text = .) %>% eval(envir = .GlobalEnv)
-}) %>% set_names(identifiers)
 
 
-# Plot 
-lapply(identifiers, function(identifier) {
-  paste0("plotCombined( mypreds[['", identifier, "']], data = data", identifier, " %>% as.datalist(), name %in% names(observables", identifier,"))")  %>% parse(text = .) %>% eval(envir = .GlobalEnv)
-})
 
-```
 
-Save the current workspace
-```{r}
-# "2018_03_09_17_17_workspace.rda"
-save.image(tpaste0("workspace.rda"))
-tpaste0("workspace.rda")
-```
+
+
+
+
+
+
 
 
 
