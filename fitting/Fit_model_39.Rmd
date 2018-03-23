@@ -94,8 +94,7 @@ x_apap_bic_met <- Xs(odemodel_apap_bic_met)
 ```
 
 ```{r}
-dMod.frame <- tibble(hypothesis = c("apap", "apap_free_ka", "bic", "met"),
-                     x = list(x_apap, x_apap, x_bic, x_met))
+
 ```
 
 
@@ -112,9 +111,11 @@ g_apap <- Y(g = observables_apap, f = x_apap)
 ## Bicarbonate
 
 ```{r g_bic}
-recovery_bic <- paste(y_dmod["Exhalation_co2c13"], "/ 60 *", y_dmod["Mre_co2c13"], "/ Ri_co2c13 * 100")
+recovery_bic <- paste(y_dmod["Exhalation_co2c13"], "/ 60 * Mr_co2c13 / Ri_co2c13 * 100")
 observables_bic <- c(recovery_bic, y_dmod[c("DOB", "P_CO2Fc13")])
 names(observables_bic) <- c("recovery_bic", "dob_bic", "co2_ratio_bic")
+
+observables_bic["co2_ratio_bic"] <- paste0(observables_bic["co2_ratio_bic"], " + offset_bic")
 
 g_bic <- Y(observables_bic, x_bic)
 ```
@@ -136,9 +137,7 @@ observables_apap_bic_met <- c(observables_apap, observables_bic, observables_met
 g <- Y(observables_apap_bic_met, x_apap_bic_met)
 ```
 
-```{r}
-dMod.frame <- add_column(dMod.frame, g = list(g_apap, g_apap, g_bic, g_met))
-```
+
 
 # Data 
 Read data, insert the default values for the parameters supplied in the data sheet. 
@@ -146,7 +145,6 @@ Read data, insert the default values for the parameters supplied in the data she
 data <- read_csv("data.csv") %>% as.data.frame
 supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
 data[supplied_pars][is.na(data[supplied_pars])] <- 0
-
 ```
 
 
@@ -226,9 +224,9 @@ studies_with_sigma_na <- data_bic %>% filter(is.na(sigma)) %>% .[["study"]] %>% 
 data_bic_sigma_NA <- data_bic %>% filter(study %in% studies_with_sigma_na)
 data_bic <- data_bic %>% filter(! study %in% studies_with_sigma_na)
 
-errors_bic_sigma_NA <- paste0("s0_", names(observables_bic), " + srel_", names(observables_bic), " * ", names(observables_bic)) %>% set_names(names(observables_bic))
+errors_bic_sigma_NA <- paste0("sqrt(s0_", names(observables_bic), "^2 + srel_", names(observables_bic), "^2 * ", names(observables_bic), "^2 )") %>% set_names(names(observables_bic))
 
-e_bic_sigma_NA <- Y(g = errors_bic_sigma_NA, f= (g_bic*x_bic))
+e_bic_sigma_NA <- Y(g = errors_bic_sigma_NA, f= (g_bic))
 ```
 
 ### Parameter trafo
@@ -244,7 +242,9 @@ trafo_bic<-
   
   minsert(supplied_pars) %>% 
 
-  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) 
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  
+  define("x~x", x = "offset_bic")
 
 p_bic <- P(trafo_bic)
 
@@ -267,7 +267,14 @@ trafo_bic_sigma_NA <-
   
   insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = study) %>% 
   
-  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) 
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  
+  insert("x~0", x = c("S0_CO2_RATIO_BIC_BARSTOW1990", "S0_RECOVERY_BIC_BARSTOW1990", 
+"SREL_CO2_RATIO_BIC_BARSTOW1990", "SREL_RECOVERY_BIC_BARSTOW1990", 
+"S0_DOB_BIC_MEINEKE1993", "S0_RECOVERY_BIC_MEINEKE1993", "SREL_DOB_BIC_MEINEKE1993", 
+"SREL_RECOVERY_BIC_MEINEKE1993")) %>% 
+  
+  define("x~x", x = "offset_bic")
 
 p_bic_sigma_NA <- P(trafo_bic_sigma_NA)
 
@@ -304,9 +311,9 @@ studies_with_sigma_na <- data_met %>% filter(is.na(sigma)) %>% .[["study"]] %>% 
 data_met_sigma_NA <- data_met %>% filter(study %in% studies_with_sigma_na)
 data_met <- data_met %>% filter(! study %in% studies_with_sigma_na)
 
-errors_met_sigma_NA <- paste0("s0_", names(observables_met), " + srel_", names(observables_met), " * ", names(observables_met)) %>% set_names(names(observables_met))
+errors_met_sigma_NA <- paste0("sqrt(s0_", names(observables_met), "^2 + srel_", names(observables_met), "^2 * ", names(observables_met), "^2)") %>% set_names(names(observables_met))
 
-e_met_sigma_NA <- Y(g = errors_met_sigma_NA, f= (g_met*x_met))
+e_met_sigma_NA <- Y(g = errors_met_sigma_NA, f= (g_met))
 ```
 
 ### Parameter trafo
@@ -350,7 +357,10 @@ trafo_met_sigma_NA <-
   
   insert("s~s_study", s = names(pars_errors_met_sigma_NA), study = study) %>% 
   
-  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) 
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  insert("x~0", x = c("S0_CUM_MET_KRUMBIEGEL1985", "SREL_CUM_MET_KRUMBIEGEL1985"))
+  
+
 
 p_met_sigma_NA <- P(trafo_met_sigma_NA)
 
@@ -365,13 +375,16 @@ loadDLL(x_met)
 
 
 
-```{r}
-dMod.frame <- add_column(dMod.frame, p = list(p_apap, p_apap_free_ka, p_bic, p_met),
-                        data = list(data_apap, data_apap, data_bic, data_met),
-                        p_sig = list(NULL, NULL, p_bic_sigma_NA, p_met_sigma_NA),
-                        e = list(NULL, NULL, e_bic_sigma_NA, e_met_sigma_NA),
-                        data_sig = list(NULL, NULL, data_bic_sigma_NA, data_met_sigma_NA)
-                        )
+```{r initialize dMod.frame }
+dMod.frame <- tibble(hypothesis = c("apap", "apap_free_ka", "bic", "met"),
+                     x = list(x_apap, x_apap, x_bic, x_met)) %>% 
+  add_column( g = list(g_apap, g_apap, g_bic, g_met)) %>% 
+  add_column(p = list(p_apap, p_apap_free_ka, p_bic, p_met),
+             data = list(data_apap, data_apap, data_bic, data_met),
+             p_sig = list(NULL, NULL, p_bic_sigma_NA, p_met_sigma_NA),
+             e = list(NULL, NULL, e_bic_sigma_NA, e_met_sigma_NA),
+             data_sig = list(NULL, NULL, data_bic_sigma_NA, data_met_sigma_NA)
+  )
 ```
 
 
@@ -382,117 +395,124 @@ dMod.frame <- add_column(dMod.frame, p = list(p_apap, p_apap_free_ka, p_bic, p_m
 
 Now, we define all necessary objective functions, which are handed to the optimizers.
 
-```{r}
-cfn <- function(p1,p2) {
-  if(is.null(p1)|is.null(p2)) {
-    return(NULL)
-    } else {
-  dMod:::`*.fn`(p1,p2)
-    }
-}
-# cfn(x_apap,p_apap)
+```{r read pars from previous fits}
+fitted_pars <- readRDS("fitted_pars.rds")
+fitted_pars[[3]] <- c(fitted_pars[[3]], "offset_bic" = -0.01)
+fitted_pars[[4]]["S0_RECOVERY_MET_KRUMBIEGEL1985"] <- -1
+```
 
-bla <- dMod.frame %>% 
+
+
+```{r dMod.frame objfuns}
+dMod.frame <- dMod.frame %>% 
   mutate(data = map(data, as.datalist),
          data_sig = map(data_sig, as.datalist)) %>% 
   mutate(prd = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p[[i]]))),
          prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
   mutate(obj_0 = map(seq_along(x), function(i) normL2(data[[i]], prd[[i]])),
          obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
-  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]]))
+  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
+  # mutate(pars = list(pars_apap, pars_apap_free_ka, pars_bic_sigma_NA, pars_met_sigma_NA)) %>% 
+  mutate(pars = fitted_pars) %>% 
+  mutate(observables = list(observables_apap, observables_apap, observables_bic, observables_met),
+         errors = list(NULL, NULL, errors_bic_sigma_NA, errors_met_sigma_NA),
+         trafo = list(trafo_apap, trafo_apap_free_ka, trafo_bic, trafo_met),
+         trafo_sig = list(NULL, NULL, trafo_bic_sigma_NA, trafo_met_sigma_NA))
+```
 
 
-# for testing
-obj_apap <- cf_normL2(data_apap %>% as.datalist, (g_apap*x_apap*p_apap))
-obj_apap <- cf_normL2(NULL, (g_apap*x_apap*p_apap))
-obj_apap <- cf_normL2(data_apap %>% as.datalist, NULL)
-obj_apap(pars_apap)
+```{r save dMod.frame}
+saveRDS(dMod.frame, tpaste0("dMod.frame.rds"))
+tpaste0("dMod.frame.rds")
+```
 
-# why is this?
-NULL + obj_apap
-obj_apap + NULL
+Test if the objective functions work
+```{r testframe}
+testframe <- dMod.frame %>% mutate(test = map(seq_along(x), function(i) {obj[[i]](pars[[i]])}))
+```
+
+```{r fit_frame}
+fit_frame <- dMod.frame %>% 
+  mutate(obj = map(seq_along(x), function(i) obj[[i]] + constraintL2(mu = (names(pars[[i]]) %>% are_names_of(0))))) %>% 
+  mutate(hypothesis = paste(hypothesis, "with prior"))
+
+fit_frame <- rbind(dMod.frame, fit_frame)
+
+testframe <- fit_frame %>% mutate(test = map(seq_along(x), function(i) {obj[[i]](pars[[i]])}))
+testframe[["test"]] %>% map("value")
+```
+
+
+
+Try to fit
+```{r start fits}
+fit_frame <- fit_frame %>% 
+  mutate(fits = map(seq_along(x), function(i) {
+    assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+    assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+    assign("fit_studyname", paste0("fits",hypothesis[[i]]), pos = .GlobalEnv)
+    mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, blather = T, cores = 8)
+    }))
+# fit_frame[["fits"]] %>% str1
+saveRDS(testframe, tpaste0("fit_frame.rds"))
+tpaste0("fit_frame.rds")
+```
+
+
+# analysis of the fits
+```{r analysis_frame}
+analysis_frame <-
+  fit_frame %>% 
+    mutate(parframes = map(fits, as.parframe)) %>% 
+    mutate(parvecs = map(parframes, as.parvec)) %>% 
+  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd[[i]]),
+         data = map(seq_along(x), function(i) data_sig[[i]]+data[[i]])) %>% 
+  mutate(pred = map(seq_along(x), function(i) prd[[i]](times = seq(0, max(as.data.frame(data[[i]])$time),length.out = 100), pars = parvecs[[i]], deriv = F) )) %>% 
+  mutate(plot_value = map(parframes, plotValues),
+         plot_pars = map(parframes, plotPars),
+         plot_combined = map(seq_along(x), function(i) plotCombined(pred[[i]], data[[i]]))) %>% 
+  mutate(plot_value = map(seq_along(x), function(i) plot_value[[i]] + ggtitle(label = hypothesis[[i]])),
+         plot_pars = map(seq_along(x), function(i) plot_pars[[i]] + ggtitle(label = hypothesis[[i]])),
+         plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + ggtitle(label = hypothesis[[i]])))
+```
+
+```{r add reduced condition names for plotting, message=FALSE}
+
+analysis_frame <- analysis_frame %>%  mutate(conditions = map(data, names) %>% map(. %>% str_trunc(10))) %>% 
+    mutate(
+      # plot_value = map(seq_along(x), function(i) plot_value[[i]] + scale_color_dMod(labels = conditions[[i]])),
+         # plot_pars = map(seq_along(x), function(i) plot_pars[[i]] + scale_color_dMod(labels = conditions[[i]])),
+         plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + scale_color_dMod(labels = conditions[[i]])))
+
+```
+
+
+```{r}
+names(analysis_frame)
+```
+
+
+```{r waterfall plots}
+valplots <- analysis_frame$plot_value %>% set_names(analysis_frame$hypothesis)
+valplots
+```
+
+```{r converged}
+map(analysis_frame$parframes, "converged") %>% set_names(analysis_frame$hypothesis)
 ```
 
 ```{r}
-checkout_hypothesis <- function(dMod.frame, hypothesis) {
-  mydMod.frame <- dMod.frame[dMod.frame[["hypothesis"]]==hypothesis,]
-  map(seq_along(mydMod.frame), function(i)  {
-    value <- mydMod.frame[[i]]
-    if(is.list(value)&length(value)==1) value = value[[1]]
-    assign(x = names(mydMod.frame)[i],
-           value = value,
-           pos = .GlobalEnv)})
-}
-
-
-
-
-# testing
-a <- 3
-myfun <- function(x) {a * x^2}
-testframe <- tibble(hypothesis = c("apap", "penner"),
-                    schwurbel = list(qplot(1:10,1:10), "Penis"),
-                    wupwup = list("moep", diamonds),
-                    myfun = list(function(x) {a * x^3}, myfun),
-                    a = c(1:2))
-
-checkout_hypothesis(testframe, "apap")
-myfun
-schwurbel
-wupwup
-hypothesis
+analysis_frame$parframes
 ```
 
 
-```{r}
-testframe2 <- tibble(doedel = "blabal")
-
-checkin_hypothesis <- function(testframe, exclude = NULL) {
-  
-  # possible future feature: set those of variables in exclude to list(NULL)
-  # another way could be to specify include...
-  
-  mynames <- names(testframe)
-
-  new_hypothesis <- lapply(mynames, function(n)  {
-    
-    myobject <- mget(n, envir = .GlobalEnv, ifnotfound = list(NULL))[[1]]
-    if (!is.atomic(myobject) | is.null(myobject)) {myobject <- list(myobject)}
-    return(myobject)
-    })
-  names(new_hypothesis) <- mynames
-  
-  return(rbind(testframe, as.tibble(new_hypothesis)))
-}
-
-
-hypothesis <- "motherfucker"
-checkin_hypothesis(testframe)
+```{r plotpars}
+analysis_frame$plot_pars
 ```
 
-
-
-
-```{r}
-# dMod.frame <- tibble(hypothesis = c("cell specific pars with prior", "no cell specifc pars, no prior"), 
-#        x = list(x,x), 
-#        g = list(g,g),
-#        p = list(p_1, p_2),
-#        pars = list(pars_1, pars2),
-#        data = list(mydatalist, mydatalist)) %>% 
-#   mutate(prd = list((g*x*p_1), (g*x*p_2))) %>% 
-#   mutate(prior = list(constraintL2(mu1, sigma1), NULL)) %>% 
-#   mutate(obj = lapply(seq_along(x), function(i) normL2(data[[i]], prd[[i]]) + prior[[i]])) %>% 
-#   mutate(machine = list(c("knecht1", "knecht2"), c("knecht3"))) %>%   
-#   mutate(fits = lapply(seq_along(x), function(i) runbg(mstrust(obj[[i]], pars[[i]]), machine = machine[[i]]) ))
-# # wait a little
-# dMod.frame <- dMod.frame %>% 
-#   mutate(fits = lapply(seq_along(x), function(i) fits[[i]][["get"]]()[[machine[[i]]]] )) %>% 
-#   mutate(fits = lapply(fits, as.parframe)) %>% 
-#   mutate(plots = lapply(seq_along(x), function(i) plotCombined(prd(mytimes, as.parvec(fits[[i]]), data = data[[i]])) ))
-# and so on
+```{r plotcombined}
+analysis_frame$plot_combined %>% set_names(analysis_frame$hypothesis) %>% .[[3]] %>% ggplotly()
 ```
-
 
 
 
