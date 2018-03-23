@@ -311,13 +311,13 @@ PODOSE_metc13 = 75.0  # [mg] (1 [mg/kg])
 
 *** Krumbiegel1985_AC01 ***
 ```
-time, subjects, recovery 
+time, subjects, cum 
 PODOSE_metc13 = 375.0  # [mg] (5 [mg/kg])
 ```
 
 *** Krumbiegel1985_AC03 ***
 ```
-time, subjects, recovery 
+time, subjects, cum 
 PODOSE_metc13 = 375.0  # [mg] (5 [mg/kg])
 ```
 
