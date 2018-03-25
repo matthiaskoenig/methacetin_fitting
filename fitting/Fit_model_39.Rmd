@@ -439,18 +439,24 @@ walk(dMod.frame$x, loadDLL)
 ```
 
 ```{r}
-fit_job$check()
-fit_frame <- fit_job$get()$fermi
-
-saveRDS(fit_frame, tpaste0("fit_frame.rds"))
-save.image(tpaste0("workspace_with_fit_frame.rda"))
-tpaste0("fit_frame.rds")
+# fit_job$check()
+# fit_frame <- fit_job$get()$fermi
+# 
+# saveRDS(fit_frame, tpaste0("fit_frame.rds"))
+# save.image(tpaste0("workspace_with_fit_frame.rda"))
+# tpaste0("fit_frame.rds")
 # fit_job$purge()
 ```
 
 ```{r}
 # fit_frame <- readRDS()
 ```
+
+```{r}
+load("2018_03_25_21_06_workspace_with_fit_frame.rda")
+walk(dMod.frame$x, loadDLL)
+```
+
 
 
 
@@ -529,6 +535,39 @@ plotframe = analysis_frame %>%
 
 plotframe$plot_combined[[4]] %>% ggplotly()
 ```
+
+
+```{r}
+load("2018_03_25_21_06_workspace_with_fit_frame.rda")
+
+walk(dMod.frame$x, loadDLL)
+```
+
+
+
+# Profile Likelihoods
+```{r start profiles}
+profile_job_frame <- fit_frame %>% 
+    mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd[[i]]),
+         data = map(seq_along(x), function(i) data_sig[[i]]+data[[i]])) %>% 
+    mutate(conditions = map(data, names) %>% map(. %>% str_trunc(10))) %>% 
+    dMf_expand_fits
+
+profile_job <- runbg({profile_job_frame %>%
+    mutate(profiles = map(seq_along(x), function(i) {
+      assign("profile_obj", obj[[i]], pos = .GlobalEnv)
+      assign("profile_pars", best_parvec[[i]], pos = .GlobalEnv)
+      profile(obj = profile_obj, pars = profile_pars, whichPar = names(profile_pars),
+              stepControl = list(min = 1e-3, limit = 80))
+    }))
+  }, machine = "fermi", filename = "tmp_profiles", input = "profile_job_frame")
+
+saveRDS(fit_job, tpaste0("profile_job.rds"))
+save.image(tpaste0("workspace_with_profile_job.rda"))
+tpaste0("profile_job.rds")
+
+```
+
 
 
 
