@@ -407,26 +407,27 @@ saveRDS(dMod.frame, tpaste0("dMod.frame.rds"))
 save.image(tpaste0("workspace.rda"))
 tpaste0("dMod.frame.rds")
 ```
-```{r}
-load("2018_03_23_16_59_workspace.rda")
 
-map(dMod.frame$x, loadDLL)
+```{r}
+load("2018_03_23_17_53_workspace_with_fits.rda")
+
+walk(dMod.frame$x, loadDLL)
 ```
 
 
 
 Fit
 ```{r start fits}
-fit_job <- runbg({dMod.frame %>%
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, 
-              sd = 3,
-              blather = T, cores = 20, fits = 200)
-    }))
-  }, machine = "fermi", filename = "tmp_test")
+# fit_job <- runbg({dMod.frame %>%
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, 
+#               sd = 3,
+#               blather = T, cores = 20, fits = 200)
+#     }))
+#   }, machine = "fermi", filename = "tmp_test")
 
 
 
