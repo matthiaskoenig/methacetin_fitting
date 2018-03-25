@@ -408,11 +408,7 @@ save.image(tpaste0("workspace.rda"))
 tpaste0("dMod.frame.rds")
 ```
 
-```{r}
-load("2018_03_23_17_53_workspace_with_fits.rda")
 
-walk(dMod.frame$x, loadDLL)
-```
 
 
 
@@ -436,15 +432,20 @@ save.image(tpaste0("workspace_with_fits.rda"))
 tpaste0("fit_frame.rds")
 ```
 
+```{r}
+load("2018_03_23_17_53_workspace_with_fits.rda")
+
+walk(dMod.frame$x, loadDLL)
+```
 
 ```{r}
 fit_job$check()
-# fit_frame <- fit_job$get()$fermi
+fit_frame <- fit_job$get()$fermi
+
+saveRDS(fit_frame, tpaste0("fit_frame.rds"))
+save.image(tpaste0("workspace_with_fit_frame.rda"))
+tpaste0("fit_frame.rds")
 # fit_job$purge()
-# 
-# saveRDS(fit_frame, tpaste0("fit_frame.rds"))
-# save.image(tpaste0("workspace_with_fit_frame.rda"))
-# tpaste0("fit_frame.rds")
 ```
 
 ```{r}
@@ -461,28 +462,72 @@ analysis_frame <-
          data = map(seq_along(x), function(i) data_sig[[i]]+data[[i]])) %>% 
     mutate(conditions = map(data, names) %>% map(. %>% str_trunc(10))) %>% 
     dMf_expand_fits %>% 
-    dMf_append_plots
+    dMf_append_plots(tol = 5)
 ```
 
 ```{r}
 names(analysis_frame)
 ```
 
+
+In hypothesis apap: There are good steps, chi^2 = 490
+In hypothesis apap_free_ka: There are good steps, but more. chi^2 = 285
+In hypothesis bic: There appears to be a good optimum, but in this optimum, many fits didn't converge. chi^2 = 2703 
+In hypothesis met: There are no good steps, especially in the beginning. There seems to be plateau at the beginning. chi^2 = 12700
 ```{r waterfall plots}
 valplots <- analysis_frame$plot_value %>% set_names(analysis_frame$hypothesis)
-valplots
+valplots[[4]] %>% ggplotly()
 ```
 
 ```{r print parframes}
 analysis_frame$parframes
 ```
-
+In hypothesis apap: 
+  In the optimum, the pars are unique with sensible values. 
+  In the second step, Ka_apap goes to infinity and the other parameters are also really high.
+In hypothesis apap_free_ka: 
+  In the The pars are determined well, except for Baraka and Chiew, where sometimes infinite absoprtion rates happen. 
+  In the other conditions, the pars are spread out more and sometimes have different locations.
+In hypothesis bic: 
+  Across the first 10 steps, the parameters KBO_FIX_CO2 and KBO_RELCO2 appear to be quite big (both have a lot of variance even within their steps)
+  s0_co2_ratio_bic_meineke_1993 appears to be near zero. 
+In hypothesis met: 
+  The pars are spread out over a wide range. 
+  S0_CUM_MET_LALAZAR2008 and S0_RECOVERY_MET_LALAZAR2008 can be zero. In other error-pars a lot of variance can be seen as well.
+  CYP1A2MET_KM_MET is very small. This basically means that the MM rate is always at Vmax.
 ```{r plot_pars}
-analysis_frame$plot_pars
+# analysis_frame[2,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:100,] %>%  plotPars(tol = 2) %>% ggplotly()
+# analysis_frame[3,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:64,] %>%  plotPars(tol = 2) #%>% ggplotly()
+# analysis_frame[3,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:49,] %>%  plotPars(tol = 1) #%>% ggplotly()
+# analysis_frame[4,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:64,] %>%  plotPars(tol = 10) #%>% ggplotly()
+analysis_frame[4,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[4:64,] %>%  plotPars(tol = 10) #%>% ggplotly()
+
 ```
 
+
+In hypothesis apap: The predictions fit alright, but not perfectly. However, this could be taken as it is
+In hypothesis apap_free_ka: The predictions fit better than in apap.
+In hypothesis bic: 
+  co2_ratio_bic, the predictions are always below the data points. However, the time scales fit well
+  dob_bic, Barstow is much slower, Irving a bit and Mohr fits nicely. (Is the sigma of mohr much smaller so the predicition is forced thorugh this trajectory? I guess the reason why barstow and Irving are so much slower is that because the kinetics is working in saturation.
+  recovery_bic, it doesn't look as if the fit helped anything
+In hypothesis met:
+  cum_met,  it appears as if the fit doesn't help anything, the krumbiegel data isn't met at all
+  recovery_met: Looks alright, but the height of the peak isn't matched.
 ```{r plot_combined}
-analysis_frame$plot_combined
+plotframe = analysis_frame %>%
+  mutate(g_plot = map(g, function(i) {
+    force(i)
+    controls(i, name = "attach.input") <-  FALSE
+    return(i)})) %>%
+  mutate(plot_combined = map(seq_along(x), function(i) {
+    myplotcombined <- plotCombined
+    environment(myplotcombined) <- parent.env(new.env())
+    myplotcombined(best_prediction[[i]], data[[i]], name%in%names(observables[[i]]))
+                 })) %>%
+  mutate(           plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t", best_value[[i]]))))
+
+plotframe$plot_combined[[4]] %>% ggplotly()
 ```
 
 
