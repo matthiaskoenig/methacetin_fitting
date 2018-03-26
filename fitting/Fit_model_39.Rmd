@@ -407,6 +407,8 @@ saveRDS(dMod.frame, tpaste0("dMod.frame.rds"))
 save.image(tpaste0("workspace.rda"))
 tpaste0("dMod.frame.rds")
 ```
+```{r}
+load("2018_03_23_16_59_workspace.rda")
 
 
 
@@ -441,6 +443,7 @@ walk(dMod.frame$x, loadDLL)
 ```{r}
 # fit_job$check()
 # fit_frame <- fit_job$get()$fermi
+# fit_job$purge()
 # 
 # saveRDS(fit_frame, tpaste0("fit_frame.rds"))
 # save.image(tpaste0("workspace_with_fit_frame.rda"))
