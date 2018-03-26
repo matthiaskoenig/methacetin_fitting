@@ -7,7 +7,7 @@ output:
 
 
 Load all important libraries
-```{r, message=FALSE, warning=FALSE, eval=TRUE, echo=FALSE}
+```{r setup, message=FALSE, warning=FALSE, eval=TRUE, echo=FALSE}
 knitr::opts_chunk$set(eval = FALSE)
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(fig.height = 10)
@@ -407,26 +407,23 @@ saveRDS(dMod.frame, tpaste0("dMod.frame.rds"))
 save.image(tpaste0("workspace.rda"))
 tpaste0("dMod.frame.rds")
 ```
-```{r}
-load("2018_03_23_16_59_workspace.rda")
 
-map(dMod.frame$x, loadDLL)
-```
+
 
 
 
 Fit
 ```{r start fits}
-fit_job <- runbg({dMod.frame %>%
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, 
-              sd = 3,
-              blather = T, cores = 20, fits = 200)
-    }))
-  }, machine = "fermi", filename = "tmp_test")
+# fit_job <- runbg({dMod.frame %>%
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, 
+#               sd = 3,
+#               blather = T, cores = 20, fits = 200)
+#     }))
+#   }, machine = "fermi", filename = "tmp_test")
 
 
 
@@ -435,15 +432,20 @@ save.image(tpaste0("workspace_with_fits.rda"))
 tpaste0("fit_frame.rds")
 ```
 
+```{r}
+load("2018_03_23_17_53_workspace_with_fits.rda")
+
+walk(dMod.frame$x, loadDLL)
+```
 
 ```{r}
-fit_job$check()
+# fit_job$check()
 # fit_frame <- fit_job$get()$fermi
-# fit_job$purge()
 # 
 # saveRDS(fit_frame, tpaste0("fit_frame.rds"))
 # save.image(tpaste0("workspace_with_fit_frame.rda"))
 # tpaste0("fit_frame.rds")
+# fit_job$purge()
 ```
 
 ```{r}
@@ -451,24 +453,29 @@ fit_job$check()
 ```
 
 
-
 # Analysis of the first fits
-```{r analysis_frame}
+```{r}
+load("2018_03_25_21_06_workspace_with_fit_frame.rda")
+walk(dMod.frame$x, loadDLL)
+```
+
+```{r analysis_frame, message=FALSE}
 analysis_frame <-
   fit_frame %>% 
     mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd[[i]]),
          data = map(seq_along(x), function(i) data_sig[[i]]+data[[i]])) %>% 
     mutate(conditions = map(data, names) %>% map(. %>% str_trunc(10))) %>% 
     dMf_expand_fits %>% 
-    dMf_append_plots
+    dMf_append_plots(tol = 5)
 ```
 
-```{r}
-names(analysis_frame)
-```
-
+In hypothesis apap: There are good steps, chi^2 = 490
+In hypothesis apap_free_ka: There are good steps, but more. chi^2 = 285
+In hypothesis bic: There appears to be a good optimum, but in this optimum, many fits didn't converge. chi^2 = 2703 
+In hypothesis met: There are no good steps, especially in the beginning. There seems to be plateau at the beginning. chi^2 = 12700
 ```{r waterfall plots}
 valplots <- analysis_frame$plot_value %>% set_names(analysis_frame$hypothesis)
+# valplots[[4]] %>% ggplotly()
 valplots
 ```
 
@@ -476,13 +483,169 @@ valplots
 analysis_frame$parframes
 ```
 
+In hypothesis apap: 
+  In the optimum, the pars are unique with sensible values. 
+  In the second step, Ka_apap goes to infinity and the other parameters are also really high.
+In hypothesis apap_free_ka: 
+  In the The pars are determined well, except for Baraka and Chiew, where sometimes infinite absoprtion rates happen. 
+  In the other conditions, the pars are spread out more and sometimes have different locations.
+In hypothesis bic: 
+  Across the first 10 steps, the parameters KBO_FIX_CO2 and KBO_RELCO2 appear to be quite big (both have a lot of variance even within their steps)
+  s0_co2_ratio_bic_meineke_1993 appears to be near zero. 
+In hypothesis met: 
+  The pars are spread out over a wide range. 
+  S0_CUM_MET_LALAZAR2008 and S0_RECOVERY_MET_LALAZAR2008 can be zero. In other error-pars a lot of variance can be seen as well.
+  CYP1A2MET_KM_MET is very small. This basically means that the MM rate is always at Vmax.
 ```{r plot_pars}
-analysis_frame$plot_pars
+analysis_frame[1, "parframes"] %>% .[[1]] %>% .[[1]] %>% plotPars 
+# analysis_frame[2,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:100,] %>%  plotPars(tol = 2) %>% ggplotly()
+# analysis_frame[3,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:64,] %>%  plotPars(tol = 2) #%>% ggplotly()
+# analysis_frame[3,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:49,] %>%  plotPars(tol = 1) #%>% ggplotly()
+# analysis_frame[4,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:64,] %>%  plotPars(tol = 10) #%>% ggplotly()
+analysis_frame[4,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[4:64,] %>%  plotPars(tol = 10) #%>% ggplotly()
+
 ```
 
+
+In hypothesis apap: The predictions fit alright, but not perfectly. However, this could be taken as it is
+In hypothesis apap_free_ka: The predictions fit better than in apap.
+In hypothesis bic: 
+  co2_ratio_bic, the predictions are always below the data points. However, the time scales fit well
+  dob_bic, Barstow is much slower, Irving a bit and Mohr fits nicely. (Is the sigma of mohr much smaller so the predicition is forced thorugh this trajectory? I guess the reason why barstow and Irving are so much slower is that because the kinetics is working in saturation.
+  recovery_bic, it doesn't look as if the fit helped anything
+In hypothesis met:
+  cum_met,  it appears as if the fit doesn't help anything, the krumbiegel data isn't met at all
+  recovery_met: Looks alright, but the height of the peak isn't matched.
 ```{r plot_combined}
-analysis_frame$plot_combined
+plotframe = analysis_frame %>%
+  mutate(g_plot = map(g, function(i) {
+    force(i)
+    controls(i, name = "attach.input") <-  FALSE
+    return(i)})) %>%
+  mutate(plot_combined = map(seq_along(x), function(i) {
+    myplotcombined <- plotCombined
+    environment(myplotcombined) <- parent.env(new.env())
+    myplotcombined(best_prediction[[i]], data[[i]], name%in%names(observables[[i]]))
+                 })) %>%
+  mutate(           plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t", best_value[[i]]))))
+
+plotframe$plot_combined[[4]] %>% plotly::ggplotly()
 ```
+
+
+
+# Profile Likelihoods Part 1
+
+## Start profiles
+```{r}
+load("2018_03_25_21_06_workspace_with_fit_frame.rda")
+walk(dMod.frame$x, loadDLL)
+```
+
+```{r start profiles}
+# profile_job_frame <- fit_frame %>% 
+#     mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd[[i]]),
+#          data = map(seq_along(x), function(i) data_sig[[i]]+data[[i]])) %>% 
+#     mutate(conditions = map(data, names) %>% map(. %>% str_trunc(10))) %>% 
+#     dMf_expand_fits
+# 
+# profile_job <- runbg({profile_job_frame %>%
+#     mutate(profiles = map(seq_along(x), function(i) {
+#       assign("profile_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("profile_pars", best_parvec[[i]], pos = .GlobalEnv)
+#       profile(obj = profile_obj, pars = profile_pars, whichPar = names(profile_pars),
+#               stepControl = list(min = 1e-3, limit = 80))
+#     }))
+#   }, machine = "fermi", filename = "tmp_profiles", input = "profile_job_frame")
+# 
+# saveRDS(fit_job, tpaste0("profile_job.rds")) #error hrer
+# save.image(tpaste0("workspace_with_profile_job.rda"))
+# tpaste0("profile_job.rds")
+
+```
+
+```{r}
+# load("2018_03_25_22_52_workspace_with_profile_job.rda")
+# walk(dMod.frame$x, loadDLL)
+# 
+# profile_frame <- profile_job$get()$fermi
+# saveRDS(profile_frame, tpaste0("profile_frame.rds"))
+# save.image(tpaste0("workspace_with_profile_frame.rda"))
+# tpaste0("profile_frame.rds")
+```
+
+## Look at the profiles
+
+```{r}
+load("2018_03_26_13_32_workspace_with_profile_frame.rda")
+walk(dMod.frame$x, loadDLL)
+```
+
+
+In hypothesis apap: All pars are identifiable with OK confidence intervals.
+In hypothesis apap_free_ka: The pars KA_APAP_BARAKA1990_NA and KA_APAP_CHIEW2010_NA can be infinitely large. In comparison to apap, APAPD_HLM_CL didn't change, whereas APAPD_KM_APAP seems to have gotten a bit bigger in value.
+In hypothesis bic: Only the parameters CO2FIX_HLM_CL and KA_CO2C13 were finished, but they don't look informative.
+In hypothesis met: No profile was finished.
+```{r}
+profile_frame <- profile_frame %>% 
+  mutate(plot_profile = map(seq_along(x), function(i) {
+    if(i==4) return(NULL) 
+    plotProfile(profiles[[i]])})) %>% 
+  mutate(plot_pars = map(seq_along(x), function(i) {
+    if(i==4) return(NULL)
+    plot_profile[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t"))}))
+
+
+profile_frame$plot_profile
+
+```
+
+# Profile Likelihood Part 2
+Since in bic and met, no profile really looked nice, I decided to start new profiles with the error-parameters fixed. 
+```{r}
+load("2018_03_25_21_06_workspace_with_fit_frame.rda")
+walk(dMod.frame$x, loadDLL)
+```
+
+```{r}
+profile_job_frame <- fit_frame %>% 
+    mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd[[i]]),
+         data = map(seq_along(x), function(i) data_sig[[i]]+data[[i]])) %>% 
+    mutate(conditions = map(data, names) %>% map(. %>% str_trunc(10))) %>% 
+    dMf_expand_fits %>% 
+  mutate(profile_free = map(best_parvec, . %>% .[!str_detect(names(.),"^S(0|R)")]),
+         profile_fixed = map(best_parvec, . %>% .[str_detect(names(.),"^S(0|R)")]))
+
+
+
+profile_job <- runbg({profile_job_frame %>%
+    mutate(profiles = vector("list", 4L)) 
+    profiles <- lapply(seq_along(1:4), function(i) {
+      if(i %in% 1:2) {
+        return(list(parframe()))
+        } else {
+      assign("profile_obj", profile_job_frame$obj[[i]], pos = .GlobalEnv)
+      assign("profile_pars", profile_job_frame$best_parvec[[i]], pos = .GlobalEnv)
+      assign("profile_fixed", profile_job_frame$profile_fixed[[i]], pos = .GlobalEnv)
+      assign("profile_free", profile_job_frame$profile_free[[i]], pos = .GlobalEnv)
+      return(profile(obj = profile_obj,
+              pars = profile_free,
+              whichPar = names(profile_free),
+              fixed = profile_fixed,
+              stepControl = list(min = 1e-3, limit = 80),
+              cores = 20))
+      }
+    })
+    profiles
+  }, machine = "fermi", filename = "tmp_profiles_fixed", input = "profile_job_frame")
+
+save.image(tpaste0("workspace_with_profiles_with_fixed_pars.rda"))
+```
+
+
+
+
+
 
 
 
