@@ -60,7 +60,6 @@ APAPD_Km_apap   # [mM] Km value for apap
 * `Rawlins1977, ORAL_D1000`
 * `Rawlins1977, ORAL_D2000`
 
-
 ## [B] bicarbonate
 
 ### Observer Functions
@@ -114,104 +113,25 @@ CYP1A2MET_CL    # Vmax value hepatic clearance
 CYP1A2MET_Km_met  # [mM] Km value for methacetin
 ```
 
-### Studies
+### study, group
 
-*** Kasicka-Jonderko2008_young ***
-```
-time, subjects, recovery ± recovery_sd, cum ± cum_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
+* `Kasicka-Jonderko2008, young`
+* `Kasicka-Jonderko2008, middle-aged`
+* `Kasicka-Jonderko2008, 2d`
+* `Kasicka-Jonderko2008, 18d`
+* `Kasicka-Jonderko2008, baseline1`
+* `Kasicka-Jonderko2008, baseline2`
+* `Kasicka-Jonderko2013a, F_LBMI_FX75`
+* `Kasicka-Jonderko2013a, F_LBMI_BMAD`
+* `Kasicka-Jonderko2013a, M_HBMI_FX75`
+* `Kasicka-Jonderko2013a, M_HBMI_BMAD`
+* `Ciccocioppo2003, elderly`
+* `Ciccocioppo2003, adult`
+* `Krumbiegel1985, AC-01`
+* `Krumbiegel1985, AC-03`
+* `Holtmeier2006, NaN`
+* `Lalazar2008, NaN`
 
-*** Kasicka-Jonderko2008_middle-aged ***
-```
-time, subjects, recovery ± recovery_sd, cum ± cum_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
-
-*** Kasicka-Jonderko2011_2d ***
-```
-time, subjects, recovery ± recovery_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
-
-*** Kasicka-Jonderko2011_18d ***
-```
-time, subjects, recovery ± recovery_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
-
-*** Kasicka-Jonderko2011_baseline1 ***
-```
-time, subjects, recovery ± recovery_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
-
-*** Kasicka-Jonderko2011_baseline2 ***
-```
-time, subjects, recovery ± recovery_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
-
-*** Kasicka-Jonderko2013a_HBMI_BMAD ***
-```
-time, subjects, recovery ± recovery_sd, cum ± cum_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
-
-*** Kasicka-Jonderko2013a_HBMI_FX75 ***
-```
-time, subjects, recovery ± recovery_sd, cum ± cum_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
-
-*** Kasicka-Jonderko2013a_LBMI_BMAD ***
-```
-time, subjects, recovery ± recovery_sd, cum ± cum_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
-
-*** Kasicka-Jonderko2013a_LBMI_FX75 ***
-```
-time, subjects, recovery ± recovery_sd, cum ± cum_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
-
-*** Ciccocioppo2003_adult ***
-```
-time, subjects, recovery ± recovery_sd, cum ± cum_sd 
-PODOSE_metc13 = 75.0  # [mg] (1 [mg/kg])
-BW = 75  # [kg]
-```
-
-*** Ciccocioppo2003_elderly ***
-```
-time, subjects, recovery ± recovery_sd, cum ± cum_sd 
-PODOSE_metc13 = 75.0  # [mg] (1 [mg/kg])
-```
-
-*** Krumbiegel1985_AC01 ***
-```
-time, subjects, cum 
-PODOSE_metc13 = 375.0  # [mg] (5 [mg/kg])
-```
-
-*** Krumbiegel1985_AC03 ***
-```
-time, subjects, cum 
-PODOSE_metc13 = 375.0  # [mg] (5 [mg/kg])
-```
-
-*** Holtmeier2006 ***
-```
-time, subjects, cum ± cum_sd 
-PODOSE_metc13 = 150.0  # [mg] (1 [mg/kg])
-```
-
-*** Lalazar2008 ***
-```
-time, subjects, recovery ± recovery_sd, cum ± cum_sd 
-PODOSE_metc13 = 75.0  # [mg]
-```
 
 ## [C] LiMAx
 
