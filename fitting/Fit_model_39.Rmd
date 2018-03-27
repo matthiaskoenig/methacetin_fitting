@@ -202,7 +202,6 @@ Some studies don't have sigmas. Estimate the errors for them while fitting. For 
 3. For both sets of data, "_bic", and "bic_sigma_NA", we now need condition specific parameters. Additionally, in "_bic_sigma_NA", we need to supply the parameters of our error model.
 
 ### Error model
-TODO: FIX ERROR MODEL (Parameter)
 
 ```{r e_bic}
 data_bic <- data %>% 
@@ -373,9 +372,6 @@ dMod.frame <- tibble(hypothesis = c("apap", "apap_free_ka", "bic", "met"),
 
 # Fit
 
-## Objective functions
-
-Now, we define all necessary objective functions, which are handed to the optimizers.
 
 ```{r read pars from previous fits}
 fitted_pars <- readRDS("fitted_pars.rds")
@@ -384,7 +380,7 @@ fitted_pars[[4]]["S0_RECOVERY_MET_KRUMBIEGEL1985"] <- -1
 ```
 
 
-```{r dMod.frame objfuns}
+```{r transform dMod.frame to create objfuns}
 dMod.frame <- dMod.frame %>% 
   mutate(data = map(data, as.datalist),
          data_sig = map(data_sig, as.datalist)) %>% 
@@ -468,8 +464,8 @@ analysis_frame <-
     mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd[[i]]),
          data = map(seq_along(x), function(i) data_sig[[i]]+data[[i]])) %>% 
     mutate(conditions = map(data, names) %>% map(. %>% str_trunc(10))) %>% 
-    dMf_expand_fits %>% 
-    dMf_append_plots(tol = 5)
+    dMf_expand_fits() %>% 
+  dMf_append_plots(tol = 5)
 ```
 
 In hypothesis apap: There are good steps, chi^2 = 490
@@ -478,8 +474,8 @@ In hypothesis bic: There appears to be a good optimum, but in this optimum, many
 In hypothesis met: There are no good steps, especially in the beginning. There seems to be plateau at the beginning. chi^2 = 12700
 ```{r waterfall plots}
 valplots <- analysis_frame$plot_value %>% set_names(analysis_frame$hypothesis)
-# valplots[[4]] %>% ggplotly()
-valplots
+# valplots[[3]] %>% ggplotly()
+# valplots
 ```
 
 ```{r print parframes}
@@ -500,13 +496,15 @@ In hypothesis met:
   S0_CUM_MET_LALAZAR2008 and S0_RECOVERY_MET_LALAZAR2008 can be zero. In other error-pars a lot of variance can be seen as well.
   CYP1A2MET_KM_MET is very small. This basically means that the MM rate is always at Vmax.
 ```{r plot_pars}
-analysis_frame[1, "parframes"] %>% .[[1]] %>% .[[1]] %>% plotPars 
-# analysis_frame[2,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:100,] %>%  plotPars(tol = 2) %>% ggplotly()
+# analysis_frame[1, "parframes"] %>% .[[1]] %>% .[[1]] %>% plotPars 
+# analysis_frame[2,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:60,] %>%  plotPars(tol = 2) #%>% ggplotly()
 # analysis_frame[3,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:64,] %>%  plotPars(tol = 2) #%>% ggplotly()
-# analysis_frame[3,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:49,] %>%  plotPars(tol = 1) #%>% ggplotly()
+analysis_frame[3,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:49,] %>%  plotPars(tol = 1) #%>% ggplotly()
 # analysis_frame[4,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[1:64,] %>%  plotPars(tol = 10) #%>% ggplotly()
-analysis_frame[4,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[4:64,] %>%  plotPars(tol = 10) #%>% ggplotly()
-
+# analysis_frame[4,"parframes"] %>% .[[1]] %>% .[[1]] %>% .[4:64,] %>%  plotPars(tol = 10) #%>% ggplotly()
+# 
+# 
+# analysis_frame[3,"fits"][[1]][[1]][[20]]
 ```
 
 
@@ -532,7 +530,7 @@ plotframe = analysis_frame %>%
                  })) %>%
   mutate(           plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t", best_value[[i]]))))
 
-plotframe$plot_combined[[4]] %>% plotly::ggplotly()
+plotframe$plot_combined[[3]] %>% plotly::ggplotly()
 ```
 
 
@@ -650,55 +648,323 @@ save.image(tpaste0("workspace_with_profiles_with_fixed_pars.rda"))
 
 
 
+# New Fits
+Test two new hypotheses:
+  1. Take out Mohr from the Bicarbonate data to see, if Irving and Barstow are met better
+  2. Fit Bic and Met together
+
+## Bic, no Mohr
+```{r}
+load("2018_03_25_21_06_workspace_with_fit_frame.rda")
+walk(dMod.frame$x, loadDLL)
+```
+
+```{r start fits without mohrs data}
+no_mohr <- dMod.frame[3,]
+no_mohr[[1]] <- "bic, exclude Mohr from fitting"
+no_mohr_job <- runbg({
+  
+  str_subset_not <- function(vec, pattern) { #too lazy to check it into conveniencefunctions now...
+  vec %>% .[!str_detect(.,pattern)]}
+  
+  no_mohr %>% 
+    mutate(fit_conditions = map(obj, . %>% getConditions %>% str_subset_not("Mohr")) ) %>% 
+    mutate(fits = map(seq_along(x), function(i) {
+      
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      assign("glob_fit_conditions", fit_conditions[[i]], pos = .GlobalEnv)
+      # glob_fit_conditions
+      mstrust(fit_obj, fit_pars, fit_studyname, conditions = glob_fit_conditions,
+              fits = 200, cores = 16)
+      }))
+},
+machine = paste0("fermi"), filename = "fit_job_without_Mohr", input = "no_mohr")
+
+saveRDS(no_mohr_job, tpaste0("no_mohr_fit_job.rds"))
+```
 
 
-# Allow for other free parameters
+## Bic and Met together
+Use both data sets
+```{r}
+load("2018_03_25_21_06_workspace_with_fit_frame.rda")
+walk(dMod.frame$x, loadDLL)
+```
+
+```{r x, g and e bicmet}
+free_pars_bicmet <- c(free_pars_bic, free_pars_met)
+odemodel_bicmet <- odemodel(dxdt_dmod, modelname = "odemodel_bicmet", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_bicmet, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+x_bicmet <- Xs(odemodel_bicmet)
+
+g_bicmet <- Y(c(observables_bic, observables_met), x_bicmet)
+
+e_bicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_bicmet)
+```
+
+```{r data and p bicmet}
+data_bicmet <- rbind(data_bic, data_met)
+data_bicmet_sigma_NA <- rbind(data_bic_sigma_NA, data_met_sigma_NA)
+
+outer_pars_bic <- sort(c(supplied_pars, free_pars_bic))
+outer_pars_bic_sigma_NA <- sort(c(supplied_pars, free_pars_bic, names(pars_errors_bic_sigma_NA)))
+
+outer_pars_met <- sort(c(supplied_pars, free_pars_met))
+outer_pars_met_sigma_NA <- sort(c(supplied_pars, free_pars_met, names(pars_errors_met_sigma_NA)))
+
+trafo_bicmet<-
+  c(pars_raw) %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% unique(c(outer_pars_bic, outer_pars_met))), sort(unique(c(outer_pars_bic, outer_pars_met)))) %>% 
+  
+  branch(data_bicmet %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  
+  minsert(supplied_pars) %>% 
+
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  
+  define("x~x", x = "offset_bic")
+
+
+trafo_bicmet_sigma_NA <-
+  c(pars_raw, pars_errors_bic_sigma_NA, pars_errors_met_sigma_NA) %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% unique(c(outer_pars_bic_sigma_NA, outer_pars_met_sigma_NA))), sort(unique(c(outer_pars_bic_sigma_NA, outer_pars_met_sigma_NA)))) %>% 
+  
+  branch(data_bicmet_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  minsert(supplied_pars) %>% 
+  #bic
+  insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = unique(data_bic_sigma_NA$study)) %>% 
+
+  #met
+  insert("s~s_study", s = names(pars_errors_met_sigma_NA), study = unique(data_met_sigma_NA$study)) %>% 
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  
+  #bic
+  insert("x~0", x = c("S0_CO2_RATIO_BIC_BARSTOW1990", "S0_RECOVERY_BIC_BARSTOW1990", 
+"SREL_CO2_RATIO_BIC_BARSTOW1990", "SREL_RECOVERY_BIC_BARSTOW1990", 
+"S0_DOB_BIC_MEINEKE1993", "S0_RECOVERY_BIC_MEINEKE1993", "SREL_DOB_BIC_MEINEKE1993", 
+"SREL_RECOVERY_BIC_MEINEKE1993")) %>% 
+  define("x~x", x = "offset_bic") %>% 
+  
+  #met
+  insert("x~0", x = c("S0_CUM_MET_KRUMBIEGEL1985", "SREL_CUM_MET_KRUMBIEGEL1985"))
+
+
+
+p_bicmet <- P(trafo_bicmet)
+pars_bicmet <- getParameters(p_bicmet) %>% are_names_of(0)
+
+p_bicmet_sigma_NA <- P(trafo_bicmet_sigma_NA)
+pars_bicmet_sigma_NA <- getParameters(p_bicmet_sigma_NA) %>% are_names_of(0)
+```
+
+```{r bicmet.frame with derived objects}
+names(dMod.frame)
+bicmet.frame <- tibble(
+  hypothesis = "bicmet",
+  x = list(x_bicmet),
+  g = list(g_bicmet),
+  p = list(p_bicmet),
+  data = list(data_bicmet),
+  p_sig = list(p_bicmet_sigma_NA),
+  e = list(e_bicmet),
+  data_sig = list(data_bicmet_sigma_NA)
+) %>% 
+  mutate(data = map(data, as.datalist),
+         data_sig = map(data_sig, as.datalist)) %>% 
+  mutate(prd = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p[[i]]))),
+         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
+  mutate(obj_0 = map(seq_along(x), function(i) normL2(data[[i]], prd[[i]])),
+         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
+  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
+  mutate(pars = list(pars_bicmet_sigma_NA))
+  
+# bicmet.frame$obj[[1]](bicmet.frame$pars[[1]]) #test works
+```
+
+
+
+```{r fit bicmet}
+
+
+# fit_bicmet_job <- runbg({
+#   
+#   str_subset_not <- function(vec, pattern) { #too lazy to check it into conveniencefunctions now...
+#   vec %>% .[!str_detect(.,pattern)]}
+#   
+#   bicmet.frame %>%
+#       mutate(fit_conditions = map(obj, . %>% getConditions %>% str_subset_not("Mohr")) ) %>% 
+# 
+#     
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       
+#      assign("glob_fit_conditions", fit_conditions[[i]], pos = .GlobalEnv)
+#      
+# 
+#       
+#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, conditions = glob_fit_conditions,
+#               sd = 4, iterlim = 150,
+#               blather = T, cores = 9, fits = 54)
+#     }))
+#   }, machine = c(paste0("knecht", c(2, 4, 5)), paste0("ruprecht", c(1, 1, 2))) ,
+#                  filename = tpaste0("fit_bicmet"), input = "bicmet.frame")
+# 
+# saveRDS(fit_bicmet_job, tpaste0("fit_bicmet_job.rds"))
+```
 
 ```{r}
-observables_bic
+mybicmet.frame <- fit_bicmet_job$get()
+bicmet_fits <-
+  map(mybicmet.frame, function(i) i[["fits"]] %>% .[[1]]) %>% 
+    Reduce(f=c.parlist,x=.) 
+
+bicmet.frame$fits <- list(bicmet_fits)
 ```
+
+```{r}
+save.image(tpaste0("workspace_with_bicmet_fits"))
+```
+
+```{r}
+load("2018_03_27_11_16_workspace_with_bicmet_fits")
+walk(bicmet.frame$x, loadDLL)
+walk(dMod.frame$x, loadDLL)
+```
+
+
+
+1. There are no good steps at all, but the lowest values at least have roughly the same parameter values for the kinetic parameters.
+2. Apparently, error parameters don't have such a high influence.
+3. Interestingly, the chi^2 is better than in met alone. But the chi^2 is worse than in bic alone, so adding bic to met helps but not vice versa
+4. the offset-parameter wasnt estimated well
+```{r}
+plot_bicmet_frame <- bicmet.frame %>% 
+  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd[[i]]),
+         data = map(seq_along(x), function(i) data_sig[[i]]+data[[i]])) %>% 
+    mutate(conditions = map(data, names) %>% map(. %>% str_trunc(10))) %>% 
+  mutate(g = map(g, function(myg) controls(myg, name = "attach.input") <- F)) %>% 
+  dMf_expand_fits() %>% 
+  mutate(parframes = map(seq_along(x), function(i) parframes[[i]][1:50,])) %>% 
+  dMf_append_plots(tol = 10)
+
+plot_bicmet_frame$plot_value
+
+plot_bicmet_frame$plot_pars %>% .[[1]] +
+  scale_y_continuous(breaks = (-5:2)*5) + 
+  coord_cartesian(ylim = c(-25,10))
+
+
+
+plotCombined.dMod.frame(plot_bicmet_frame, index = 2) 
+
+
+```
+
 
 
 ```{r}
-pars_bic
+plotCombined.dMod.frame <- function(plot_bicmet_frame, hypothesis = 1, index = 1, ... ) {
+  if(hypothesis %>% is.character) hypothesis <- which(plot_bicmet_frame$hypothesis == hypothesis)
+  i <- hypothesis #so i can copy other code
+  
+  myparvec <- plot_bicmet_frame[i, "parframes"] %>% .[[1]] %>% .[[1]] %>% as.parvec(index = index)
+  
+  mypred <- plot_bicmet_frame$prd[[i]](times = seq(0, max(as.data.frame(plot_bicmet_frame$data[[i]])$time),length.out = 100),
+           pars = myparvec,
+           deriv = F)
+  
+  myvalue <- plot_bicmet_frame[i, "parframes"] %>% .[[1]] %>% .[[1]] %>% .[i, "value"]
+  
+  plotCombined(mypred,  plot_bicmet_frame$data[[i]], ...) + ggtitle(label = paste(plot_bicmet_frame$hypothesis[[i]], ",\t", myvalue))
+  
+}
+```
+
+### Start LHS around the best 8 steps
+Sampling around the optimum a bit denser could help finding some steps
+```{r}
+load("2018_03_27_11_16_workspace_with_bicmet_fits")
+walk(bicmet.frame$x, loadDLL)
+walk(dMod.frame$x, loadDLL)
+```
+
+```{r}
+bicmet.frame %>% select(-contains("plot")) %>% names
+
+offset_bic <- analysis_frame[3,"best_parvec"][[1]][[1]]["offset_bic"]
+
+
+
+bicmet.frame2 <- map(1:8, function(i) {
+  indices <- myframe$parframes[[1]]$value %>% dMod:::stepDetect(10) #obtained from plotPars(tol)
+  
+  myframe <- bicmet.frame
+  myframe$obj[[1]] <- myframe$obj[[1]] + constraintL2(mu = offset_bic, sigma = 0.01)
+  myframe$pars[[1]] <- myframe$parframes[[1]] %>% as.parvec(index = indices[i])
+  myframe$hypothesis <- paste("bicmet, refit around step", i)
+  
+  return(myframe)
+  }) %>% do.call(rbind,.)
+
+
+```
+
+```{r}
+fit_bicmet_job <- runbg({
+
+  str_subset_not <- function(vec, pattern) { #too lazy to check it into conveniencefunctions now...
+  vec %>% .[!str_detect(.,pattern)]}
+
+  bicmet.frame2 %>%
+      mutate(fit_conditions = map(obj, . %>% getConditions %>% str_subset_not("Mohr")) ) %>%
+
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+
+     assign("glob_fit_conditions", fit_conditions[[i]], pos = .GlobalEnv)
+
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, conditions = glob_fit_conditions,
+              sd = .7, iterlim = 80,
+              blather = T, cores = 8, fits = 8)
+    }))
+  }, machine = c(paste0("ruprecht", c(1, 1, 1, 2, 2))) ,
+                 filename = tpaste0("fit_bicmet2"), input = "bicmet.frame2")
+
+saveRDS(fit_bicmet_job, tpaste0("fit_bicmet_job.rds"))
+
+```
+
+```{r}
+myworkspace <- ls()
+in_workspace_is_tibble <- map_lgl(myworkspace, . %>% get(pos = .GlobalEnv) %>% class %>% str_detect("tbl") %>% any)
+
+myworkspace[in_workspace_is_tibble]
+
+object_sizes_in_workspace <- map(myworkspace, function(i) pryr::object_size(get(i, pos = .GlobalEnv))/1024/1024) %>% set_names(myworkspace)
+
+save.image()
 ```
 
 
-```{r bic more free pars}
-(data_bic_sigma_NA$PODOSE_co2c13 != 0) %>% any
-
-trafo_sig_bic_free_sigma <- trafo_bic_sigma_NA %>%
-  insert2("x~x_study", x = "KA_CO2C13", study = study, condition_sub = "Meineke") %>%
-  insert2("x~x_study", x = "KBO_MAXCO2", study = study)
-
-trafp_bic_free <- trafo_bic %>% 
-  insert2("x~x_study", x = "KBO_MAXCO2", study = study)
-
-p_bic_free <- P(trafo_bic_free)
-p_sig_bic_free <- P(trafo_sig_bic_free) 
-pars_bic_free <- getParameters(p_sig_bic_free) %>% are_names_of(0)
-
-prd_bic_free <- cfn(g_bic, cfn(x_bic, p_bic_free))
-prd_sig_bic_free <- cfn(g_bic, cfn(x_bic, p_sig_bic_free))
-
-prd_bic_free <- prd_bic_free_0 + prd_bic_free_sig
-
-e_bic_free <- map(getConditions(p_bic_sigma_NA), function(cond) Y(errors_bic_sigma_NA, g_bic, condition = cond)) %>% Reduce("+",.)
-
-obj_0_bic_free <- normL2(data_bic %>% as.datalist(), (g_bic*x_bic*p_bic_free))
-obj_bic_free_sig <- normL2(data_bic_sigma_NA %>% as.datalist, (g_bic*x_bic * p_sig_bic_free), e_bic_free)
-
-obj_bic_free <- obj_bic_free + obj_sig_bic_free
 
 
-hypothesis_bic_free <- "bic, free KA and KBO"
 
-dMod.frame <- readRDS("2018_03_23_16_59_dMod.frame.rds")
-dMod.frame <- dMod.frame %>% 
-  rbind(.,.[3,])
-dMod.frame$hypothesis[5] <- hypothesis_bic_free
-dMod.frame <- update_hypothesis(suffix = "_bic_free")
-```
+
+
+
+
+
 
 
 
