@@ -65,9 +65,9 @@ APAPD_Km_apap   # [mM] Km value for apap
 
 ### Observer Functions
 ```
-dob = DOB           # [‰] Delta over baseline
-co2_ratio = P_CO2Fc13  
-recovery = Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0  # [%] revovery after continous IV injection
+DOB = DOB              # [‰] Delta over baseline
+P_CO2Fc13 = P_CO2Fc13  
+mom_rec_co2c13 = Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0  # [%] revovery after continous IV injection
 ```
 
 ### Free Parameters
@@ -155,8 +155,8 @@ Ri_co2c13 = 0.79  # [mg/min]
 Recovery and cummulative recovery calculate how much of the initial given dose is recovered over
 time.
 ```
-recovery = Exhalation_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100 # [% dose/h] momentary recovery
-cum = Abreath_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100  # [% dose] cummulative recovery
+mom_rec_metc13 = Exhalation_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100 # [% dose/h] momentary recovery
+cum_rec_metc13 = Abreath_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100  # [% dose] cummulative recovery
 ```
 
 ### Free Parameters
@@ -271,9 +271,9 @@ PODOSE_metc13 = 75.0  # [mg]
 
 ### Observer Functions
 ```
-apap = Mve_apap     # [mg/dl] paracetamol concentration plasma
-metc13 = Mve_metc13  # [mg/dl] paracetamol concentration plasma
-dob = DOB
+Mve_apap = Mve_apap     # [mg/dl] paracetamol concentration plasma
+Mve_metc13 = Mve_metc13  # [mg/dl] paracetamol concentration plasma
+DOB = DOB
 ```
 
 ### Free Parameters
