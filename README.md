@@ -34,95 +34,32 @@ devtools::install_github("dkaschek/cOde")
 devtools::install_github("dkaschek/dMod")
 ```
 
-## Datasets
-All datasets contain column n with number of subjects, columns with standard deviation are named with "_sd" suffix.
-Datasets are separated in paracetamol, bicarbonate and limax data sets.
-
 
 ## [A] paracetamol
 
 ### Observer Functions
-On the left of the equation are the names in the data files, on the right are the calculated values
-based on model variables
 ```
-apap = Mve_apap     # [mg/dl] paracetamol concentration plasma
-dob = DOB           # [‰] Delta over baseline  
+Mve_apap = Mve_apap     # [mg/dl] paracetamol concentration plasma
 ```
 
 ### Free Parameters
-Parameters to optimize in the model
 ```
-# paracetamol (apap)
 Ka_apap         # [1/hr] absorption apap gut
 APAPD_HLM_CL    # Vmax value hepatic clearance
 APAPD_Km_apap   # [mM] Km value for apap
 ```
 
-### Parameters changed in studies
-default values: `BW = 75  # [kg]`
+### study, group
+* `Albert1974, capsule`
+* `Albert1974, tablet`
+* `Baraka1990, NaN`
+* `Chiew2010, NaN`
+* `Critchley2005, NaN`
+* `Rawlins1977, IV_D1000`
+* `Rawlins1977, ORAL_D500`
+* `Rawlins1977, ORAL_D1000`
+* `Rawlins1977, ORAL_D2000`
 
-**Albert1974_Fig1_capsule.csv**
-```
-time, n, apap ± apap_sd
-PODOSE_apap = 650  # [mg]
-BW = 68  # [kg]
-```
-
-**Albert1974_Fig1_tablet.csv**
-```
-time, n, apap ± apap_sd
-PODOSE_apap = 650  # [mg]
-BW = 68  # [kg] 
-```
-
-**Baraka1990_Fig1.csv**
-```
-time, n, apap ± apap_sd
-PODOSE_apap = 1500  # [mg]
-BW = 68  # [kg]
-```
-
-**Chiew2010_Fig.csv**
-```
-time, n, apap ± apap_sd
-PODOSE_apap = 5600  # 80[mg/kg]*70[kg] = 5600 [mg]
-BW = 73  # [kg]
-```
-
-**Critchley2005_Fig1.csv**
-```
-time, n, apap ± apap_sd
-PODOSE_apap = 1400  # 20[mg/kg]*70[kg] = 1400 [mg]
-BW = 68  # [kg] (Caucasian)
-```
-
-**Rawlins1977_Fig1.csv**
-```
-time, n, apap ± apap_sd
-IVDOSE_apap = 1000  # [mg]
-BW = 75  # [kg] (10 males) 
-```
-
-**Rawlins1977_Fig2_D500.csv**
-```
-time, n, apap ± apap_sd
-PODOSE_apap = 500  # [mg]
-BW = 75  # [kg] (10 males)
-```
-
-***Rawlins1977_Fig2_D1000.csv***
-```
-time, n, apap ± apap_sd
-PODOSE_apap = 500  # [mg]
-BW = 75  # [kg] (10 males)
-```
-
-***Rawlins1977_Fig2_D2000.csv***
-```
-time, n, apap ± apap_sd
-PODOSE_apap = 500  # [mg]
-BW = 75  # [kg] (10 males)
-```
 
 ## [B] bicarbonate
 
@@ -145,14 +82,10 @@ KBO_MAXCO2      # CO2 pool size [mg]"),
 # the tissue distribution coefficients could be important (but must be changed together)
 ```
 
-### Studies
+### study, group
 
-*** Mohr2018 ***
-```
-time, n, dob ± dob_sd
-IVDOSE_co2c13 = 16.54  # [mg]
-BW = 81.3  # [kg]
-```
+* `Mohr2018, NaN`
+
 
 *** Irving1983 ***
 ```
@@ -195,6 +128,7 @@ PODOSE_co2c13 = 50  # [mg]
 time, n, co2_ratio
 PODOSE_co2c13 = 100  # [mg]
 ```
+
 
 *** Leijssen1996 ***
 ```

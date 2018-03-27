@@ -1,0 +1,95 @@
+model	simulation	study	group	subjects	observer	time	value	sigma	BW	PODOSE_apap	IVDOSE_apap	PODOSE_co2c13	IVDOSE_co2c13	Ri_co2c13	PODOSE_metc13	IVDOSE_metc13
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	0.0	0.306		75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	0.5	13.39	7.5328251749	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	1.0	12.9026	7.9960065388	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	2.0	8.0231	1.8017270793	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	3.0	4.9887	1.1203074469	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	4.0	3.9359	1.016405236	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	5.0	2.8267	0.7299751326999999	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	6.0	2.2162	0.46078723270000005	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.1666666667	0.02	0.032	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.3333333333	1.73	2.3355	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.5	2.38	1.98492	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.6666666667	3.26	1.39202	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	1.0	4.82	1.18572	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	2.0	5.36	1.2328	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	4.0	3.13	0.4069	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	6.0	1.84	0.25392	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	8.0	1.22	0.26474000000000003	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	12.0	0.52	0.11752	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	0.25	19.861	4.9364297342	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	0.5	13.8346	3.1236652542	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	0.75	12.0803	3.2338188079	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	1.0	11.2248	2.2965411538	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	1.5	8.7049	2.3100035494	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	2.0	7.6011	1.8818376413	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	3.0	5.5395	1.911295205	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	4.0	3.8369	1.2749545120999999	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	5.0	2.9924	1.2946317531	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	6.0	2.5116	1.0365748244	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	0.0	1.4839		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	0.5	69.4289	63.2125	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	0.8	86.0395	62.3179	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	1.0	69.4101	44.5116	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	1.5	58.4108	25.8192	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	2.0	58.3906	14.2494	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	3.0	52.7144	5.3549	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	4.0	42.5881	4.4516	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	6.0	26.7826		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	8.0	14.8381		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	10.0	8.8305		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	12.0	4.8989		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		6	Mve_apap	16.0	1.784		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010		6	Mve_apap	24.0	0.8889		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	0.0	0.3079		75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	0.5	4.0211	1.2446021499	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	1.0	4.1514	0.9320626905	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	2.0	3.3376	0.9178730414	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	3.0	1.937	0.4348848584	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	4.0	1.4175	0.7442764784999999	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	5.0	1.0771	0.525529696	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	6.0	0.7265	0.17543453739999998	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	0.0	0.14		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	0.25	8.84	5.5	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	0.5	14.75	4.48	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	0.75	16.86	3.67	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	1.0	16.66	3.46	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	1.5	14.97	2.44	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	2.0	14.03	2.85	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	3.0	10.85	2.85	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	4.0	8.22	2.65	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	5.0	6.27	2.65	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	6.0	4.72		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	7.0	3.58		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	8.0	2.58		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	12.0	1.24		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	24.0	0.61		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	0.5	18.05	4.49	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	1.0	17.72	5.34	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	1.5	15.18	6.12	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	2.0	13.61	5.15	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	3.0	8.48	4.05	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	4.0	6.34	3.33	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	5.0	5.05	3.59	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	6.0	3.54	2.6	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	8.0	2.01	1.65	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	12.0	1.08	0.84	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	24.0	0.38	0.26	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.1666666667	2.06	3.2960000000000003	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.3333333333	4.24	5.724	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.5	4.91	4.09494	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.6666666667	5.69	2.42963	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	1.0	6.36	1.56456	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	2.0	4.94	1.1362	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	4.0	2.54	0.3302	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	6.0	1.5	0.207	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	8.0	0.83	0.18011	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	12.0	0.34	0.07683999999999999	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	0.0	0.3079		75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	0.5	11.6637	12.3861412726	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	1.0	13.565	8.6284745883	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	2.0	20.153	7.3805183521	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	3.0	14.2935	7.2761700891	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	4.0	10.4603	4.936238674	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	5.0	7.5125	3.2494808453	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	6.0	5.4633	2.6439373421	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
