@@ -1,95 +1,327 @@
-model	simulation	study	group	subjects	observer	time	value	sigma	BW	PODOSE_apap	IVDOSE_apap	PODOSE_co2c13	IVDOSE_co2c13	Ri_co2c13	PODOSE_metc13	IVDOSE_metc13
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	0.0	0.306		75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	0.5	13.39	7.5328251749	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	1.0	12.9026	7.9960065388	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	2.0	8.0231	1.8017270793	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	3.0	4.9887	1.1203074469	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	4.0	3.9359	1.016405236	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	5.0	2.8267	0.7299751326999999	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	6.0	2.2162	0.46078723270000005	75	1000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.1666666667	0.02	0.032	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.3333333333	1.73	2.3355	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.5	2.38	1.98492	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.6666666667	3.26	1.39202	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	1.0	4.82	1.18572	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	2.0	5.36	1.2328	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	4.0	3.13	0.4069	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	6.0	1.84	0.25392	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	8.0	1.22	0.26474000000000003	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	12.0	0.52	0.11752	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	0.25	19.861	4.9364297342	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	0.5	13.8346	3.1236652542	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	0.75	12.0803	3.2338188079	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	1.0	11.2248	2.2965411538	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	1.5	8.7049	2.3100035494	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	2.0	7.6011	1.8818376413	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	3.0	5.5395	1.911295205	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	4.0	3.8369	1.2749545120999999	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	5.0	2.9924	1.2946317531	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	6.0	2.5116	1.0365748244	75	0.0	1000.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	0.0	1.4839		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	0.5	69.4289	63.2125	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	0.8	86.0395	62.3179	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	1.0	69.4101	44.5116	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	1.5	58.4108	25.8192	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	2.0	58.3906	14.2494	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	3.0	52.7144	5.3549	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	4.0	42.5881	4.4516	73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	6.0	26.7826		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	8.0	14.8381		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	10.0	8.8305		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		9	Mve_apap	12.0	4.8989		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		6	Mve_apap	16.0	1.784		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Chiew2010		6	Mve_apap	24.0	0.8889		73	5840.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	0.0	0.3079		75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	0.5	4.0211	1.2446021499	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	1.0	4.1514	0.9320626905	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	2.0	3.3376	0.9178730414	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	3.0	1.937	0.4348848584	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	4.0	1.4175	0.7442764784999999	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	5.0	1.0771	0.525529696	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	6.0	0.7265	0.17543453739999998	75	500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	0.0	0.14		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	0.25	8.84	5.5	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	0.5	14.75	4.48	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	0.75	16.86	3.67	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	1.0	16.66	3.46	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	1.5	14.97	2.44	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	2.0	14.03	2.85	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	3.0	10.85	2.85	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	4.0	8.22	2.65	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	5.0	6.27	2.65	68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	6.0	4.72		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	7.0	3.58		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	8.0	2.58		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	12.0	1.24		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Critchley2005		9	Mve_apap	24.0	0.61		68	1360.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	0.5	18.05	4.49	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	1.0	17.72	5.34	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	1.5	15.18	6.12	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	2.0	13.61	5.15	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	3.0	8.48	4.05	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	4.0	6.34	3.33	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	5.0	5.05	3.59	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	6.0	3.54	2.6	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	8.0	2.01	1.65	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	12.0	1.08	0.84	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Baraka1990		10	Mve_apap	24.0	0.38	0.26	68	1500.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.1666666667	2.06	3.2960000000000003	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.3333333333	4.24	5.724	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.5	4.91	4.09494	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.6666666667	5.69	2.42963	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	1.0	6.36	1.56456	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	2.0	4.94	1.1362	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	4.0	2.54	0.3302	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	6.0	1.5	0.207	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	8.0	0.83	0.18011	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	12.0	0.34	0.07683999999999999	68	650.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	0.0	0.3079		75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	0.5	11.6637	12.3861412726	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	1.0	13.565	8.6284745883	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	2.0	20.153	7.3805183521	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	3.0	14.2935	7.2761700891	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	4.0	10.4603	4.936238674	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	5.0	7.5125	3.2494808453	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
-limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	6.0	5.4633	2.6439373421	75	2000.0	0.0	0.0	0.0	0.0	0.0	0.0
+model	simulation	study	group	subjects	observer	time	value	sigma	BW	PODOSE_apap	IVDOSE_apap	PODOSE_co2c13	IVDOSE_co2c13	Ri_co2c13	ti_co2c13	PODOSE_metc13	IVDOSE_metc13
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	0.0	1.4839	NaN	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	0.5	69.4289	21.0708	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	0.8	86.0395	20.7726	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	1.0	69.4101	14.8372	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	1.5	58.4108	8.6064	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	2.0	58.3906	4.7498	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	3.0	52.7144	1.785	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	4.0	42.5881	1.4839	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	6.0	26.7826	NaN	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	8.0	14.8381	NaN	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	10.0	8.8305	NaN	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	9	Mve_apap	12.0	4.8989	NaN	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	6	Mve_apap	16.0	1.784	NaN	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Chiew2010	NaN	6	Mve_apap	24.0	0.8889	NaN	73.0	5840.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	0.0	0.14	NaN	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	0.25	8.84	1.83	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	0.5	14.75	1.49	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	0.75	16.86	1.22	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	1.0	16.66	1.15	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	1.5	14.97	0.81	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	2.0	14.03	0.95	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	3.0	10.85	0.95	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	4.0	8.22	0.88	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	5.0	6.27	0.88	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	6.0	4.72	NaN	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	7.0	3.58	NaN	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	8.0	2.58	NaN	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	12.0	1.24	NaN	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Critchley2005	NaN	9	Mve_apap	24.0	0.61	NaN	68.0	1360.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	0.25	19.861	2.0153	75.0	0.0	1000.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	0.5	13.8346	1.2752	75.0	0.0	1000.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	0.75	12.0803	1.3202	75.0	0.0	1000.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	1.0	11.2248	0.9376	75.0	0.0	1000.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	1.5	8.7049	0.9431	75.0	0.0	1000.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	2.0	7.6011	0.7683	75.0	0.0	1000.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	3.0	5.5395	0.7803	75.0	0.0	1000.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	4.0	3.8369	0.5205	75.0	0.0	1000.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	5.0	2.9924	0.5285	75.0	0.0	1000.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	IV_D1000	6	Mve_apap	6.0	2.5116	0.4232	75.0	0.0	1000.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	0.0	0.3079	NaN	75.0	500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	0.5	4.0211	0.5081	75.0	500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	1.0	4.1514	0.3805	75.0	500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	2.0	3.3376	0.3747	75.0	500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	3.0	1.937	0.1775	75.0	500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	4.0	1.4175	0.3038	75.0	500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	5.0	1.0771	0.2145	75.0	500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D500	6	Mve_apap	6.0	0.7265	0.0716	75.0	500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	0.0	0.306	NaN	75.0	1000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	0.5	13.39	3.0753	75.0	1000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	1.0	12.9026	3.2644	75.0	1000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	2.0	8.0231	0.7356	75.0	1000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	3.0	4.9887	0.4574	75.0	1000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	4.0	3.9359	0.4149	75.0	1000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	5.0	2.8267	0.298	75.0	1000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D1000	6	Mve_apap	6.0	2.2162	0.1881	75.0	1000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	0.0	0.3079	NaN	75.0	2000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	0.5	11.6637	5.0566	75.0	2000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	1.0	13.565	3.5226	75.0	2000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	2.0	20.153	3.0131	75.0	2000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	3.0	14.2935	2.9705	75.0	2000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	4.0	10.4603	2.0152	75.0	2000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	5.0	7.5125	1.3266	75.0	2000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Rawlins1977	ORAL_D2000	6	Mve_apap	6.0	5.4633	1.0794	75.0	2000.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.1666666667	0.02	0.0101192885	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.3333333333	1.73	0.7385499475	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.5	2.38	0.6276868173	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	0.6666666667	3.26	0.44019537490000005	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	1.0	4.82	0.3749575867	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	2.0	5.36	0.3898455899	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	4.0	3.13	0.128673078	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	6.0	1.84	0.0802965543	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	8.0	1.22	0.0837181388	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	capsule	10	Mve_apap	12.0	0.52	0.0371630871	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.1666666667	2.06	1.0422867168	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.3333333333	4.24	1.8100877327	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.5	4.91	1.2949337282	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	0.6666666667	5.69	0.7683164670999999	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	1.0	6.36	0.49475731359999997	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	2.0	4.94	0.35929798770000004	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	4.0	2.54	0.1044184083	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	6.0	1.5	0.0654591476	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	8.0	0.83	0.0569557829	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Albert1974	tablet	10	Mve_apap	12.0	0.34	0.0242989415	68.0	650.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	0.5	18.05	1.42	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	1.0	17.72	1.69	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	1.5	15.18	1.94	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	2.0	13.61	1.63	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	3.0	8.48	1.28	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	4.0	6.34	1.05	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	5.0	5.05	1.14	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	6.0	3.54	0.82	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	8.0	2.01	0.52	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	12.0	1.08	0.27	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	apap	Baraka1990	NaN	10	Mve_apap	24.0	0.38	0.08	68.0	1500.0	0.0	0.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	0.0	0.09905134276343956	0.5168426095098408	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	0.5	57.264750643462726	4.152558095067853	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	1.0	124.12586952458159	5.593313233483925	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	1.5	71.76427861549071	2.7578214446003653	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	2.0	50.313334559546654	1.4379411434329494	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	2.5	42.44350239171449	1.0675170062117556	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	3.0	37.717869524581616	0.9260837307902308	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	3.5	33.70841497912708	0.8162144141466824	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	4.0	30.71165274136484	0.7216164366636605	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	4.5	28.312778615490718	0.6843972416800583	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	5.0	26.472960433672533	0.6165188790895186	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	5.5	24.71423316094525	0.5970155737600282	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	6.0	23.255687706399804	0.5712898414711508	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	6.5	22.194142251854352	0.4899564560504253	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	7.0	21.534778615490712	0.43611157101869424	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	7.5	20.33540448961659	0.4818901554862227	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	8.0	19.47017721688932	0.44948785791111295	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	8.5	18.740995398707494	0.4632431947281182	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	9.0	18.245505888217988	0.44491653168327255	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	9.5	17.752324070036167	0.4406542984842912	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	10.0	16.95005134276344	0.4097003200260371	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	10.5	16.721324070036168	0.33899957347059834	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	11.0	16.053596797308895	0.3384600750163551	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	11.5	15.828324070036167	0.3792191528314284	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	12.0	15.684897496609596	0.380154336175448	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	12.5	15.031233160945261	0.3693382002683773	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	13.0	14.474687706399806	0.3590299720315629	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	13.5	14.293687706399805	0.3453761446859964	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	14.0	14.099869524581626	0.3667378005335588	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	14.5	13.861869524581618	0.3546651142722668	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	15.0	13.670649244861345	0.3868666398235139	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	15.5	13.302582811294913	0.3595884653692985	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	16.0	13.238505888217983	0.3615058837602033	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	16.5	12.653960433672529	0.3766517153604112	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	17.0	12.376869524581625	0.38146156247502655	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	17.5	12.376414979127073	0.4037287037562695	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	18.0	12.112687706399806	0.3923732634325508	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	18.5	11.676869524581619	0.4136278073349286	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	19.0	11.377778615490714	0.4590101244467876	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	19.5	11.183324070036166	0.4406540442524479	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	20.0	11.203051342763441	0.4543496977786825	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	20.5	11.184869524581623	0.4076530577368012	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	21.0	10.801163230875327	0.4276781190156698	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	21.5	10.704718009430106	0.39109910100561546	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	22.0	10.657093300805396	0.39506689203084455	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	22.5	11.030142251854349	0.454379050015495	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	23.0	10.59620169241379	0.4369052196226799	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	23.5	10.369812706399804	0.4154485704158061	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Mohr2018	NaN	44	DOB	24.0	10.060247146959243	0.3626417832994371	81.24772727272727	0.0	0.0	0.0	16.52822515909091	0.0	30.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	-30.0	-0.053333333333333316	0.035108298058900436	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	-15.0	0.07333333333333332	0.04265277551648027	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	0.0	0.26666666666666666	0.13520902884601116	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	1.0	193.61333333333332	13.259555436377585	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	3.0	127.15333333333336	2.460187285854773	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	5.0	90.85333333333332	3.0269290145722376	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	7.0	75.15333333333334	2.3513375232297364	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	9.0	63.45333333333333	2.912057182995732	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	12.0	54.52	2.0539003546098984	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	15.0	46.25333333333334	1.4124168936548025	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	20.0	37.3	1.1223388278253783	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	30.0	27.980000000000004	0.8074761778391841	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	45.0	20.646666666666665	0.6491612822483872	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	60.0	15.866666666666667	0.5646368875789243	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	90.0	11.246666666666668	0.4431068761638705	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	120.0	8.293333333333333	0.3816300322059068	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	150.0	5.953333333333332	0.3040272892235047	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	180.0	4.44	0.24235877904003764	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	240.0	2.6133333333333333	0.18472000834095226	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	300.0	1.5733333333333337	0.1974204012122729	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Irving1983	NaN	15	DOB	360.0	0.95	0.2117388328420966	63.2	0.0	0.0	0.0	39.20928	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	1.19	105.19	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	3.2	80.95	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	5.2	65.34	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	6.7	54.01	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	9.69	46.83	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	12.69	39.64	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	15.68	36.05	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	21.66	30.53	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	32.63	24.08	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	45.08	19.46	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	61.03	15.73	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	90.42	11.85	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	120.8	9.15	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	180.08	4.72	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	211.47	3.16	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	234.88	2.32	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	1.2	84.89	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	2.71	65.32	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	2.72	50.26	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	4.72	40.57	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	8.71	36.02	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	10.21	29.08	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	15.2	21.85	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	21.18	18.51	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	29.17	12.96	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	45.62	7.87	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	60.58	4.78	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	74.04	3.35	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	88.99	2.4	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	104.44	1.68	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	120.38	1.64	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	0.22	63.77	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	0.73	46.78	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	2.73	36.87	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	3.74	30.47	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	5.24	25.19	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	6.74	21.84	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	8.24	16.02	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	9.75	12.93	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	12.25	10.44	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	15.24	8.63	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	19.24	5.9	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	32.21	3.58	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	46.17	2.17	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	60.13	1.67	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	75.58	1.07	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	90.53	0.88	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	104.98	0.65	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Barstow1990	NaN	6	DOB	120.92	0.59	NaN	74.7	0.0	0.0	0.0	73.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	5.0	2.93e-06	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	11.0	4.52e-05	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	15.0	0.00010800000000000001	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	20.0	0.00015900000000000002	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	25.0	0.00015900000000000002	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	31.0	0.000143	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	40.0	0.000132	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	50.0	0.000117	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	59.0	0.00011	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	76.0	8.56e-05	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	91.0	7.209999999999999e-05	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	105.0	5.7100000000000006e-05	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	119.0	4.52e-05	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	148.0	3.47e-05	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	180.0	2.47e-05	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	210.0	1.67e-05	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D12.5_T1	10	P_CO2F	239.0	1.32e-05	NaN	75.0	0.0	0.0	12.5	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	4.0	1.62e-06	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	11.0	0.000225	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	13.0	0.000528	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	20.0	0.0005	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	25.0	0.000459	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	29.0	0.00036899999999999997	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	41.0	0.00023199999999999997	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	51.0	0.00018899999999999999	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	59.0	0.00016999999999999999	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	76.0	0.000139	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	91.0	0.00011499999999999999	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	104.0	9.25e-05	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	118.0	7.8e-05	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	148.0	5.8899999999999995e-05	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	177.0	4.6700000000000003e-05	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	210.0	3.37e-05	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T1	10	P_CO2F	240.0	2.47e-05	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	5.0	5.89e-06	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	10.0	0.00040599999999999995	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	14.0	0.000459	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	22.0	0.000528	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	26.0	0.00047400000000000003	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	31.0	0.00044500000000000003	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	39.0	0.000321	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	50.0	0.00024700000000000004	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	61.0	0.00020800000000000001	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	75.0	0.000172	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	89.0	0.000145	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	104.0	0.000121	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	120.0	0.000103	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	149.0	8.04e-05	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	180.0	6.37e-05	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	210.0	4.52e-05	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D25.0_T2	10	P_CO2F	241.0	3.69e-05	NaN	75.0	0.0	0.0	25.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	5.0	2.84e-06	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	10.0	0.000481	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	16.0	0.0009400000000000001	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	20.0	0.00105	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	25.0	0.0009539999999999999	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	31.0	0.0008039999999999999	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	39.0	0.000843	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	51.0	0.000545	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	60.0	0.00046699999999999997	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	75.0	0.000381	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	90.0	0.000307	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	105.0	0.00024700000000000004	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	120.0	0.000225	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	149.0	0.000165	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	179.0	0.000122	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	209.0	8.170000000000001e-05	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D50.0_T1	10	P_CO2F	241.0	6.57e-05	NaN	75.0	0.0	0.0	50.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	4.0	1.21e-05	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	10.0	0.000617	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	16.0	0.00119	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	19.0	0.0018899999999999998	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	26.0	0.00218	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	29.0	0.0020800000000000003	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	40.0	0.00126	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	51.0	0.0009689999999999999	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	61.0	0.0008560000000000001	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	75.0	0.000699	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	90.0	0.000571	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	104.0	0.000504	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	119.0	0.000412	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	148.0	0.000293	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	180.0	0.00023500000000000002	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	208.0	0.000175	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Meineke1993	D100.0_T1	10	P_CO2F	239.0	0.000139	NaN	75.0	0.0	0.0	100.0	0.0	0.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	1.0	23.82	3.12	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	2.0	51.99	2.99	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	3.0	62.88	3.27	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	4.0	78.14	2.46	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	5.0	79.82	2.61	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	6.0	84.73	1.64	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	7.0	86.01	1.68	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	8.0	86.97	2.63	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	9.0	84.69	1.5	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	10.0	92.03	2.15	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	11.0	95.97	1.88	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Leijssen1996	NaN	18	cum_rec_co2c13	12.0	93.22	1.33	75.0	0.0	0.0	0.0	0.0	1.0	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C13	6	cum_rec_co2c13	NaN	NaN	NaN	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C13	6	cum_rec_co2c13	1.0	24.9	1.8	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C13	6	cum_rec_co2c13	2.0	62.0	4.7	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C13	6	cum_rec_co2c13	3.0	78.4	5.9	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C13	6	cum_rec_co2c13	4.0	88.9	2.3	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C13	6	cum_rec_co2c13	5.0	92.7	3.0	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C13	6	cum_rec_co2c13	6.0	90.0	5.8	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C13	6	cum_rec_co2c13	NaN	72.2	2.8	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C14	6	cum_rec_co2c13	NaN	NaN	NaN	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C14	6	cum_rec_co2c13	1.0	24.7	1.9	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C14	6	cum_rec_co2c13	2.0	61.4	4.8	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C14	6	cum_rec_co2c13	3.0	77.6	5.8	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C14	6	cum_rec_co2c13	4.0	88.3	2.3	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C14	6	cum_rec_co2c13	5.0	92.1	3.3	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C14	6	cum_rec_co2c13	6.0	89.3	4.9	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0
+limax_pkpd_v41	bicarbonate	Fuller2000	C14	6	cum_rec_co2c13	NaN	72.8	2.8	76.7	0.0	0.0	0.0	0.0	0.79	10.0	0.0	0.0

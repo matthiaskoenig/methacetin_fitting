@@ -2,7 +2,7 @@
 Information for fitting parameter values in the LiMAx model
 
 ## SBML Model
-The latest model version is available in the `model` subfolder as SBML file 
+The latest model version is available in the `model` folder as SBML file 
 ```
 ./model/limax_pkpd_*.xml
 ```
@@ -11,6 +11,9 @@ A HTML model report is provided in the model directory as
 ./model/limax_pkpd_*.html
 ```
 
+## Data sets for fitting
+The latest datasets are in the `data` folder, named in line with the model.
+
 ## Python notebook
 Example simulations are available in the ipython notebook.
 For installation setup a python virtual environment with the requirements listed
@@ -18,12 +21,10 @@ in requirements.txt
 ```
 mkvirtualenv methacetin_fitting -p python3
 pip install -r requirements.txt
-
 ```
 
 # Documentation
 Required packages devtools & dMod 
-
 ```
 sudo -E add-apt-repository -y ppa:marutter/rrutter
 sudo -E apt-get update
@@ -33,7 +34,6 @@ devtools::install_github("dlill/conveniencefunctions")
 devtools::install_github("dkaschek/cOde")
 devtools::install_github("dkaschek/dMod")
 ```
-
 
 ## [A] paracetamol
 
@@ -65,8 +65,8 @@ APAPD_Km_apap   # [mM] Km value for apap
 
 ### Observer Functions
 ```
-DOB = DOB              # [‰] Delta over baseline
-P_CO2Fc13 = P_CO2Fc13  
+DOB = DOB  # [‰] Delta over baseline
+P_CO2F = P_CO2Fc13 - init_P_CO2Fc13  # co2c13 fraction corrected for baseline  
 mom_rec_co2c13 = Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0  # [%] revovery after continous IV injection
 ```
 
@@ -85,68 +85,16 @@ KBO_MAXCO2      # CO2 pool size [mg]"),
 ### study, group
 
 * `Mohr2018, NaN`
-
-
-*** Irving1983 ***
-```
-time, n, dob ± dob_sd
-IVDOSE_co2c13 = 46.5  # [mg]
-```
-
-*** Barstow1990 ***
-```
-time, n, dob
-IVDOSE_co2c13 = 73  # [mg]
-```
-
-*** Meinecke1993_12.5 ***
-```
-time, n, co2_ratio
-PODOSE_co2c13 = 12.5  # [mg]
-```
-
-*** Meinecke1993_25A ***
-```
-time, n, co2_ratio
-PODOSE_co2c13 = 25  # [mg]
-```
-
-*** Meinecke1993_25B ***
-```
-time, n, co2_ratio
-PODOSE_co2c13 = 25  # [mg]
-```
-
-*** Meinecke1993_50 ***
-```
-time, n, co2_ratio
-PODOSE_co2c13 = 50  # [mg]
-```
-
-*** Meinecke1993_100 ***
-```
-time, n, co2_ratio
-PODOSE_co2c13 = 100  # [mg]
-```
-
-
-*** Leijssen1996 ***
-```
-time, n, recovery ± recovery_sd
-Ri_co2c13 = 1.0  # [mg/min]
-```
-
-*** Fuller2000_C13 ***
-```
-time, n, recovery ± recovery_sd
-Ri_co2c13 = 0.79  # [mg/min]
-```
-
-*** Fuller2000_C14 ***
-```
-time, n, recovery ± recovery_sd
-Ri_co2c13 = 0.79  # [mg/min]
-```
+* `Irving1983, NaN`
+* `Barstow1990, NaN`
+* `Meineke1993, D12.5_T1`
+* `Meineke1993, D25.0_T1`
+* `Meineke1993, D25.0_T2`
+* `Meineke1993, D50.0_T1`
+* `Meineke1993, D100.0_T1`
+* `Leijssen1996, NaN`
+* `Fuller2000, C13`
+* `Fuller2000, C14`
 
 
 ## [C] methacetin
@@ -164,8 +112,6 @@ cum_rec_metc13 = Abreath_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100  # [% dose
 Ka_metc13       # [1/hr] absorption methacetin gut
 CYP1A2MET_CL    # Vmax value hepatic clearance
 CYP1A2MET_Km_met  # [mM] Km value for methacetin
-
-# the tissue distribution coefficients could be important (but must be changed together)
 ```
 
 ### Studies
