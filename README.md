@@ -82,7 +82,6 @@ KBO_MAXCO2      # CO2 pool size [mg]"),
 ```
 
 ### study, group
-
 * `Mohr2018, NaN`
 * `Irving1983, NaN`
 * `Barstow1990, NaN`
@@ -96,7 +95,7 @@ KBO_MAXCO2      # CO2 pool size [mg]"),
 * `Fuller2000, C14`
 
 
-## [C] methacetin
+## [C] Methacetin Breath Test (methacetin)
 
 ### Observer Functions
 Recovery and cummulative recovery calculate how much of the initial given dose is recovered over
@@ -114,7 +113,6 @@ CYP1A2MET_Km_met  # [mM] Km value for methacetin
 ```
 
 ### study, group
-
 * `Kasicka-Jonderko2008, young`
 * `Kasicka-Jonderko2008, middle-aged`
 * `Kasicka-Jonderko2008, 2d`
@@ -133,12 +131,12 @@ CYP1A2MET_Km_met  # [mM] Km value for methacetin
 * `Lalazar2008, NaN`
 
 
-## [C] LiMAx
+## [D] LiMAx (limax)
 
 ### Observer Functions
 ```
 Mve_apap = Mve_apap     # [mg/dl] paracetamol concentration plasma
-Mve_metc13 = Mve_metc13  # [mg/dl] paracetamol concentration plasma
+Mve_metc13 = Mve_metc13  # [mg/dl] methacetin concentration plasma
 DOB = DOB
 ```
 
@@ -148,16 +146,5 @@ CYP1A2MET_CL    # Vmax value hepatic clearance
 CYP1A2MET_Km_met  # [mM] Km value for methacetin
 ```
 
-### Studies
-
-*** Taheri2013_2mg ***
-```
-time, subjects, apap ± apap_sd, metc13 ± metc13_sd, dob ± dob_sd  
-IVDOSE_metc13 = 150.0  # [mg] (2 [mg/kg])
-```
-
-*** Taheri2013_4mg ***
-```
-time, subjects, apap ± apap_sd, metc13 ± metc13_sd, dob ± dob_sd  
-IVDOSE_metc13 = 150.0  # [mg] (2 [mg/kg])
-```
+### study, group
+* `Taheri2013, NaN`
