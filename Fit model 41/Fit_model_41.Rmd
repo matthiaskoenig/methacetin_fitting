@@ -120,11 +120,24 @@ g <- Y(observables_apap_bic_met, x_apap_bic_met)
 Observations:
 
 1. In Albert: sigmas are not the same
+- [?] I checked this. The values in the table are the correct SE values (if the values were before sqrt(10) larger than it was SD instead)
+So values in table are good.
+
 2. In Irving: negative times
+- Yes, there are negative times in the original data. I filtered negative values from table.
+
 3. In Irving, Barstow, Meineke, Kasicka-Jonderko2008, Kasiscka-Jonderko2011, Ciccocioppo, Krubmiegel, Holtmeier, Lalazar: time is in minutes
+- Did not think about this. Fixed. I will write all times in hours from now on (or in the respective native time of the model).
+
 4. In Old data, more data points 
+- [?] Not sure about this. All the studies and groups are there.
+
 5. In Chiew, Mohr and some others: new values for dosing parameters?
+- Yes. This is correct. Dosing is given in theses studies in [mg/kg], i.e. per bodyweight. After adding the actual bodyweights, the total doses changed.
+
 6. Kasicka2013a is missing?
+- I gave a wrong id. Fixed.
+
 ```{r incompatibility of data sets}
 data_new <- read_tsv("../data/limax_pkpd_v41_data.csv")
 data_old <- read_csv("../fitting/data.csv")
