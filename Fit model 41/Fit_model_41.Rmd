@@ -116,88 +116,11 @@ observables_apap_bic_met <- c(observables_apap, observables_bic, observables_met
 g <- Y(observables_apap_bic_met, x_apap_bic_met)
 ```
 
-# Incompatibilities of data sets?
-Observations:
-
-1. In Albert: sigmas are not the same
-- [?] I checked this. The values in the table are the correct SE values (if the values were before sqrt(10) larger than it was SD instead)
-So values in table are good.
-
-2. In Irving: negative times
-- Yes, there are negative times in the original data. I filtered negative values from table.
-
-3. In Irving, Barstow, Meineke, Kasicka-Jonderko2008, Kasiscka-Jonderko2011, Ciccocioppo, Krubmiegel, Holtmeier, Lalazar: time is in minutes
-- Did not think about this. Fixed. I will write all times in hours from now on (or in the respective native time of the model).
-
-4. In Old data, more data points 
-- [?] Not sure about this. All the studies and groups are there.
-
-5. In Chiew, Mohr and some others: new values for dosing parameters?
-- Yes. This is correct. Dosing is given in theses studies in [mg/kg], i.e. per bodyweight. After adding the actual bodyweights, the total doses changed.
-
-6. Kasicka2013a is missing?
-- I gave a wrong id. Fixed.
-
-```{r incompatibility of data sets}
-data_new <- read_tsv("../data/limax_pkpd_v41_data.csv")
-data_old <- read_csv("../fitting/data.csv")
-
-new_names <- c(apap = "Mve_apap", 
-               recovery_bic = "mom_rec_co2c13",
-               dob_bic = "DOB",
-               co2_ratio_bic = "P_CO2F",
-               recovery_met = "mom_rec_metc13",
-               cum_met = "cum_rec_metc13"
-               )
-
-data_old <- data_old %>% mutate(name = str_replace_all(name, new_names))
-
-data_new <- data_new %>% 
-  select(-model, - simulation) %>% 
-  rename(name = observer)
-
-
-#point 4: number of data points
-nrow(data_old)
-nrow(data_new)
-
-# point 6: not all studies of the old sheet are in the new sheet (due to renaming?)
-(data_old$study %>% unique)[!(data_old$study %>% unique) %in% (data_new$study %>% unique )]
-
-#point 2
-data_new %>% filter(time <0)
-
-# point 3
-data_new %>% filter(time > 24)
-
-
-#point 1
-full_join(data_old[c("study", "group", "name", "time", "value", 
-"sigma")], data_new[c("study", "group", "name", "time", "value", 
-"sigma", "subjects")], by = c("study", "group", "name", "time")) %>% 
-  arrange(study, group, name, time) %>% 
-  mutate(sigmasame = near(sigma.x,sigma.y,.01))
-
-full_join(data_old[c("study", "name", "time", "value", 
-"sigma")], data_new[c("study", "name", "time", "value", 
-"sigma", "subjects")], by = c("study", "value", "name", "time")) %>% 
-  arrange(study, name, time) %>% 
-  mutate(sigmasame = near(sigma.x,sigma.y,.01))
-
-#point 5
-data_new[c("study", "BW", "PODOSE_apap", "IVDOSE_apap", 
-"PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", 
-"IVDOSE_metc13")] %>% unique() %>% arrange(study)
-
-data_old[c("study", "BW", "PODOSE_apap", "IVDOSE_apap", 
-"PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "PODOSE_metc13")] %>% unique()%>% arrange(study)
-
-```
-
-
-
 # Data 
 Read data, insert the default values for the parameters supplied in the data sheet. 
+
+* Taheri rausschmeißen zum Fitten
+
 ```{r, message=FALSE}
 # data <- 
   read_tsv("../data/limax_pkpd_v41_data.csv") %>% 
