@@ -1,0 +1,668 @@
+---
+title: "Fitting model 39"
+output: 
+  html_document:
+    toc: TRUE
+---
+
+
+Load all important libraries
+```{r setup, message=FALSE, warning=FALSE, eval=TRUE, echo=FALSE}
+knitr::opts_chunk$set(eval = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(fig.height = 10)
+knitr::opts_chunk$set(fig.width = 15)
+library(dMod)
+library(stringr) # Um bequem mit strings zu arbeiten
+library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für schöne plots
+library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
+library(conveniencefunctions)
+
+
+
+# load("2018_03_09_17_17_workspace.rda")
+# for(i in lsdMod(classlist = "prdfn")) {loadDLL(i)}
+```
+
+
+# Read model
+```{r}
+source("../model/limax_pkpd_v41.R")
+```
+
+
+```{r}
+pars_raw <- c(x0, p) 
+pars_in_dxdtdmod <- c(getSymbols(dxdt_dmod), names(dxdt_dmod))
+```
+
+# Odemodels and predicition function
+
+## Apap
+```{r odemodel_apap}
+free_pars_apap <- c("Ka_apap", "APAPD_HLM_CL", "APAPD_Km_apap")
+odemodel_apap <- odemodel(dxdt_dmod, modelname = "odemodel_apap", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_apap, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+x_apap <- Xs(odemodel_apap)
+```
+
+
+## Bicarbonate
+
+```{r odemodel_bic}
+free_pars_bic <- c("Ka_co2c13", "KLU_EXCO2", "CO2FIX_HLM_CL", "KBO_FIXCO2", "KBO_RELCO2", "KBO_MAXCO2")
+odemodel_bic <- odemodel(dxdt_dmod, modelname = "odemodel_bic", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_bic, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+x_bic <- Xs(odemodel_bic)
+```
+
+## Metc13
+
+```{r odemodel_met}
+free_pars_met <- c("Ka_metc13", "CYP1A2MET_CL", "CYP1A2MET_Km_met")
+odemodel_met <- odemodel(dxdt_dmod, modelname = "odemodel_met", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_met, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+x_met <- Xs(odemodel_met)
+```
+
+## Combined
+
+```{r odemodel_apap_bic_met}
+free_pars_apap_bic_met <- c(free_pars_apap, free_pars_bic, free_pars_met) %>% unique
+odemodel_apap_bic_met <- odemodel(dxdt_dmod, modelname = "odemodel_apap_bic_met", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_apap_bic_met, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+
+x_apap_bic_met <- Xs(odemodel_apap_bic_met)
+```
+
+
+
+
+
+# Observation functions
+
+## Apap
+
+```{r g_apap}
+observables_apap <- y_dmod[c("Mve_apap")] %>% set_names(c("Mve_apap"))
+g_apap <- Y(g = observables_apap, f = x_apap)
+```
+
+## Bicarbonate
+
+```{r g_bic}
+recovery_bic <- paste(y_dmod["Exhalation_co2c13"], "/ 60 * Mr_co2c13 / Ri_co2c13 * 100")
+observables_bic <- c(recovery_bic, y_dmod[c("DOB", "P_CO2Fc13")])
+names(observables_bic) <- c("cum_rec_co2c13", "DOB", "P_CO2F")
+
+observables_bic["P_CO2F"] <- paste0(observables_bic["P_CO2F"], " + offset_bic")
+
+g_bic <- Y(observables_bic, x_bic)
+```
+
+## Metc13
+
+```{r g_met}
+recovery_met <- paste(y_dmod["Exhalation_co2c13"], "/ init_PODOSE_metc13 * Mr_metc13 * 100" )
+cum_met <- paste( "Abreath_co2c13/ init_PODOSE_metc13 * Mr_metc13 * 100")
+observables_met <- c(recovery_met, cum_met) %>% set_names(c("mom_rec_metc13", "cum_rec_metc13"))
+
+g_met <- Y(observables_met, x_met)
+```
+
+## Combined
+
+```{r g_apap_bic_met}
+observables_apap_bic_met <- c(observables_apap, observables_bic, observables_met)
+g <- Y(observables_apap_bic_met, x_apap_bic_met)
+```
+
+# Data 
+Read data, insert the default values for the parameters supplied in the data sheet. 
+
+* Taheri rausschmeißen zum Fitten
+
+```{r, message=FALSE}
+data <-
+  read_tsv("../data/limax_pkpd_v41_data.csv") %>% 
+  select(-model, -subjects) %>% 
+  rename(name = observer)
+supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
+```
+
+
+# Parameter trafos
+## Apap
+```{r p_apap}
+apap_factors <- c("study", "group", "name", "BW", "PODOSE_apap", "IVDOSE_apap", 
+"PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", 
+"IVDOSE_metc13", "ti_metc13")
+data_apap <- read_tsv("../data/limax_pkpd_v41_data.csv") %>% 
+  select(-model) %>% 
+  rename(n = subjects) %>% 
+  rename(name = observer) %>% 
+  filter(simulation == "apap") %>% 
+  select(-simulation) %>% 
+  as.data.frame() %>% 
+  fitErrorModel(factors = apap_factors) %>% 
+  select(-n) %>% 
+  as.data.frame()
+  
+outer_pars_apap <- sort(c(supplied_pars, free_pars_apap))
+
+trafo_apap <-
+  pars_raw %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% outer_pars_apap), outer_pars_apap) %>% 
+  
+  branch(data_apap %>% as.datalist() %>% covariates()) %>% 
+  
+  minsert(supplied_pars) %>% 
+  
+  insert("x~exp(X)", x = free_pars_apap, X = toupper(free_pars_apap)) # backtrafo to linear pars from log-pars
+
+p_apap <- P(trafo_apap)
+
+pars_apap <- log(pars_raw[free_pars_apap]) %>% set_names(toupper(free_pars_apap))
+```
+
+### Test plot
+```{r plot_apap, eval=TRUE}
+# loadDLL(x_apap)
+times <- seq(0,24, 0.1)
+plotCombined((g_apap*x_apap*p_apap)(times, pars_apap, deriv = F), data = data_apap %>% as.datalist(), name %in% names(observables_apap))
+
+obj <- normL2(data_apap %>% as.datalist, (g_apap*x_apap*p_apap))
+obj(getParameters(obj) %>% are_names_of(0))
+```
+
+## Bicarbonate
+
+Some studies don't have sigmas. Estimate the errors for them while fitting. For this, we need to define an error model.
+1. Split the data into studies a) with errors "_bic" and b) without errors "_bic_sigma_NA"
+2. Define the error model (technically, this will also be an observation function: It "observes" the outputs of the model, e.g. "recovery", and calculates another variable from it, the error)
+3. For both sets of data, "_bic", and "bic_sigma_NA", we now need condition specific parameters. Additionally, in "_bic_sigma_NA", we need to supply the parameters of our error model.
+
+### Error model
+
+```{r e_bic}
+data_bic <- data %>% 
+  filter(simulation == "bicarbonate")%>% 
+  select(-simulation) %>% 
+  as.data.frame()
+
+studies_with_sigma_na <- data_bic %>% filter(is.na(sigma)) %>% .[["study"]] %>% unique
+data_bic_sigma_NA <- data_bic %>% filter(study %in% studies_with_sigma_na)
+data_bic <- data_bic %>% filter(! study %in% studies_with_sigma_na)
+
+errors_bic_sigma_NA <- paste0("sqrt(s0_", names(observables_bic), "^2 + srel_", names(observables_bic), "^2 * ", names(observables_bic), "^2 )") %>% set_names(names(observables_bic))
+
+e_bic_sigma_NA <- Y(g = errors_bic_sigma_NA, f= (g_bic))
+```
+
+### Parameter trafo
+```{r p_bic}
+outer_pars_bic <- sort(c(supplied_pars, free_pars_bic))
+
+trafo_bic<-
+  c(pars_raw) %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% outer_pars_bic), outer_pars_bic) %>% 
+  
+  branch(data_bic %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  
+  minsert(supplied_pars) %>% 
+
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  
+  define("x~x", x = "offset_bic")
+
+p_bic <- P(trafo_bic)
+
+pars_bic <- getParameters(p_bic) %>% are_names_of(0)
+```
+
+```{r p_bic_sigma_NA}
+pars_errors_bic_sigma_NA <- getSymbols(errors_bic_sigma_NA) %>% str_subset("^s") %>% are_names_of(1)
+
+outer_pars_bic <- sort(c(supplied_pars, free_pars_bic, names(pars_errors_bic_sigma_NA)))
+
+trafo_bic_sigma_NA <-
+  c(pars_raw, pars_errors_bic_sigma_NA) %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% outer_pars_bic), outer_pars_bic) %>% 
+  
+  branch(data_bic_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  
+  minsert(supplied_pars) %>% 
+  
+  insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = study) %>% 
+  
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  
+  insert("x~0", x = c("S0_CO2_RATIO_BIC_BARSTOW1990", "S0_RECOVERY_BIC_BARSTOW1990", 
+"SREL_CO2_RATIO_BIC_BARSTOW1990", "SREL_RECOVERY_BIC_BARSTOW1990", 
+"S0_DOB_BIC_MEINEKE1993", "S0_RECOVERY_BIC_MEINEKE1993", "SREL_DOB_BIC_MEINEKE1993", 
+"SREL_RECOVERY_BIC_MEINEKE1993")) %>% 
+  
+  define("x~x", x = "offset_bic")
+
+p_bic_sigma_NA <- P(trafo_bic_sigma_NA)
+
+pars_bic_sigma_NA <- getParameters(p_bic_sigma_NA) %>% are_names_of(0)
+
+# p_bic_sigma_NA(pars_bic_sigma_NA)
+```
+
+### Example plot
+```{r}
+loadDLL(x_bic)
+(g_bic*x_bic*p_bic_sigma_NA)(times*10, pars_bic_sigma_NA, deriv = F) %>%  plotPrediction(name %in% names(observables_bic))
+(g_bic*x_bic*p_bic)(times*10, pars_bic, deriv = F) %>%  
+  # lapply(. %>% as.tibble)
+  plotPrediction(name %in% names(observables_bic))
+# obj <- normL2(data_bic %>% as.datalist,(g_bic*x_bic*p_bic))
+
+```
+
+
+## Metc13
+
+The same game for the data sets without sigmas applies here. Read the description for Bic.
+
+### Error model
+```{r e_met}
+data_met <- data %>% 
+  filter(simulation == "methacetin")%>% 
+  select(-simulation) %>% 
+  as.data.frame()
+
+studies_with_sigma_na <- data_met %>% filter(is.na(sigma)) %>% .[["study"]] %>% unique
+data_met_sigma_NA <- data_met %>% filter(study %in% studies_with_sigma_na)
+data_met <- data_met %>% filter(! study %in% studies_with_sigma_na)
+
+errors_met_sigma_NA <- paste0("sqrt(s0_", names(observables_met), "^2 + srel_", names(observables_met), "^2 * ", names(observables_met), "^2)") %>% set_names(names(observables_met))
+
+e_met_sigma_NA <- Y(g = errors_met_sigma_NA, f= (g_met))
+```
+
+### Parameter trafo
+```{r p_met}
+outer_pars_met <- sort(c(supplied_pars, free_pars_met))
+
+trafo_met<-
+  c(pars_raw) %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% outer_pars_met), outer_pars_met) %>% 
+  
+  branch(data_met %>% as.datalist() %>% covariates()) %>%  # The table of covariates includes dosepar and dose, which are used in the next line
+  
+  minsert(supplied_pars) %>% 
+
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+    
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) 
+
+p_met <- P(trafo_met)
+
+pars_met <- getParameters(p_met) %>% are_names_of(0)
+```
+
+
+```{r p_met_sigma_NA}
+pars_errors_met_sigma_NA <- getSymbols(errors_met_sigma_NA) %>% str_subset("^s") %>%  are_names_of(1)
+
+outer_pars_met <- sort(c(supplied_pars, free_pars_met, names(pars_errors_met_sigma_NA)))
+
+trafo_met_sigma_NA <-
+  c(pars_raw, pars_errors_met_sigma_NA) %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% outer_pars_met), outer_pars_met) %>% 
+  
+  branch(data_met_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  
+  minsert(supplied_pars) %>% 
+  
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+  
+  insert("s~s_study", s = names(pars_errors_met_sigma_NA), study = study) %>% 
+  
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  insert("x~0", x = c("S0_CUM_MET_KRUMBIEGEL1985", "SREL_CUM_MET_KRUMBIEGEL1985"))
+  
+
+
+p_met_sigma_NA <- P(trafo_met_sigma_NA)
+
+pars_met_sigma_NA <- getParameters(p_met_sigma_NA) %>% are_names_of(0)
+```
+
+### Example plot
+```{r}
+loadDLL(x_met)
+(g_met*x_met*p_met_sigma_NA)(times*100, pars_met_sigma_NA, deriv = F) %>% plotPrediction(name %in% names(observables_met))
+```
+
+
+
+# Bic and met together
+```{r x, g and e bicmet}
+free_pars_bicmet <- c(free_pars_bic, free_pars_met)
+odemodel_bicmet <- odemodel(dxdt_dmod, modelname = "odemodel_bicmet", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_bicmet, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+x_bicmet <- Xs(odemodel_bicmet)
+
+g_bicmet <- Y(c(observables_bic, observables_met), x_bicmet)
+
+e_bicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_bicmet)
+```
+
+```{r data and p bicmet}
+data_bicmet <- rbind(data_bic, data_met)
+data_bicmet_sigma_NA <- rbind(data_bic_sigma_NA, data_met_sigma_NA)
+
+outer_pars_bic <- sort(c(supplied_pars, free_pars_bic))
+outer_pars_bic_sigma_NA <- sort(c(supplied_pars, free_pars_bic, names(pars_errors_bic_sigma_NA)))
+
+outer_pars_met <- sort(c(supplied_pars, free_pars_met))
+outer_pars_met_sigma_NA <- sort(c(supplied_pars, free_pars_met, names(pars_errors_met_sigma_NA)))
+
+trafo_bicmet<-
+  c(pars_raw) %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% unique(c(outer_pars_bic, outer_pars_met))), sort(unique(c(outer_pars_bic, outer_pars_met)))) %>% 
+  
+  branch(data_bicmet %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  
+  minsert(supplied_pars) %>% 
+
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  
+  define("x~x", x = "offset_bic")
+
+
+trafo_bicmet_sigma_NA <-
+  c(pars_raw, pars_errors_bic_sigma_NA, pars_errors_met_sigma_NA) %>% 
+  sort_by_name() %>% 
+  replace((names(.) %in% unique(c(outer_pars_bic_sigma_NA, outer_pars_met_sigma_NA))), sort(unique(c(outer_pars_bic_sigma_NA, outer_pars_met_sigma_NA)))) %>% 
+  
+  branch(data_bicmet_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  minsert(supplied_pars) %>% 
+  #bic
+  insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = unique(data_bic_sigma_NA$study)) %>% 
+
+  #met
+  insert("s~s_study", s = names(pars_errors_met_sigma_NA), study = unique(data_met_sigma_NA$study)) %>% 
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  
+  #bic
+  insert("x~0", x = c("S0_CO2_RATIO_BIC_BARSTOW1990", "S0_RECOVERY_BIC_BARSTOW1990", 
+"SREL_CO2_RATIO_BIC_BARSTOW1990", "SREL_RECOVERY_BIC_BARSTOW1990", 
+"S0_DOB_BIC_MEINEKE1993", "S0_RECOVERY_BIC_MEINEKE1993", "SREL_DOB_BIC_MEINEKE1993", 
+"SREL_RECOVERY_BIC_MEINEKE1993")) %>% 
+  define("x~x", x = "offset_bic") %>% 
+  
+  #met
+  insert("x~0", x = c("S0_CUM_MET_KRUMBIEGEL1985", "SREL_CUM_MET_KRUMBIEGEL1985"))
+
+
+
+p_bicmet <- P(trafo_bicmet)
+pars_bicmet <- getParameters(p_bicmet) %>% are_names_of(0)
+
+p_bicmet_sigma_NA <- P(trafo_bicmet_sigma_NA)
+pars_bicmet_sigma_NA <- getParameters(p_bicmet_sigma_NA) %>% are_names_of(0)
+```
+
+# Apap, bic and met
+
+```{r x, g and e apapbicmet}
+free_pars_apapbicmet <- c(free_pars_apap, free_pars_bic, free_pars_met)
+odemodel_apapbicmet <- odemodel(dxdt_dmod, modelname = "odemodel_apapbicmet", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_apapbicmet, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+x_apapbicmet <- Xs(odemodel_apapbicmet)
+
+g_apapbicmet <- Y(c(observables_apap, observables_bic, observables_met), x_apapbicmet)
+
+e_apapbicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_apapbicmet)
+```
+
+```{r data and p apapbicmet}
+data_apapbicmet <- rbind(data_apap, data_bic, data_met)
+data_apapbicmet_sigma_NA <- rbind(data_bic_sigma_NA, data_met_sigma_NA)
+
+outer_pars_apap <- sort(c(supplied_pars,free_pars_apap))
+
+outer_pars_bic <- sort(c(supplied_pars, free_pars_bic))
+outer_pars_bic_sigma_NA <- sort(c(supplied_pars, free_pars_bic, names(pars_errors_bic_sigma_NA)))
+
+outer_pars_met <- sort(c(supplied_pars, free_pars_met))
+outer_pars_met_sigma_NA <- sort(c(supplied_pars, free_pars_met, names(pars_errors_met_sigma_NA)))
+
+outer_pars_apapbicmet <- sort(unique(c(outer_pars_apap, outer_pars_bic, outer_pars_met)))
+outer_pars_apapbicmet_sigma_NA <- sort(unique(c(outer_pars_apap, outer_pars_bic, outer_pars_bic_sigma_NA, outer_pars_met,outer_pars_met_sigma_NA)))
+
+trafo_apapbicmet<-
+  c(pars_raw) %>% 
+  sort_by_name() %>% 
+  replace(names(.) %in% outer_pars_apapbicmet, outer_pars_apapbicmet) %>% 
+  
+  branch(data_apapbicmet %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  
+  minsert(supplied_pars) %>% 
+  
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+  
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  
+  define("x~x", x = "offset_bic")
+
+
+trafo_apapbicmet_sigma_NA <-
+  c(pars_raw, pars_errors_bic_sigma_NA, pars_errors_met_sigma_NA) %>% 
+  sort_by_name() %>% 
+  replace(names(.) %in% outer_pars_apapbicmet_sigma_NA, outer_pars_apapbicmet_sigma_NA) %>% 
+  
+  branch(data_apapbicmet_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  minsert(supplied_pars) %>% 
+  #bic
+  insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = unique(data_bic_sigma_NA$study)) %>% 
+  
+  #met
+  insert("s~s_study", s = names(pars_errors_met_sigma_NA), study = unique(data_met_sigma_NA$study)) %>% 
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+  
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
+  
+  #bic
+  insert("x~0", x = c("S0_CO2_RATIO_BIC_BARSTOW1990", "S0_RECOVERY_BIC_BARSTOW1990", 
+                      "SREL_CO2_RATIO_BIC_BARSTOW1990", "SREL_RECOVERY_BIC_BARSTOW1990", 
+                      "S0_DOB_BIC_MEINEKE1993", "S0_RECOVERY_BIC_MEINEKE1993", "SREL_DOB_BIC_MEINEKE1993", 
+                      "SREL_RECOVERY_BIC_MEINEKE1993")) %>% 
+  define("x~x", x = "offset_bic") %>% 
+  
+  #met
+  insert("x~0", x = c("S0_CUM_MET_KRUMBIEGEL1985", "SREL_CUM_MET_KRUMBIEGEL1985"))
+
+
+
+p_apapbicmet <- P(trafo_apapbicmet)
+pars_apapbicmet <- getParameters(p_apapbicmet) %>% are_names_of(0)
+
+p_apapbicmet_sigma_NA <- P(trafo_apapbicmet_sigma_NA)
+pars_apapbicmet_sigma_NA <- getParameters(p_apapbicmet_sigma_NA) %>% are_names_of(0)
+```
+
+
+
+
+# dMod.frames
+
+```{r initialize dMod.frames }
+basic_hypotheses.frame <- tibble(hypothesis = c("apap",  "bic", "met"),
+                     x = list(x_apap,  x_bic, x_met)) %>% 
+  add_column( g = list(g_apap,  g_bic, g_met)) %>% 
+  add_column(p = list(p_apap,  p_bic, p_met),
+             data = list(data_apap,  data_bic, data_met),
+             p_sig = list(NULL,  p_bic_sigma_NA, p_met_sigma_NA),
+             e = list(NULL,  e_bic_sigma_NA, e_met_sigma_NA),
+             data_sig = list(NULL,  data_bic_sigma_NA, data_met_sigma_NA)
+  )
+# basic_hypotheses.frame <- basic_hypotheses.frame[1,] # keep only apap
+
+
+bicmet.frame <- tibble(
+  hypothesis = "bicmet",
+  x = list(x_bicmet),
+  g = list(g_bicmet),
+  p = list(p_bicmet),
+  data = list(data_bicmet),
+  p_sig = list(p_bicmet_sigma_NA),
+  e = list(e_bicmet),
+  data_sig = list(data_bicmet_sigma_NA)
+)
+
+apapbicmet.frame <- tibble(
+  hypothesis = "apapbicmet",
+  x = list(x_apapbicmet),
+  g = list(g_apapbicmet),
+  p = list(p_apapbicmet),
+  data = list(data_apapbicmet),
+  p_sig = list(p_apapbicmet_sigma_NA),
+  e = list(e_apapbicmet),
+  data_sig = list(data_apapbicmet_sigma_NA)
+)
+```
+
+
+# Fit
+
+```{r transformation functions for dMod.frame to create objfuns and make the frame smaller again}
+dMf_append_objfuns <- function(dMod.frame) dMod.frame %>% 
+  
+  mutate(data_0 = map(data, as.datalist),
+         data_sig = map(data_sig, as.datalist)) %>% 
+  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p[[i]]))),
+         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
+  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
+         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
+  
+  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
+  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
+  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) %>% 
+  
+  {.}
+
+dMf_reduce <- function(dMod.frame) dMod.frame %>% 
+  select(-contains("_0")) %>% 
+  select(-contains("_sig"))
+```
+
+
+```{r apply transformations to dMod.frames}
+bicmet.frame <- bicmet.frame %>% dMf_append_objfuns 
+apapbicmet.frame <- apapbicmet.frame %>% dMf_append_objfuns 
+```
+
+```{r test objfuns}
+basic_hypotheses.frame %>% dMf_append_objfuns %>% mutate(test = map(seq_along(x), function(i) obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
+bicmet.frame %>% mutate(test = map(seq_along(x), function(i) obj_0[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
+apapbicmet.frame%>% dMf_reduce() %>%  mutate(test = map(seq_along(x), function(i) obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
+```
+
+```{r}
+# save.image(tpaste0("workspace_with_dMod.frames.rda"))
+```
+
+# Start fits
+```{r load workspace up to here}
+load("2018_03_29_20_39_workspace_with_dMod.frames.rda")
+rbind(bicmet.frame, apapbicmet.frame) %>% .$x %>% walk(loadDLL)
+```
+
+```{r start fits with broad sampling}
+apapbicmet.frame <- apapbicmet.frame %>% dMf_reduce()
+
+apapbicmet.frame[["pars"]] <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
+
+fit_apapbicmet_broad_sampling <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+  
+  apapbicmet.frame %>% 
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+              sd = 4,
+              blather = T, cores = ncores, fits = 10*ncores)
+    }))
+  }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_apapbicmet_broad_sampling")), input = "apapbicmet.frame")
+
+
+# ---- start with tight sampling from fitted_pars
+fitted_pars <- readRDS("../fitting/2018_03_29_19_20_fitted_pars_bicmet.rds")$parframes[[1]] %>% as.parvec(1) %>% sort_by_name()
+mypars <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% sort_by_name()
+mypars[names(fitted_pars)] <- fitted_pars
+
+apapbicmet.frame[["pars"]] <- mypars %>% list
+
+
+fit_apapbicmet_tight_sampling_1 <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+  
+  apapbicmet.frame %>% 
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+              sd = 0.5,
+              blather = T, cores = ncores, fits = 20*ncores)
+    }))
+  }, machine = paste0("ruprecht", 1), filename = paste0("tmp_",tpaste0("fit_apapbicmet_tight_sampling_1")), input = "apapbicmet.frame")
+
+# ---- Start with tight sampling around the second best optimum 
+fitted_pars <- readRDS("../fitting/2018_03_29_19_20_fitted_pars_bicmet.rds")$parframes[[1]] %>% as.parvec(3) %>% sort_by_name()
+mypars <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% sort_by_name()
+mypars[names(fitted_pars)] <- fitted_pars
+
+apapbicmet.frame[["pars"]] <- mypars %>% list
+
+
+fit_apapbicmet_tight_sampling_2 <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+  
+  apapbicmet.frame %>% 
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+              sd = 0.5,
+              blather = T, cores = ncores, fits = 20*ncores)
+    }))
+  }, machine = paste0("ruprecht", 2), filename = paste0("tmp_",tpaste0("fit_apapbicmet_tight_sampling_2")), input = "apapbicmet.frame")
+
+```
+
+```{r}
+save.image(tpaste0("workspace_apapbicmet_fits_started.rda"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
