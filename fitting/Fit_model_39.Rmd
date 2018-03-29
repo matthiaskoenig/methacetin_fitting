@@ -644,7 +644,28 @@ save.image(tpaste0("workspace_with_profiles_with_fixed_pars.rda"))
 ```
 
 
+### Look at the profiles
+```{r load workspace}
+load("2018_03_26_15_55_workspace_with_profiles_with_fixed_pars.rda")
+walk(dMod.frame$x, loadDLL)
+```
 
+```{r read profiles with fixe_pars}
+# profile_frame_fixed_pars <- profile_job$get()$fermi
+# saveRDS(profile_frame_fixed_pars, tpaste0("profile_frame_fixed_pars.rds"))
+# save.image(tpaste0("workspace_with_profile_frame_fixed_pars.rda"))
+# tpaste0("profile_frame_fixed_pars.rds")
+```
+In hypothesis Met: The three parameters are identifiable, but the profilin function didn't start from the optimum?
+In hypothesis : The profiles just wiggle on the bottom and dont go up. For KLU_EXCO2 and offset_bic there are no profiles plotted, because they are too steep, meaning that those parameters are really well determined.
+```{r}
+profile_frame_fixed_pars <- readRDS("2018_03_29_17_35_profile_frame_fixed_pars.rds")
+profile_frame_fixed_pars[3:4] %>% 
+  map(plotProfile)
+
+profile_frame_fixed_pars[[3]] %>% filter(whichPar %>% str_detect("KLU"))
+
+```
 
 
 
