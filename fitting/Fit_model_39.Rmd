@@ -967,24 +967,75 @@ saveRDS(fit_bicmet_job, tpaste0("fit_bicmet_job.rds"))
 ```
 
 ```{r}
-myworkspace <- ls()
-in_workspace_is_tibble <- map_lgl(myworkspace, . %>% get(pos = .GlobalEnv) %>% class %>% str_detect("tbl") %>% any)
+# myworkspace <- ls()
+# in_workspace_is_tibble <- map_lgl(myworkspace, . %>% get(pos = .GlobalEnv) %>% class %>% str_detect("tbl") %>% any)
+# 
+# myworkspace[in_workspace_is_tibble]
+# 
+# object_sizes_in_workspace <- map(myworkspace, function(i) pryr::object_size(get(i, pos = .GlobalEnv))/1024/1024) %>% set_names(myworkspace)
+# 
+# save.image()
+```
 
-myworkspace[in_workspace_is_tibble]
-
-object_sizes_in_workspace <- map(myworkspace, function(i) pryr::object_size(get(i, pos = .GlobalEnv))/1024/1024) %>% set_names(myworkspace)
-
-save.image()
+### Look at fits
+```{r get results (ugly...)}
+# bicmet.frame2 <-  readRDS("2018_03_27_13_59_fit_bicmet_job.rds")
+# bicmet.frame2 <- bicmet.frame2$get()
+# 
+# bla <- list.files(pattern = "2018_03_27_13_58") %>% map(load)
+# 
+# myfits <- map(bicmet.frame2, "fits")
+# 
+# 
+# myfits <- myfits %>% 
+#   transpose() %>% 
+#   map(~do.call(Reduce, list(f=c.parlist, x = .x))) %>% 
+#   Reduce(c.parlist,.)
+# 
+# # remove(list = "bla")
+# 
+# # bicmet.frame2 <- bicmet.frame2[[1]][1,1:14]
+# 
+# bicmet.frame2[["fits"]] <- list(myfits)
+# 
+# 
+# saveRDS(bicmet.frame2, tpaste0("bicmet_refitted.rds"))
 ```
 
 
+```{r}
+# bicmet.frame2 <- readRDS("2018_03_29_18_09_bicmet_refitted.rds")
+walk(bicmet.frame2$x, loadDLL)
+```
+```{r expand bicmet.frame}
+bicmet.frame2 <- 
+  bicmet.frame2 %>% 
+  dMf_expand_fits() %>% 
+  dMf_append_plots()
+```
+
+In hypothesis "bicmet, refit around step 1:8": There are some steps, but the best step is once again unique
+```{r}
+# bicmet.frame2$hypothesis
+bicmet.frame2$plot_value
+```
+
+* In hypothesis "bicmet, refit around step 1:8": 
+    * Step 1 is really different from the others, steps 2-13 only differ significantly in error-pars and Ka_co2c13
+    * The parameters CYP1A2_KM_MET and KBO_RELCO2 are really small
+    * Some error pars are also relly small
+```{r}
+bicmet.frame2$parframes[[1]][1:20,] %>% plotPars() +
+  # coord_cartesian(ylim = c(-5,5))
+  geom_blank()
+```
 
 
+```{r}
+fitted_pars <- bicmet.frame2[c("p", "parframes")]
 
-
-
-
-
+saveRDS(fitted_pars, tpaste0("fitted_pars_bicmet.rds"))
+```
 
 
 
