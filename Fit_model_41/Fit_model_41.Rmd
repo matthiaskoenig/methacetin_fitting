@@ -65,18 +65,6 @@ odemodel_met <- odemodel(dxdt_dmod, modelname = "odemodel_met", fixed = setdiff(
 x_met <- Xs(odemodel_met)
 ```
 
-## Combined
-
-```{r odemodel_apap_bic_met}
-free_pars_apap_bic_met <- c(free_pars_apap, free_pars_bic, free_pars_met) %>% unique
-odemodel_apap_bic_met <- odemodel(dxdt_dmod, modelname = "odemodel_apap_bic_met", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_apap_bic_met, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
-
-x_apap_bic_met <- Xs(odemodel_apap_bic_met)
-```
-
-
-
-
 
 # Observation functions
 
@@ -84,7 +72,7 @@ x_apap_bic_met <- Xs(odemodel_apap_bic_met)
 
 ```{r g_apap}
 observables_apap <- y_dmod[c("Mve_apap")] %>% set_names(c("Mve_apap"))
-g_apap <- Y(g = observables_apap, f = x_apap)
+g_apap <- Y(g = observables_apap, f = x_apap, attach.input = F)
 ```
 
 ## Bicarbonate
@@ -96,7 +84,7 @@ names(observables_bic) <- c("cum_rec_co2c13", "DOB", "P_CO2F")
 
 observables_bic["P_CO2F"] <- paste0(observables_bic["P_CO2F"], " + offset_bic")
 
-g_bic <- Y(observables_bic, x_bic)
+g_bic <- Y(observables_bic, x_bic, attach.input = F)
 ```
 
 ## Metc13
@@ -106,26 +94,48 @@ recovery_met <- paste(y_dmod["Exhalation_co2c13"], "/ init_PODOSE_metc13 * Mr_me
 cum_met <- paste( "Abreath_co2c13/ init_PODOSE_metc13 * Mr_metc13 * 100")
 observables_met <- c(recovery_met, cum_met) %>% set_names(c("mom_rec_metc13", "cum_rec_metc13"))
 
-g_met <- Y(observables_met, x_met)
+g_met <- Y(observables_met, x_met, attach.input = F)
 ```
 
-## Combined
 
-```{r g_apap_bic_met}
-observables_apap_bic_met <- c(observables_apap, observables_bic, observables_met)
-g <- Y(observables_apap_bic_met, x_apap_bic_met)
-```
 
-# Data 
+# Data - read and preprocess
 Read data, insert the default values for the parameters supplied in the data sheet. 
 
-* Taheri rausschmeißen zum Fitten
+* Taheri rausschmeißen zum Fitten: Wird weiter unten getan
 
 ```{r, message=FALSE}
 data <-
-  read_tsv("../data/limax_pkpd_v41_data.csv") %>% 
-  select(-model, -subjects) %>% 
-  rename(name = observer)
+  read_tsv("../data/limax_pkpd_v41_data.csv") %>%
+  select(-model) %>% 
+  rename(name = observer) %>% 
+  rename(n = subjects) %>% 
+  unique() #noch matthias sagen, dass lalazar2008 doppelte einträge hat
+
+
+fitErrorModel_factors <- c("study", "group", "name", "BW", "PODOSE_apap", "IVDOSE_apap", 
+"PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", 
+"IVDOSE_metc13", "ti_metc13")
+some_na <- 
+  data %>% 
+  group_by(study, group, name) %>% 
+  mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
+  filter(sna>0 & sna != nna) %>% 
+  select(-sna, -nna) %>% 
+  as.data.frame() %>% 
+  fitErrorModel(factors = fitErrorModel_factors, plotting = F)
+
+none_or_all_na <- data %>% 
+  group_by(study, group, name) %>% 
+  mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
+  filter(sna==0 | sna == nna) %>% 
+  select(-sna, -nna) %>% 
+  as.data.frame()
+
+data <- rbind(some_na, none_or_all_na) %>% 
+  select(-n)
+
+
 supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
 ```
 
@@ -133,18 +143,9 @@ supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
 # Parameter trafos
 ## Apap
 ```{r p_apap}
-apap_factors <- c("study", "group", "name", "BW", "PODOSE_apap", "IVDOSE_apap", 
-"PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", 
-"IVDOSE_metc13", "ti_metc13")
-data_apap <- read_tsv("../data/limax_pkpd_v41_data.csv") %>% 
-  select(-model) %>% 
-  rename(n = subjects) %>% 
-  rename(name = observer) %>% 
+data_apap <- data %>%  
   filter(simulation == "apap") %>% 
   select(-simulation) %>% 
-  as.data.frame() %>% 
-  fitErrorModel(factors = apap_factors) %>% 
-  select(-n) %>% 
   as.data.frame()
   
 outer_pars_apap <- sort(c(supplied_pars, free_pars_apap))
@@ -194,7 +195,10 @@ studies_with_sigma_na <- data_bic %>% filter(is.na(sigma)) %>% .[["study"]] %>% 
 data_bic_sigma_NA <- data_bic %>% filter(study %in% studies_with_sigma_na)
 data_bic <- data_bic %>% filter(! study %in% studies_with_sigma_na)
 
+data_bic_sigma_NA$name %>% unique()
+
 errors_bic_sigma_NA <- paste0("sqrt(s0_", names(observables_bic), "^2 + srel_", names(observables_bic), "^2 * ", names(observables_bic), "^2 )") %>% set_names(names(observables_bic))
+errors_bic_sigma_NA["cum_rec_co2c13"] <- 1 #hierfür gibts eh keine daten und ich weiß nicht, ob ich es einfach weglassen kann
 
 e_bic_sigma_NA <- Y(g = errors_bic_sigma_NA, f= (g_bic))
 ```
@@ -235,14 +239,7 @@ trafo_bic_sigma_NA <-
   
   minsert(supplied_pars) %>% 
   
-  insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = study) %>% 
-  
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
-  
-  insert("x~0", x = c("S0_CO2_RATIO_BIC_BARSTOW1990", "S0_RECOVERY_BIC_BARSTOW1990", 
-"SREL_CO2_RATIO_BIC_BARSTOW1990", "SREL_RECOVERY_BIC_BARSTOW1990", 
-"S0_DOB_BIC_MEINEKE1993", "S0_RECOVERY_BIC_MEINEKE1993", "SREL_DOB_BIC_MEINEKE1993", 
-"SREL_RECOVERY_BIC_MEINEKE1993")) %>% 
   
   define("x~x", x = "offset_bic")
 
@@ -281,8 +278,11 @@ data_met_sigma_NA <- data_met %>% filter(study %in% studies_with_sigma_na)
 data_met <- data_met %>% filter(! study %in% studies_with_sigma_na)
 
 errors_met_sigma_NA <- paste0("sqrt(s0_", names(observables_met), "^2 + srel_", names(observables_met), "^2 * ", names(observables_met), "^2)") %>% set_names(names(observables_met))
+errors_met_sigma_NA["mom_rec_metc13"] <- 1 #hierfür gibts eh keine daten mit sigma=NA
 
 e_met_sigma_NA <- Y(g = errors_met_sigma_NA, f= (g_met))
+
+
 ```
 
 ### Parameter trafo
@@ -324,11 +324,8 @@ trafo_met_sigma_NA <-
   
   define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
   
-  insert("s~s_study", s = names(pars_errors_met_sigma_NA), study = study) %>% 
-  
-  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
-  insert("x~0", x = c("S0_CUM_MET_KRUMBIEGEL1985", "SREL_CUM_MET_KRUMBIEGEL1985"))
-  
+  insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]])))
+
 
 
 p_met_sigma_NA <- P(trafo_met_sigma_NA)
@@ -350,9 +347,9 @@ free_pars_bicmet <- c(free_pars_bic, free_pars_met)
 odemodel_bicmet <- odemodel(dxdt_dmod, modelname = "odemodel_bicmet", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_bicmet, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
 x_bicmet <- Xs(odemodel_bicmet)
 
-g_bicmet <- Y(c(observables_bic, observables_met), x_bicmet)
+g_bicmet <- Y(c(observables_bic, observables_met), x_bicmet, attach.input = F, modelname = "g_bicmet", compile = F)
 
-e_bicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_bicmet)
+e_bicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_bicmet, modelname = "e_bicmet", compile = F)
 ```
 
 ```{r data and p bicmet}
@@ -389,31 +386,26 @@ trafo_bicmet_sigma_NA <-
   branch(data_bicmet_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
   minsert(supplied_pars) %>% 
   #bic
-  insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = unique(data_bic_sigma_NA$study)) %>% 
 
   #met
-  insert("s~s_study", s = names(pars_errors_met_sigma_NA), study = unique(data_met_sigma_NA$study)) %>% 
   define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
 
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
   
-  #bic
-  insert("x~0", x = c("S0_CO2_RATIO_BIC_BARSTOW1990", "S0_RECOVERY_BIC_BARSTOW1990", 
-"SREL_CO2_RATIO_BIC_BARSTOW1990", "SREL_RECOVERY_BIC_BARSTOW1990", 
-"S0_DOB_BIC_MEINEKE1993", "S0_RECOVERY_BIC_MEINEKE1993", "SREL_DOB_BIC_MEINEKE1993", 
-"SREL_RECOVERY_BIC_MEINEKE1993")) %>% 
+
   define("x~x", x = "offset_bic") %>% 
   
   #met
-  insert("x~0", x = c("S0_CUM_MET_KRUMBIEGEL1985", "SREL_CUM_MET_KRUMBIEGEL1985"))
+  {.}
 
 
-
-p_bicmet <- P(trafo_bicmet)
+p_bicmet <- P(trafo_bicmet, modelname = "p_bicmet", compile = F)
 pars_bicmet <- getParameters(p_bicmet) %>% are_names_of(0)
 
-p_bicmet_sigma_NA <- P(trafo_bicmet_sigma_NA)
+p_bicmet_sigma_NA <- P(trafo_bicmet_sigma_NA, modelname = "p_sig_bicmet", compile = F)
 pars_bicmet_sigma_NA <- getParameters(p_bicmet_sigma_NA) %>% are_names_of(0)
+
+compile(g_bicmet, e_bicmet, p_bicmet, p_bicmet_sigma_NA, cores = 3)
 ```
 
 # Apap, bic and met
@@ -423,9 +415,9 @@ free_pars_apapbicmet <- c(free_pars_apap, free_pars_bic, free_pars_met)
 odemodel_apapbicmet <- odemodel(dxdt_dmod, modelname = "odemodel_apapbicmet", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_apapbicmet, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
 x_apapbicmet <- Xs(odemodel_apapbicmet)
 
-g_apapbicmet <- Y(c(observables_apap, observables_bic, observables_met), x_apapbicmet)
+g_apapbicmet <- Y(c(observables_apap, observables_bic, observables_met), x_apapbicmet, attach.input = F, modelname = "g_apapbicmet", compile = F)
 
-e_apapbicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_apapbicmet)
+e_apapbicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_apapbicmet, modelname = "e_apapbicmet", compile = F)
 ```
 
 ```{r data and p apapbicmet}
@@ -467,38 +459,31 @@ trafo_apapbicmet_sigma_NA <-
   branch(data_apapbicmet_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
   minsert(supplied_pars) %>% 
   #bic
-  # insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = unique(data_bic_sigma_NA$study)) %>% 
-  
+
   #met
-  insert("s~s_study", s = names(pars_errors_met_sigma_NA), study = unique(data_met_sigma_NA$study)) %>% 
   define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
   
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
   
   #bic
-  # insert("x~0", x = c("S0_CUM_REC_CO2C13_BARSTOW1990", "S0_P_CO2F_BARSTOW1990", 
-  #                     "SREL_CO2_RATIO_BIC_BARSTOW1990", "SREL_RECOVERY_BIC_BARSTOW1990", 
-  #                     "S0_DOB_BIC_MEINEKE1993", "S0_RECOVERY_BIC_MEINEKE1993", "SREL_DOB_BIC_MEINEKE1993", 
-  #                     "SREL_RECOVERY_BIC_MEINEKE1993")) %>% 
   define("x~x", x = "offset_bic") %>% 
   
   #met
-  # insert("x~0", x = c("S0_CUM_MET_KRUMBIEGEL1985", "SREL_CUM_MET_KRUMBIEGEL1985"))
   {.}
 
 
 
-p_apapbicmet <- P(trafo_apapbicmet)
+p_apapbicmet <- P(trafo_apapbicmet, modelname = "p_apapbicmet", compile = F)
 pars_apapbicmet <- getParameters(p_apapbicmet) %>% are_names_of(0)
 
-p_apapbicmet_sigma_NA <- P(trafo_apapbicmet_sigma_NA)
+p_apapbicmet_sigma_NA <- P(trafo_apapbicmet_sigma_NA, modelname = "p_sig_apapbicmet", compile = F)
+
 pars_apapbicmet_sigma_NA <- getParameters(p_apapbicmet_sigma_NA) %>% are_names_of(0)
 
+
+compile(g_bicmet, e_bicmet, p_bicmet, p_bicmet_sigma_NA, cores = 3)
 ```
 
-```{r}
-data_apapbicmet_sigma_NA %>% select(study, name) %>% unique
-```
 
 
 
@@ -508,21 +493,20 @@ data_apapbicmet_sigma_NA %>% select(study, name) %>% unique
 basic_hypotheses.frame <- tibble(hypothesis = c("apap",  "bic", "met"),
                      x = list(x_apap,  x_bic, x_met)) %>% 
   add_column( g = list(g_apap,  g_bic, g_met)) %>% 
-  add_column(p = list(p_apap,  p_bic, p_met),
-             data = list(data_apap,  data_bic, data_met),
+  add_column(p_0 = list(p_apap,  p_bic, p_met),
+             data_0 = list(data_apap,  data_bic, data_met),
              p_sig = list(NULL,  p_bic_sigma_NA, p_met_sigma_NA),
              e = list(NULL,  e_bic_sigma_NA, e_met_sigma_NA),
              data_sig = list(NULL,  data_bic_sigma_NA, data_met_sigma_NA)
   )
 # basic_hypotheses.frame <- basic_hypotheses.frame[1,] # keep only apap
 
-
 bicmet.frame <- tibble(
   hypothesis = "bicmet",
   x = list(x_bicmet),
   g = list(g_bicmet),
-  p = list(p_bicmet),
-  data = list(data_bicmet),
+  p_0 = list(p_bicmet),
+  data_0 = list(data_bicmet),
   p_sig = list(p_bicmet_sigma_NA),
   e = list(e_bicmet),
   data_sig = list(data_bicmet_sigma_NA)
@@ -532,8 +516,8 @@ apapbicmet.frame <- tibble(
   hypothesis = "apapbicmet",
   x = list(x_apapbicmet),
   g = list(g_apapbicmet),
-  p = list(p_apapbicmet),
-  data = list(data_apapbicmet),
+  p_0 = list(p_apapbicmet),
+  data_0 = list(data_apapbicmet),
   p_sig = list(p_apapbicmet_sigma_NA),
   e = list(e_apapbicmet),
   data_sig = list(data_apapbicmet_sigma_NA)
@@ -543,12 +527,12 @@ apapbicmet.frame <- tibble(
 
 # Fit
 
-```{r transformation functions for dMod.frame to create objfuns and make the frame smaller again}
+```{r functions for dMod.frames to create objfuns and make them frame smaller again}
 dMf_append_objfuns <- function(dMod.frame) dMod.frame %>% 
   
-  mutate(data_0 = map(data, as.datalist),
+  mutate(data_0 = map(data_0, as.datalist),
          data_sig = map(data_sig, as.datalist)) %>% 
-  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p[[i]]))),
+  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
          prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
   mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
          obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
@@ -565,7 +549,8 @@ dMf_reduce <- function(dMod.frame) dMod.frame %>%
 ```
 
 
-```{r apply transformations to dMod.frames}
+```{r augment dMod.frames}
+basic_hypotheses.frame <- basic_hypotheses.frame %>% dMf_append_objfuns
 bicmet.frame <- bicmet.frame %>% dMf_append_objfuns 
 apapbicmet.frame <- apapbicmet.frame %>% dMf_append_objfuns 
 ```
@@ -576,6 +561,9 @@ bicmet.frame %>% mutate(test = map(seq_along(x), function(i) obj_0[[i]](getParam
 apapbicmet.frame%>% dMf_reduce() %>%  mutate(test = map(seq_along(x), function(i) obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
 ```
 
+
+
+
 ```{r}
 # save.image(tpaste0("workspace_with_dMod.frames.rda"))
 ```
@@ -585,6 +573,12 @@ apapbicmet.frame%>% dMf_reduce() %>%  mutate(test = map(seq_along(x), function(i
 load("2018_03_29_20_39_workspace_with_dMod.frames.rda")
 rbind(bicmet.frame, apapbicmet.frame) %>% .$x %>% walk(loadDLL)
 ```
+
+```{r get old fits}
+
+```
+
+
 
 ```{r start fits with broad sampling}
 # apapbicmet.frame <- apapbicmet.frame %>% dMf_reduce()
@@ -682,6 +676,7 @@ data_apapbicmet %>%
 ```{r }
 load("2018_03_30_22_51_workspace_apapbicmet_with_fits.rda")
 apapbicmet.frame %>% .$x %>% walk(loadDLL)
+saveRDS(apapbicmet.frame$parframes, tpaste0("fits_apapbicmet_1.rds"))
 ```
 
 ```{r}
