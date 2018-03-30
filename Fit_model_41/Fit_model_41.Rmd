@@ -467,7 +467,7 @@ trafo_apapbicmet_sigma_NA <-
   branch(data_apapbicmet_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
   minsert(supplied_pars) %>% 
   #bic
-  insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = unique(data_bic_sigma_NA$study)) %>% 
+  # insert("s~s_study", s = names(pars_errors_bic_sigma_NA), study = unique(data_bic_sigma_NA$study)) %>% 
   
   #met
   insert("s~s_study", s = names(pars_errors_met_sigma_NA), study = unique(data_met_sigma_NA$study)) %>% 
@@ -476,14 +476,15 @@ trafo_apapbicmet_sigma_NA <-
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
   
   #bic
-  insert("x~0", x = c("S0_CO2_RATIO_BIC_BARSTOW1990", "S0_RECOVERY_BIC_BARSTOW1990", 
-                      "SREL_CO2_RATIO_BIC_BARSTOW1990", "SREL_RECOVERY_BIC_BARSTOW1990", 
-                      "S0_DOB_BIC_MEINEKE1993", "S0_RECOVERY_BIC_MEINEKE1993", "SREL_DOB_BIC_MEINEKE1993", 
-                      "SREL_RECOVERY_BIC_MEINEKE1993")) %>% 
+  # insert("x~0", x = c("S0_CUM_REC_CO2C13_BARSTOW1990", "S0_P_CO2F_BARSTOW1990", 
+  #                     "SREL_CO2_RATIO_BIC_BARSTOW1990", "SREL_RECOVERY_BIC_BARSTOW1990", 
+  #                     "S0_DOB_BIC_MEINEKE1993", "S0_RECOVERY_BIC_MEINEKE1993", "SREL_DOB_BIC_MEINEKE1993", 
+  #                     "SREL_RECOVERY_BIC_MEINEKE1993")) %>% 
   define("x~x", x = "offset_bic") %>% 
   
   #met
-  insert("x~0", x = c("S0_CUM_MET_KRUMBIEGEL1985", "SREL_CUM_MET_KRUMBIEGEL1985"))
+  # insert("x~0", x = c("S0_CUM_MET_KRUMBIEGEL1985", "SREL_CUM_MET_KRUMBIEGEL1985"))
+  {.}
 
 
 
@@ -492,8 +493,12 @@ pars_apapbicmet <- getParameters(p_apapbicmet) %>% are_names_of(0)
 
 p_apapbicmet_sigma_NA <- P(trafo_apapbicmet_sigma_NA)
 pars_apapbicmet_sigma_NA <- getParameters(p_apapbicmet_sigma_NA) %>% are_names_of(0)
+
 ```
 
+```{r}
+data_apapbicmet_sigma_NA %>% select(study, name) %>% unique
+```
 
 
 
@@ -582,78 +587,149 @@ rbind(bicmet.frame, apapbicmet.frame) %>% .$x %>% walk(loadDLL)
 ```
 
 ```{r start fits with broad sampling}
-apapbicmet.frame <- apapbicmet.frame %>% dMf_reduce()
-
-apapbicmet.frame[["pars"]] <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
-
-fit_apapbicmet_broad_sampling <- runbg({
-  ncores <- detectFreeCores()
-  assign("ncores", ncores, pos = .GlobalEnv)
-  
-  apapbicmet.frame %>% 
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-              sd = 4,
-              blather = T, cores = ncores, fits = 10*ncores)
-    }))
-  }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_apapbicmet_broad_sampling")), input = "apapbicmet.frame")
-
-
-# ---- start with tight sampling from fitted_pars
-fitted_pars <- readRDS("../fitting/2018_03_29_19_20_fitted_pars_bicmet.rds")$parframes[[1]] %>% as.parvec(1) %>% sort_by_name()
-mypars <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% sort_by_name()
-mypars[names(fitted_pars)] <- fitted_pars
-
-apapbicmet.frame[["pars"]] <- mypars %>% list
-
-
-fit_apapbicmet_tight_sampling_1 <- runbg({
-  ncores <- detectFreeCores()
-  assign("ncores", ncores, pos = .GlobalEnv)
-  
-  apapbicmet.frame %>% 
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-              sd = 0.5,
-              blather = T, cores = ncores, fits = 20*ncores)
-    }))
-  }, machine = paste0("ruprecht", 1), filename = paste0("tmp_",tpaste0("fit_apapbicmet_tight_sampling_1")), input = "apapbicmet.frame")
-
-# ---- Start with tight sampling around the second best optimum 
-fitted_pars <- readRDS("../fitting/2018_03_29_19_20_fitted_pars_bicmet.rds")$parframes[[1]] %>% as.parvec(3) %>% sort_by_name()
-mypars <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% sort_by_name()
-mypars[names(fitted_pars)] <- fitted_pars
-
-apapbicmet.frame[["pars"]] <- mypars %>% list
-
-
-fit_apapbicmet_tight_sampling_2 <- runbg({
-  ncores <- detectFreeCores()
-  assign("ncores", ncores, pos = .GlobalEnv)
-  
-  apapbicmet.frame %>% 
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-              sd = 0.5,
-              blather = T, cores = ncores, fits = 20*ncores)
-    }))
-  }, machine = paste0("ruprecht", 2), filename = paste0("tmp_",tpaste0("fit_apapbicmet_tight_sampling_2")), input = "apapbicmet.frame")
+# apapbicmet.frame <- apapbicmet.frame %>% dMf_reduce()
+# 
+# apapbicmet.frame[["pars"]] <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
+# 
+# fit_apapbicmet_broad_sampling <- runbg({
+#   ncores <- detectFreeCores()
+#   assign("ncores", ncores, pos = .GlobalEnv)
+#   
+#   apapbicmet.frame %>% 
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+#               sd = 4,
+#               blather = T, cores = ncores, fits = 10*ncores)
+#     }))
+#   }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_apapbicmet_broad_sampling")), input = "apapbicmet.frame")
+# 
+# 
+# # ---- start with tight sampling from fitted_pars
+# fitted_pars <- readRDS("../fitting/2018_03_29_19_20_fitted_pars_bicmet.rds")$parframes[[1]] %>% as.parvec(1) %>% sort_by_name()
+# mypars <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% sort_by_name()
+# mypars[names(fitted_pars)] <- fitted_pars
+# 
+# apapbicmet.frame[["pars"]] <- mypars %>% list
+# 
+# 
+# fit_apapbicmet_tight_sampling_1 <- runbg({
+#   ncores <- detectFreeCores()
+#   assign("ncores", ncores, pos = .GlobalEnv)
+#   
+#   apapbicmet.frame %>% 
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+#               sd = 0.5,
+#               blather = T, cores = ncores, fits = 20*ncores)
+#     }))
+#   }, machine = paste0("ruprecht", 1), filename = paste0("tmp_",tpaste0("fit_apapbicmet_tight_sampling_1")), input = "apapbicmet.frame")
+# 
+# # ---- Start with tight sampling around the second best optimum 
+# fitted_pars <- readRDS("../fitting/2018_03_29_19_20_fitted_pars_bicmet.rds")$parframes[[1]] %>% as.parvec(3) %>% sort_by_name()
+# mypars <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% sort_by_name()
+# mypars[names(fitted_pars)] <- fitted_pars
+# 
+# apapbicmet.frame[["pars"]] <- mypars %>% list
+# 
+# 
+# fit_apapbicmet_tight_sampling_2 <- runbg({
+#   ncores <- detectFreeCores()
+#   assign("ncores", ncores, pos = .GlobalEnv)
+#   
+#   apapbicmet.frame %>% 
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+#               sd = 0.5,
+#               blather = T, cores = ncores, fits = 20*ncores)
+#     }))
+#   }, machine = paste0("ruprecht", 2), filename = paste0("tmp_",tpaste0("fit_apapbicmet_tight_sampling_2")), input = "apapbicmet.frame")
 
 ```
 
 ```{r}
-save.image(tpaste0("workspace_apapbicmet_fits_started.rda"))
+# save.image(tpaste0("workspace_apapbicmet_fits_started.rda"))
 ```
 
+Some comments on the started fits:
+    * The objective function is probably not formulated in the most efficient way, I could have defined the observation functions as an addition of individual observation functions
+    * I might have been able to merge conditions, but this would have been a hassle
+    * the same times being evaluated for each condition is a big minus... (dMod-problem)
+    * Maybe compile g and p as well
+```{r}
+data_apapbicmet %>% 
+  rbind(data_apapbicmet_sigma_NA) %>% 
+  group_by(study, group) %>% 
+  summarise(maxtime = max(time))
+```
+
+# Load and look at fits
+```{r get fit results from knechte}
+# load("2018_03_29_21_15_workspace_apapbicmet_fits_started.rda")
+# apapbicmet.frame %>% .$x %>% walk(loadDLL)
+# apapbicmet.frame[["fits"]] <- fit_apapbicmet_broad_sampling$get() %>% map("fits") %>% map(1) %>%  Reduce(c.parlist,.) %>% list()
+# save.image(tpaste0("workspace_apapbicmet_with_fits.rda"))
+```
+
+```{r }
+load("2018_03_30_22_51_workspace_apapbicmet_with_fits.rda")
+apapbicmet.frame %>% .$x %>% walk(loadDLL)
+```
+
+```{r}
+apapbicmet.frame <- apapbicmet.frame %>% mutate(prd = map(prd, function(i) {controls(i, name = "attach.input") <- FALSE; i} ))
+
+apapbicmet.frame <- 
+  apapbicmet.frame %>% 
+  dMf_expand_fits() %>% 
+  dMf_append_plots()
+```
+
+no nice steps
+```{r}
+apapbicmet.frame$parframes %>% .[[1]] %>% .[1:100,] %>% plotValues()
+```
+
+The error-model just kills the steps, I think. Maybe I should reduce it.
+Except for in Krumbiegel, it appears as if the absolute error can be kicked out
+```{r}
+apapbicmet.frame$parframes %>% .[[1]] %>% .[1:20,] %>% plotPars() +
+  coord_cartesian(ylim = c(-5,5))
+```
+
+Browsing through the conditions, one can see that met isnt met very well (haha)
+```{r}
+apapbicmet.frame %>% dMf_append_plots() %>% .[["plot_combined"]]
+
+plotCombined(apapbicmet.frame[["prd"]][[1]](seq(0,24,0.1), 
+                                            apapbicmet.frame$best_parvec[[1]], deriv = F),
+             apapbicmet.frame[["data"]][[1]], 
+             condition %in% rownames(rbind(data_bic_sigma_NA) %>% as.datalist %>% covariates()) &
+               name %in% names(observables_bic)#getEquations(apapbicmet.frame[["g"]][[1]])[[1]])
+             )
+# ggplotly()
+```
+
+look at differences in parameters wrt the best parvec
+```{r}
+myparframe <- apapbicmet.frame$parframes[[1]]
+
+myparframe[,5:27] <- myparframe[,5:27] %>% map(function(i) return(i - i[1]))
+
+myparframe %>% .[1:10,] %>% plotPars() + 
+  coord_cartesian(ylim = c(-2,2))
+```
+
+
+found a mistake in the parameter trafos: I didn't rename the error-pars when updating the observables-names
 
 
 
