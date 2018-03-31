@@ -72,7 +72,7 @@ x_met <- Xs(odemodel_met)
 
 ```{r g_apap}
 observables_apap <- y_dmod[c("Mve_apap")] %>% set_names(c("Mve_apap"))
-g_apap <- Y(g = observables_apap, f = x_apap, attach.input = F)
+g_apap <- Y(g = observables_apap, f = x_apap, attach.input = F, modelname = "g_apap", compile = F)
 ```
 
 ## Bicarbonate
@@ -84,7 +84,7 @@ names(observables_bic) <- c("cum_rec_co2c13", "DOB", "P_CO2F")
 
 observables_bic["P_CO2F"] <- paste0(observables_bic["P_CO2F"], " + offset_bic")
 
-g_bic <- Y(observables_bic, x_bic, attach.input = F)
+g_bic <- Y(observables_bic, x_bic, attach.input = F, modelname = "g_bic", compile = F)
 ```
 
 ## Metc13
@@ -94,7 +94,7 @@ recovery_met <- paste(y_dmod["Exhalation_co2c13"], "/ init_PODOSE_metc13 * Mr_me
 cum_met <- paste( "Abreath_co2c13/ init_PODOSE_metc13 * Mr_metc13 * 100")
 observables_met <- c(recovery_met, cum_met) %>% set_names(c("mom_rec_metc13", "cum_rec_metc13"))
 
-g_met <- Y(observables_met, x_met, attach.input = F)
+g_met <- Y(observables_met, x_met, attach.input = F, modelname = "g_met", compile = F)
 ```
 
 
@@ -161,9 +161,12 @@ trafo_apap <-
   
   insert("x~exp(X)", x = free_pars_apap, X = toupper(free_pars_apap)) # backtrafo to linear pars from log-pars
 
-p_apap <- P(trafo_apap)
+p_apap <- P(trafo_apap, modelname = "p_apap", compile = F)
 
 pars_apap <- log(pars_raw[free_pars_apap]) %>% set_names(toupper(free_pars_apap))
+
+compile(g_apap, p_apap, output = "apap")
+
 ```
 
 ### Test plot
@@ -220,7 +223,7 @@ trafo_bic<-
   
   define("x~x", x = "offset_bic")
 
-p_bic <- P(trafo_bic)
+p_bic <- P(trafo_bic, modelname = "p_bic", compile = F)
 
 pars_bic <- getParameters(p_bic) %>% are_names_of(0)
 ```
@@ -243,12 +246,15 @@ trafo_bic_sigma_NA <-
   
   define("x~x", x = "offset_bic")
 
-p_bic_sigma_NA <- P(trafo_bic_sigma_NA)
+p_bic_sigma_NA <- P(trafo_bic_sigma_NA, modelname = "p_bic_sig", compile = F)
 
 pars_bic_sigma_NA <- getParameters(p_bic_sigma_NA) %>% are_names_of(0)
 
 # p_bic_sigma_NA(pars_bic_sigma_NA)
+
+compile(g_bic, p_bic, p_bic_sigma_NA, output = "bic")
 ```
+
 
 ### Example plot
 ```{r}
@@ -302,7 +308,7 @@ trafo_met<-
     
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) 
 
-p_met <- P(trafo_met)
+p_met <- P(trafo_met, modelname = "p_met", compile = F)
 
 pars_met <- getParameters(p_met) %>% are_names_of(0)
 ```
@@ -328,9 +334,11 @@ trafo_met_sigma_NA <-
 
 
 
-p_met_sigma_NA <- P(trafo_met_sigma_NA)
+p_met_sigma_NA <- P(trafo_met_sigma_NA, modelname = "p_met_sig", compile = F)
 
 pars_met_sigma_NA <- getParameters(p_met_sigma_NA) %>% are_names_of(0)
+
+compile(g_met, p_met, p_met_sigma_NA, output = "met")
 ```
 
 ### Example plot
@@ -577,8 +585,6 @@ apapbicmet.frame%>% dMf_reduce() %>%  mutate(test = map(seq_along(x), function(i
 ```
 
 
-
-
 ```{r}
 save.image(tpaste0("workspace_with_dMod.frames.rda"))
 ```
@@ -641,20 +647,22 @@ save.image(tpaste0("workspace_apapbicmet_and_bicmet_fits_started.rda"))
 
 # Load and look at fits
 ```{r get fit results from knechte}
-# load("2018_03_29_21_15_workspace_apapbicmet_fits_started.rda")
+# load("2018_03_31_02_30_workspace_apapbicmet_and_bicmet_fits_started.rda")
 # apapbicmet.frame %>% .$obj %>% walk(loadDLL)
 # apapbicmet.frame[["fits"]] <- fit_apapbicmet_broad_sampling$get() %>% map("fits") %>% map(1) %>%  Reduce(c.parlist,.) %>% list()
 # save.image(tpaste0("workspace_apapbicmet_with_fits.rda"))
 ```
 
+
+
 ```{r }
-load("2018_03_30_22_51_workspace_apapbicmet_with_fits.rda")
+load("20")
 apapbicmet.frame %>% .$obj %>% walk(loadDLL)
 saveRDS(apapbicmet.frame$parframes, tpaste0("fits_apapbicmet_1.rds"))
 ```
 
 ```{r}
-apapbicmet.frame <- apapbicmet.frame %>% mutate(prd = map(prd, function(i) {controls(i, name = "attach.input") <- FALSE; i} ))
+# apapbicmet.frame <- apapbicmet.frame %>% mutate(prd = map(prd, function(i) {controls(i, name = "attach.input") <- FALSE; i} ))
 
 apapbicmet.frame <- 
   apapbicmet.frame %>% 
@@ -664,7 +672,7 @@ apapbicmet.frame <-
 
 no nice steps
 ```{r}
-apapbicmet.frame$parframes %>% .[[1]] %>% .[1:100,] %>% plotValues()
+apapbicmet.frame$parframes %>% .[[1]] %>% .[1:800,] %>% plotValues()
 ```
 
 The error-model just kills the steps, I think. Maybe I should reduce it.
@@ -673,6 +681,12 @@ Except for in Krumbiegel, it appears as if the absolute error can be kicked out
 apapbicmet.frame$parframes %>% .[[1]] %>% .[1:20,] %>% plotPars() +
   coord_cartesian(ylim = c(-5,5))
 ```
+
+```{r}
+apapbicmet.frame$best_parvec
+```
+
+
 
 Browsing through the conditions, one can see that met isnt met very well (haha)
 ```{r}
@@ -698,16 +712,185 @@ myparframe %>% .[1:10,] %>% plotPars() +
 ```
 
 
-found a mistake in the parameter trafos: I didn't rename the error-pars when updating the observables-names
+# Restart some fits
+
+```{r}
+basic_hypotheses.frame <- basic_hypotheses.frame %>% dMf_reduce()
+
+basic_hypotheses.frame <- basic_hypotheses.frame %>% mutate(pars = map(seq_along(x), function(i)  getParameters(obj[[i]]) %>% are_names_of(0)))
+
+fit_basic_hypotheses_broad_sampling <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+
+  basic_hypotheses.frame %>%
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+              sd = 4,
+              blather = F, cores = ncores, fits = 15*ncores)
+    }))
+  }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_basic_hypotheses")), input = "basic_hypotheses.frame")
+```
+
+```{r}
+save.image(tpaste0("workspace_basic_hypotheses_fits_started.rda"))
+```
+
+# To do next: 
+
+* Get the fits, compare with old results
+* Start new fits with priors around the old results
+* Save fits as rds in the future!
+
+# Get old fits
+
+```{r old fits}
+old_basic.frame <- readRDS("2018_03_25_21_06_fit.frame.rds")
+prior_apap <- old_basic.frame %>% dMf_expand_fits() %>% .$best_parvec %>% .[[1]]
+```
+
+```{r}
+old_bicmet.frame <- readRDS("../fitting/2018_03_29_18_09_bicmet_refitted.rds")
+prior_bicmet <- old_bicmet.frame%>% dMf_expand_fits() %>% .$best_parvec %>% .[[1]]
+```
+
+# Start fits with prior around old fits
+
+```{r}
+prior <- c(prior_apap, prior_bicmet) %>% .[!str_detect(names(.), "^S")]
+class(prior) <- "numeric"
+attr(prior, "deriv") <- NULL
+dput(prior)
+apapbicmet_prior.frame <- apapbicmet.frame
+
+apapbicmet_prior.frame <- apapbicmet_prior.frame[,1:8]
+apapbicmet_prior.frame[["hypothesis"]] <- "Prior around old fits"
+apapbicmet_prior.frame <- map(1:4, function(i) apapbicmet_prior.frame) %>% do.call(rbind,.)
+apapbicmet_prior.frame <-apapbicmet_prior.frame %>% mutate(sigma_prior = c(0.0001, 0.01, 1, 10)) %>% mutate(mu_prior = map(1:4, function(i) structure(c(0.255612598380746, 0.538956047621218, -1.44260842367156, 
+-1.02673969006676, -0.686131603272496, -10.5578956723622, 4.68324578583817, 
+1.65222659290464, 2.48470059603214, -3.6567384812666, -11.1322105945781, 
+0.385743406722386, -0.0111086946469918), .Names = c("KA_APAP", 
+"APAPD_HLM_CL", "APAPD_KM_APAP", "CO2FIX_HLM_CL", "CYP1A2MET_CL", 
+"CYP1A2MET_KM_MET", "KA_CO2C13", "KA_METC13", "KBO_FIXCO2", "KBO_MAXCO2", 
+"KBO_RELCO2", "KLU_EXCO2", "offset_bic")))) %>% 
+  mutate(obj = map(seq_along(x), function(i) obj[[i]] + constraintL2(mu_prior[[i]], sigma = sigma_prior[[i]])))
+```
+
+```{r}
+apapbicmet_prior.frame %>% mutate(test = map(seq_along(x), function(i) obj[[i]](pars[[i]]))) %>% .$test
+```
+
+```{r}
+fit_apapbicmet_with_old_prior <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+
+  apapbicmet_prior.frame %>%
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+              sd = 4,
+              blather = F, cores = ncores, fits = 15*ncores)
+    }))
+  }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_apapbicmet_with_old_prior")), input = "apapbicmet_prior.frame")
+
+saveRDS(fit_apapbicmet_with_old_prior, tpaste0("fit_apapbicmet_with_old_prior_started.rds"))
+```
 
 
+# Get new "basic" fits
+
+```{r}
+myfits <- fit_basic_hypotheses_broad_sampling$get() 
+
+basic_hypotheses.frame[["fits"]] <- myfits %>% map("fits") %>% transpose() %>% map(function(i) Reduce(c.parlist, i))
+
+saveRDS(basic_hypotheses.frame, tpaste0("fits_basic_hypotheses"))
+```
+
+```{r}
+basic_hypotheses.frame <- basic_hypotheses.frame %>% dMf_expand_fits() %>% dMf_append_plots()
+```
+
+Was ist da los, wieso findet er Ka_apap nicht mehr bei den hohen Werten?
+```{r}
+checkout_hypothesis(basic_hypotheses.frame, "apap", prefix = "fucker")
+```
+
+```{r}
+plotCombined(fuckerprd(seq(0,24,0.1), fuckerbest_parvec), fuckerdata)
+```
+
+```{r}
+checkout_hypothesis(old_basic.frame, "apap", "old")
+```
 
 
+```{r}
+cbind(olddata %>% as.data.frame() %>% arrange(study,group, time) %>% select(time,value,sigma,study,group, dosing_strategy),
+fuckerdata %>% as.data.frame() %>% arrange(study,group, time)%>% select(name,time,value,sigma,study,group) %>% {names(.) <- paste0("fucker",names(.));.}) %>% 
+  mutate(same_sig = near(sigma,fuckersigma, 0.01)) %>% 
+  filter(!same_sig)
+
+fuckerdata %>% as.data.frame() %>% arrange(study,group, time) %>% filter(name== "Mve_apap") %>% arrange(sigma)
+```
 
 
+```{r}
+some_na %>% arrange(study)%>% select(name,time,value,sigma,study,group)
+```
 
 
+```{r}
+data <-
+  read_tsv("../data/limax_pkpd_v41_data.csv") %>%
+  select(-model) %>% 
+  rename(name = observer) %>% 
+  rename(n = subjects) %>% 
+  unique() #noch matthias sagen, dass lalazar2008 doppelte einträge hat
 
 
+fitErrorModel_factors <- c("study", "group", "name", "BW", "PODOSE_apap", "IVDOSE_apap", 
+"PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", 
+"IVDOSE_metc13", "ti_metc13")
+some_na_before <- 
+  data %>% 
+  group_by(study, group, name) %>% 
+  mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
+  filter(sna>0 & sna != nna) %>% 
+  select(-sna, -nna) %>% 
+  as.data.frame()
+some_na <- some_na_before %>% fitErrorModel(fitErrorModel_factors)
+
+none_or_all_na <- data %>% 
+  group_by(study, group, name) %>% 
+  mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
+  filter(sna==0 | sna == nna) %>% 
+  select(-sna, -nna) %>% 
+  as.data.frame()
+
+data <- rbind(some_na, none_or_all_na) %>% 
+  select(-n)
+```
+
+```{r}
+mycond <- fuckerobj %>% getConditions() %>% set_names(.,.)
+fuckercondwise <- map(mycond, function(cn) fuckerobj(fuckerbest_parvec, conditions = cn))
+fuckercondwise2 <- map(mycond, function(cn) fuckerobj(prior_apap, conditions = cn))
+
+oldcond <- oldobj%>% getConditions() %>% set_names(.,.)
+oldcondwise <-  map(oldcond, function(cn) oldobj(fuckerbest_parvec, conditions = cn))
+oldcondwise2 <- map(oldcond, function(cn) oldobj(prior_apap, conditions = cn))
+
+cbind(tibble(mycond %>% str_trunc(15), fuckercondwise %>% map_dbl("value"), fuckercondwise2 %>% map_dbl("value")) %>% arrange(mycond),
+tibble(oldcond%>% str_trunc(20), oldcondwise %>% map_dbl("value"), oldcondwise2 %>% map_dbl("value")) %>% arrange(oldcond)) %>% set_names(c("new_cond", "new obj, new fit", "new obj, old fit", "old cond", "old obj, new fit", "old obj, old fit")) %>% 
+{.}
+  # write_csv("comparsion_of_apap.csv")
+```
 
 
