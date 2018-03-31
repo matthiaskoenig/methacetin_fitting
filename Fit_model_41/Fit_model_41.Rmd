@@ -349,7 +349,7 @@ x_bicmet <- Xs(odemodel_bicmet)
 
 g_bicmet <- Y(c(observables_bic, observables_met), x_bicmet, attach.input = F, modelname = "g_bicmet", compile = F)
 
-e_bicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_bicmet, modelname = "e_bicmet", compile = F)
+e_bicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_bicmet)# , modelname = "e_bicmet", compile = F)
 ```
 
 ```{r data and p bicmet}
@@ -405,7 +405,7 @@ pars_bicmet <- getParameters(p_bicmet) %>% are_names_of(0)
 p_bicmet_sigma_NA <- P(trafo_bicmet_sigma_NA, modelname = "p_sig_bicmet", compile = F)
 pars_bicmet_sigma_NA <- getParameters(p_bicmet_sigma_NA) %>% are_names_of(0)
 
-compile(g_bicmet, e_bicmet, p_bicmet, p_bicmet_sigma_NA, cores = 3)
+compile(g_bicmet, p_bicmet, p_bicmet_sigma_NA, cores = 3, output = "bicmet")
 ```
 
 # Apap, bic and met
@@ -417,7 +417,7 @@ x_apapbicmet <- Xs(odemodel_apapbicmet)
 
 g_apapbicmet <- Y(c(observables_apap, observables_bic, observables_met), x_apapbicmet, attach.input = F, modelname = "g_apapbicmet", compile = F)
 
-e_apapbicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_apapbicmet, modelname = "e_apapbicmet", compile = F)
+e_apapbicmet <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_apapbicmet)#, modelname = "e_apapbicmet", compile = F) #cant cope with NaNs passed to it, if compiled
 ```
 
 ```{r data and p apapbicmet}
@@ -481,15 +481,15 @@ p_apapbicmet_sigma_NA <- P(trafo_apapbicmet_sigma_NA, modelname = "p_sig_apapbic
 pars_apapbicmet_sigma_NA <- getParameters(p_apapbicmet_sigma_NA) %>% are_names_of(0)
 
 
-compile(g_bicmet, e_bicmet, p_bicmet, p_bicmet_sigma_NA, cores = 3)
+compile(g_apapbicmet,  p_apapbicmet, p_apapbicmet_sigma_NA, cores = 3, output = "apapbicmet")
 ```
-
-
 
 
 # dMod.frames
 
 ```{r initialize dMod.frames }
+# remove(basic_hypotheses.frame, bicmet.frame, apapbicmet.frame)
+
 basic_hypotheses.frame <- tibble(hypothesis = c("apap",  "bic", "met"),
                      x = list(x_apap,  x_bic, x_met)) %>% 
   add_column( g = list(g_apap,  g_bic, g_met)) %>% 
@@ -522,15 +522,15 @@ apapbicmet.frame <- tibble(
   e = list(e_apapbicmet),
   data_sig = list(data_apapbicmet_sigma_NA)
 )
+
 ```
 
 
-# Fit
+# Prepare fits
 
 ```{r functions for dMod.frames to create objfuns and make them frame smaller again}
 dMf_append_objfuns <- function(dMod.frame) dMod.frame %>% 
-  
-  mutate(data_0 = map(data_0, as.datalist),
+    mutate(data_0 = map(data_0, as.datalist),
          data_sig = map(data_sig, as.datalist)) %>% 
   mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
          prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
@@ -539,143 +539,117 @@ dMf_append_objfuns <- function(dMod.frame) dMod.frame %>%
   
   mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
   mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
-  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) %>% 
-  
-  {.}
+  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
 
 dMf_reduce <- function(dMod.frame) dMod.frame %>% 
   select(-contains("_0")) %>% 
   select(-contains("_sig"))
 ```
 
-
 ```{r augment dMod.frames}
-basic_hypotheses.frame <- basic_hypotheses.frame %>% dMf_append_objfuns
-bicmet.frame <- bicmet.frame %>% dMf_append_objfuns 
-apapbicmet.frame <- apapbicmet.frame %>% dMf_append_objfuns 
+basic_hypotheses.frame <- basic_hypotheses.frame %>% 
+  dMf_append_objfuns()
+  
+bicmet.frame <- bicmet.frame%>% 
+  dMf_append_objfuns()
+
+apapbicmet.frame <- apapbicmet.frame%>% 
+  dMf_append_objfuns()
 ```
 
+
 ```{r test objfuns}
-basic_hypotheses.frame %>% dMf_append_objfuns %>% mutate(test = map(seq_along(x), function(i) obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
-bicmet.frame %>% mutate(test = map(seq_along(x), function(i) obj_0[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
+basic_hypotheses.frame %>% .$obj %>% walk(loadDLL)
+bicmet.frame %>% .$obj %>% walk(loadDLL)
+apapbicmet.frame %>% .$obj %>% walk(loadDLL)
+
+
+# basic_hypotheses.frame %>% mutate(test = map(seq_along(x), function(i) {
+#   return(obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))})
+#   ) %>% .$test
+
+bicmet.frame %>% mutate(test = map(seq_along(x), function(i) obj_sig[[i]](getParameters(obj_sig[[i]]) %>% are_names_of(0)))) %>% .$test
+
 apapbicmet.frame%>% dMf_reduce() %>%  mutate(test = map(seq_along(x), function(i) obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
+
+
+
 ```
 
 
 
 
 ```{r}
-# save.image(tpaste0("workspace_with_dMod.frames.rda"))
+save.image(tpaste0("workspace_with_dMod.frames.rda"))
 ```
 
 # Start fits
 ```{r load workspace up to here}
-load("2018_03_29_20_39_workspace_with_dMod.frames.rda")
-rbind(bicmet.frame, apapbicmet.frame) %>% .$x %>% walk(loadDLL)
-```
-
-```{r get old fits}
-
+load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
+rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
 ```
 
 
 
 ```{r start fits with broad sampling}
-# apapbicmet.frame <- apapbicmet.frame %>% dMf_reduce()
-# 
-# apapbicmet.frame[["pars"]] <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
-# 
-# fit_apapbicmet_broad_sampling <- runbg({
-#   ncores <- detectFreeCores()
-#   assign("ncores", ncores, pos = .GlobalEnv)
-#   
-#   apapbicmet.frame %>% 
-#     mutate(fits = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-#               sd = 4,
-#               blather = T, cores = ncores, fits = 10*ncores)
-#     }))
-#   }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_apapbicmet_broad_sampling")), input = "apapbicmet.frame")
-# 
-# 
-# # ---- start with tight sampling from fitted_pars
-# fitted_pars <- readRDS("../fitting/2018_03_29_19_20_fitted_pars_bicmet.rds")$parframes[[1]] %>% as.parvec(1) %>% sort_by_name()
-# mypars <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% sort_by_name()
-# mypars[names(fitted_pars)] <- fitted_pars
-# 
-# apapbicmet.frame[["pars"]] <- mypars %>% list
-# 
-# 
-# fit_apapbicmet_tight_sampling_1 <- runbg({
-#   ncores <- detectFreeCores()
-#   assign("ncores", ncores, pos = .GlobalEnv)
-#   
-#   apapbicmet.frame %>% 
-#     mutate(fits = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-#               sd = 0.5,
-#               blather = T, cores = ncores, fits = 20*ncores)
-#     }))
-#   }, machine = paste0("ruprecht", 1), filename = paste0("tmp_",tpaste0("fit_apapbicmet_tight_sampling_1")), input = "apapbicmet.frame")
-# 
-# # ---- Start with tight sampling around the second best optimum 
-# fitted_pars <- readRDS("../fitting/2018_03_29_19_20_fitted_pars_bicmet.rds")$parframes[[1]] %>% as.parvec(3) %>% sort_by_name()
-# mypars <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% sort_by_name()
-# mypars[names(fitted_pars)] <- fitted_pars
-# 
-# apapbicmet.frame[["pars"]] <- mypars %>% list
-# 
-# 
-# fit_apapbicmet_tight_sampling_2 <- runbg({
-#   ncores <- detectFreeCores()
-#   assign("ncores", ncores, pos = .GlobalEnv)
-#   
-#   apapbicmet.frame %>% 
-#     mutate(fits = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-#               sd = 0.5,
-#               blather = T, cores = ncores, fits = 20*ncores)
-#     }))
-#   }, machine = paste0("ruprecht", 2), filename = paste0("tmp_",tpaste0("fit_apapbicmet_tight_sampling_2")), input = "apapbicmet.frame")
+apapbicmet.frame <- apapbicmet.frame %>% dMf_reduce()
+
+apapbicmet.frame[["pars"]] <- getParameters(apapbicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
+
+fit_apapbicmet_broad_sampling <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+
+  apapbicmet.frame %>%
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+              sd = 4,
+              blather = F, cores = ncores, fits = 15*ncores)
+    }))
+  }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_apapbicmet_broad_sampling")), input = "apapbicmet.frame")
+
+
+bicmet.frame <- bicmet.frame %>% dMf_reduce()
+
+bicmet.frame[["pars"]] <- getParameters(bicmet.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
+
+fit_bicmet_broad_sampling <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+  
+  bicmet.frame %>%
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+              sd = 4,
+              blather = F, cores = ncores, fits = 25*ncores)
+    }))
+}, machine = paste0("ruprecht", 1:2), filename = paste0("tmp_",tpaste0("fit_bicmet_broad_sampling")), input = "bicmet.frame")
 
 ```
 
 ```{r}
-# save.image(tpaste0("workspace_apapbicmet_fits_started.rda"))
+save.image(tpaste0("workspace_apapbicmet_and_bicmet_fits_started.rda"))
 ```
 
-Some comments on the started fits:
-    * The objective function is probably not formulated in the most efficient way, I could have defined the observation functions as an addition of individual observation functions
-    * I might have been able to merge conditions, but this would have been a hassle
-    * the same times being evaluated for each condition is a big minus... (dMod-problem)
-    * Maybe compile g and p as well
-```{r}
-data_apapbicmet %>% 
-  rbind(data_apapbicmet_sigma_NA) %>% 
-  group_by(study, group) %>% 
-  summarise(maxtime = max(time))
-```
+
 
 # Load and look at fits
 ```{r get fit results from knechte}
 # load("2018_03_29_21_15_workspace_apapbicmet_fits_started.rda")
-# apapbicmet.frame %>% .$x %>% walk(loadDLL)
+# apapbicmet.frame %>% .$obj %>% walk(loadDLL)
 # apapbicmet.frame[["fits"]] <- fit_apapbicmet_broad_sampling$get() %>% map("fits") %>% map(1) %>%  Reduce(c.parlist,.) %>% list()
 # save.image(tpaste0("workspace_apapbicmet_with_fits.rda"))
 ```
 
 ```{r }
 load("2018_03_30_22_51_workspace_apapbicmet_with_fits.rda")
-apapbicmet.frame %>% .$x %>% walk(loadDLL)
+apapbicmet.frame %>% .$obj %>% walk(loadDLL)
 saveRDS(apapbicmet.frame$parframes, tpaste0("fits_apapbicmet_1.rds"))
 ```
 
