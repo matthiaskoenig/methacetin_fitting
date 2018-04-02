@@ -455,7 +455,7 @@ walk(dMod.frame$x, loadDLL)
 # Analysis of the first fits
 ```{r}
 load("2018_03_25_21_06_workspace_with_fit_frame.rda")
-walk(dMod.frame$x, loadDLL)
+walk(dMod.frame$obj, loadDLL)
 ```
 
 ```{r analysis_frame, message=FALSE}
@@ -531,6 +531,20 @@ plotframe = analysis_frame %>%
   mutate(           plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t", best_value[[i]]))))
 
 plotframe$plot_combined[[3]] %>% plotly::ggplotly()
+```
+
+```{r}
+myplot <- analysis_frame[1,] %>% dMf_append_plots(tol =1, ((name %in% "apap")&(str_detect(condition,"Alb")))) %>% .$plot_combined  %>% .[[1]]
+myplot + ggtitle(NULL)+ scale_color_dMod(labels = c("Albert1974 Capsule", "Albert 1074 Tablet"))
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/studyspecific/apap_only_Albert_ka_fix.png", width = 10, height = 6)
+
+myplot <- analysis_frame[2,] %>% dMf_append_plots(tol =1, ((name %in% "apap")&(str_detect(condition,"Rawl"))&(str_detect(condition,"(1000)|(500)")))) %>% .$plot_combined %>% .[[1]]
+
+myplot + ggtitle(NULL) + scale_color_dMod(labels = c("Rawlins IV 1000", "Rawlins Oral 1000","Rawlins Oral 500"))
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/studyspecific/Rawlins.png", width = 10, height = 6)
+
+
+analysis_frame[1:2,]$best_value
 ```
 
 
