@@ -116,14 +116,14 @@ data <-
 fitErrorModel_factors <- c("study", "group", "name", "BW", "PODOSE_apap", "IVDOSE_apap", 
 "PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", 
 "IVDOSE_metc13", "ti_metc13")
-some_na <- 
+some_na <-
   data %>% 
   group_by(study, group, name) %>% 
   mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
   filter(sna>0 & sna != nna) %>% 
   select(-sna, -nna) %>% 
   as.data.frame() %>% 
-  fitErrorModel(factors = fitErrorModel_factors, plotting = F)
+  fitErrorModel(factors = fitErrorModel_factors, plotting = F, blather = F) 
 
 none_or_all_na <- data %>% 
   group_by(study, group, name) %>% 
@@ -134,7 +134,6 @@ none_or_all_na <- data %>%
 
 data <- rbind(some_na, none_or_all_na) %>% 
   select(-n)
-
 
 supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
 ```
@@ -1079,8 +1078,6 @@ cond_apap <- apapbicmet.frame$obj[[1]]
 
 plotCombined(no_mohr.frame$best_prediction[[1]], data  = no_mohr.frame$data[[1]], name  %in% names(observables_bic))
 
-
-
 ```
 
 
@@ -1218,7 +1215,7 @@ identifiable: Co2fix_Hlm_cl, cyp1a2met_cl, ka_metc13 and kbo_maxco2.
 probably idfy, but profile stopped: apapd_hlm_cl, apapkm_apap and ka_co2c13
 flat: cyp1a2_km_met, kbo_relco2, errorpars
 ```{r}
-profile.frame$profiles %>% .[1] %>%  map(plotProfile)
+profile.frame$profiles %>% .[3] %>%  map(plotProfile) %>% .[[1]] +geom_smooth()
 ```
 
 
@@ -1232,50 +1229,225 @@ profile.frame$profiles  %>% .[1] %>% map(. %>% plotPaths(whichPar =11))
 ## start some more profiles with more fixed pars
 Fix CYP1A2MET_KM_MET and KBO_FIXCO2
 ```{r start profiles with more fixed pars}
-profile_job_no_mohr_fix_more_pars <- runbg({
+# profile_job_no_mohr_fix_more_pars <- runbg({
+#   ncores <- detectFreeCores()
+#   assign("ncores", ncores, pos = .GlobalEnv)
+#   
+#   
+#   
+#   no_mohr.frame %>%
+#     mutate(hypothesis = "No albert_caps and mohr, Profiles with fixed error pars") %>% 
+#     mutate(profiles = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
+#       
+#       fixedPars <- best_parvec[[i]] %>% .[str_detect(names(.),"^S")] 
+#       fixedPars <- c(fixedPars, best_parvec[[i]][c("KBO_FIXCO2", "CYP1A2MET_KM_MET")])
+#       assign("fixed_pars", fixedPars, pos = .GlobalEnv)
+#       
+#       whichPars <- best_parvec[[i]][setdiff(names(best_parvec[[i]]), names(fixed_pars)) ]
+#       assign("which_pars", whichPars, pos = .GlobalEnv)
+# 
+#       profile(obj = fit_obj, pars = which_pars, whichPar = names(which_pars), cores = ncores, fixed = fixed_pars)
+#     }))
+# }, machine = paste0("knecht", c(2)), filename = paste0("tmp_",tpaste0("profile_job_no_mohr_fix_error_pars")), input = "no_mohr.frame")
+# saveRDS(profile_job_no_mohr_fix_more_pars, tpaste0("profile_job_no_mohr_fix_more_pars.rds"))
+
+# profile_job_no_mohr_fix_more_pars <- readRDS("2018_04_02_11_11_profile_job_no_mohr_fix_more_pars.rds")
+# profile.frame <- rbind(profile.frame, profile_job_no_mohr_fix_more_pars$get()[[1]])
+# profile.frame$hypothesis[4] <- "No_mohr, fix errorpars, KBO_FIXCO2 and CYP1A2MET_KM_MET"
+# profile.frame %>% saveRDS(tpaste0("profile.frame.rds"))
+
+profile.frame <- readRDS("2018_04_02_19_40_profile.frame.rds")
+```
+
+
+
+```{r}
+profile.frame$profiles %>% .[[4]] %>% plotProfile()
+```
+
+
+
+# Fit with prior around pars_raw, srel = -1, s0 = -2
+```{r, dependson="setup"}
+load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
+no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
+
+rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
+no_mohr.frame %>% .$obj %>% walk(loadDLL)
+no_mohr.frame <- no_mohr.frame %>% dMf_expand_fits()
+```
+
+```{r fix errorpars}
+s0 <- paste(c("S0"), c("CUM_REC_METC13", "DOB", "P_CO2F"), sep = "_")
+srel <- paste(c("SREL"), c("CUM_REC_METC13", "DOB", "P_CO2F"), sep = "_")
+trafo_sigma_set <- trafo_apapbicmet_sigma_NA %>% 
+  insert("x~-1", x = srel) %>% 
+  insert("x~-2", x = s0)
+
+p_sig <- P(trafo_sigma_set, modelname = "p_apapbicmet_sigma_set", compile = F)
+compile(p_sig, output = "p_apapbicmet_sigma_set")
+```
+
+```{r setup prior}
+getParameters(p_sig)
+
+myindices <- pars_raw %>% names %>% toupper() %>% {which(. %in% getParameters(p_sig))}
+
+prior_mu <- log(pars_raw[myindices])
+names(prior_mu) <- toupper(names(prior_mu))
+
+```
+
+```{r setup prior.frame}
+prior.frame <- apapbicmet.frame
+prior.frame[["hypothesis"]] <- "srel = -1,s0=-2, prior_sigma ="
+
+prior.frame[["p_sig"]] <- list(p_sig)
+
+prior.frame <- prior.frame %>% 
+  mutate(data_0 = map(data_0, . %>% 
+                        .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>% 
+                        .[!(names(.) %>% str_detect("Mohr"))])) %>% 
+  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
+         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
+  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
+         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
+  
+  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
+  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
+  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
+  
+
+prior.frame <- rbind(prior.frame, prior.frame, prior.frame, prior.frame) %>% 
+  mutate(obj = map(seq_along(x), function(i) {
+    {obj[[i]] + constraintL2(prior_mu, sigma = 10^(i-4))}
+  })) %>% 
+  mutate(hypothesis = map_chr(1:4, function(i) paste0(hypothesis[i], 10^(i-4))))
+prior.frame[["pars"]] <- map(1:4, function(i) c(prior_mu, offset_bic = -0.011))
+```
+
+```{r test objfn}
+# prior.frame %>% mutate(test = map(seq_along(x), function(i) getParameters(obj[[i]]))) %>% .$test
+
+prior.frame %>% mutate(test = map(seq_along(x), function(i) obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
+prior.frame %>% mutate(test = map(seq_along(x), function(i)  obj[[i]](pars[[i]]))) %>% .$test
+
+```
+
+```{r start fits}
+fit_with_prior <- runbg({
   ncores <- detectFreeCores()
   assign("ncores", ncores, pos = .GlobalEnv)
-  
-  
-  
-  no_mohr.frame %>%
-    mutate(hypothesis = "No albert_caps and mohr, Profiles with fixed error pars") %>% 
-    mutate(profiles = map(seq_along(x), function(i) {
+
+  prior.frame %>%
+    
+    mutate(fits = map(seq_along(x), function(i) {
       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
-      
-      fixedPars <- best_parvec[[i]] %>% .[str_detect(names(.),"^S")] 
-      fixedPars <- c(fixedPars, best_parvec[[i]][c("KBO_FIXCO2", "CYP1A2MET_KM_MET")])
-      assign("fixed_pars", fixedPars, pos = .GlobalEnv)
-      
-      whichPars <- best_parvec[[i]][setdiff(names(best_parvec[[i]]), names(fixed_pars)) ]
-      assign("which_pars", whichPars, pos = .GlobalEnv)
-
-      profile(obj = fit_obj, pars = which_pars, whichPar = names(which_pars), cores = ncores, fixed = fixed_pars)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+              sd = 3,
+              blather = F, cores = ncores, fits = 10*ncores)
     }))
-}, machine = paste0("knecht", c(2)), filename = paste0("tmp_",tpaste0("profile_job_no_mohr_fix_error_pars")), input = "no_mohr.frame")
-saveRDS(profile_job_no_mohr_fix_more_pars, tpaste0("profile_job_no_mohr_fix_more_pars.rds"))
+  }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_with_prior")), input = "prior.frame")
+
+saveRDS(fit_with_prior, tpaste0("fit_with_prior.rds"))
 ```
 
 ```{r}
-profile.frame <- rbind(profile.frame, profile_job_no_mohr_fix_more_pars$get()[[1]])
-profile.frame$hypothesis[4] <- "No_mohr, fix errorpars, KBO_FIXCO2 and CYP1A2MET_KM_MET"
+# bla <- fit_with_prior$get()
+
 ```
 
 ```{r}
-profile.frame$best_parvec[[1]]
+# myfits <- bla %>% map("fits") %>% .[c(1,2,3,5)] %>% transpose() %>% map(. %>% Reduce(c.parlist,.))
+# 
+# prior.frame[["fits"]] <- myfits
+# saveRDS(prior.frame, tpaste0("prior.frame.rds"))
+prior.frame <- readRDS("2018_04_02_22_37_prior.frame.rds")
+```
+```{r}
+prior.frame <- prior.frame %>% dMf_expand_fits() %>% dMf_append_plots()
+```
+
+```{r}
+prior.frame$plot_value
+
+prior.frame$parframes %>% map(. %>% .[1:600]) %>% map(plotValues,tol = 10)
+```
+
+
+```{r dMf_append_plots}
+dMf_append_plots <- function(mydMod.frame, tol = 1, ...) {
+
+  message("Please write down what you see")
+
+  # Append waterfall, pars, and prediction of the best fit
+  mydMod.frame <- mydMod.frame %>%
+    
+    mutate(best_prediction = map(seq_along(x), function(i) {
+      prd[[i]](times = seq(0, max(as.data.frame(data[[i]])$time),length.out = 100),
+               pars = best_parvec[[i]],
+               deriv = F)
+      })) %>% 
+    
+    mutate(plot_value = map(parframes, plotValues, tol = tol),
+           plot_pars = map(parframes, plotPars, tol = tol),
+           plot_combined = map(seq_along(x), function(i) plotCombined(best_prediction[[i]], data[[i]],...))) %>%
+    mutate(plot_value = map(seq_along(x), function(i) plot_value[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t", best_value[[i]]))),
+           plot_pars = map(seq_along(x), function(i) plot_pars[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t", best_value[[i]]))),
+           plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t", best_value[[i]]))))
+
+  # Adjust labels
+  if ("conditions" %in% names(mydMod.frame)) {
+    mydMod.frame <- mydMod.frame %>%
+      mutate(plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + scale_color_dMod(labels = conditions[[i]])))
+  }
+
+  return(mydMod.frame)
+}
+
 ```
 
 
 ```{r}
-pars_raw
+prior.frame %>% dMf_append_plots(tol  = 10, name %in% names(observables_bic)&(condition %in% names(rbind(data_bic,data_bic_sigma_NA) %>% as.datalist))) %>% .$plot_combined
 ```
 
+## Run profiles for the prior.frame
 
+```{r}
+profile_jobs_prior <- map(1:4, function(j) {
+  assign("myframe",  prior.frame[j,], pos = .GlobalEnv)
+  runbg({
+    ncores <- detectFreeCores()
+    assign("ncores", ncores, pos = .GlobalEnv)
+    
+    myframe %>%
+      mutate(profiles = map(seq_along(x), function(i) {
+        assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+        assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
+        
+        profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
+      }))
+  }, machine = paste0("knecht", c(j)), filename = paste0("tmp_",tpaste0("profile_jobs_prior")), input = "myframe")
+})
 
+ saveRDS(profile_jobs_prior, tpaste0("profile_jobs_prior.rds"))
 
+# profile_job_no_mohr_fix_more_pars <- readRDS("2018_04_02_11_11_profile_job_no_mohr_fix_more_pars.rds")
+# profile.frame <- rbind(profile.frame, profile_job_no_mohr_fix_more_pars$get()[[1]])
+# profile.frame$hypothesis[4] <- "No_mohr, fix errorpars, KBO_FIXCO2 and CYP1A2MET_KM_MET"
+# profile.frame %>% saveRDS(tpaste0("profile.frame.rds"))
+```
 
+```{r}
+bla <- profile_jobs_prior[[2]]$get()
 
+bla[[1]]$profiles %>% plotProfile() + coord_cartesian(ylim = c(-0.2, 4))
+```
 
 
 
@@ -1312,49 +1484,554 @@ conditions_df <- left_join(condition_split, study_df) %>%
   rename(Study = V1,
          Group = V4,
          drug_identifier = drug,
-         Drug = drug_name) %>% 
+         Drug = drug_name,
+         condition = conditions_all) %>% 
   mutate(`Data set` = paste(Study, Group))
+
+obs_df <- map(drugs, function(dr) {
+  mystudies <- paste0("data_",dr,"$study %>% unique") %>% parse(text = .) %>% eval
+  myobservables <- paste0("observables_",dr) %>% parse(text = .) %>% eval %>% names()
+  
+  return(expand.grid(mystudies, myobservables, stringsAsFactors = F) %>% set_names(c("Study", "Observable")))
+}) %>% do.call(rbind,.)
+
+```
+
+
+```{r checkout hypotheses}
+checkout_hypothesis(apapbicmet.frame,  "apapbicmet", "abm")
+checkout_hypothesis(profile.frame, profile.frame$hypothesis[1], "pr")
+```
+
+## apap-plots
+```{r}
+
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  
+  filter(drug_identifier == "apap") %>% 
+  
+  filter(name %in% names(observables_apap))
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 0.5) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  geom_blank()
+
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/apap.png", width = 10, height = 6)
+
+
+
+```
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  
+  filter(drug_identifier == "apap") %>% 
+  
+  filter(name %in% names(observables_apap))
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 0.5) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  geom_blank() + 
+  coord_cartesian(ylim = c(0,20))
+
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/apap_zoom.png", width = 10, height = 6)
+
+```
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  
+  filter(drug_identifier == "apap") %>% 
+  
+  filter(Study %>% str_detect("Albert")) %>% 
+  
+  filter(name %in% names(observables_apap))
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 0.5) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/apap_only_Albert.png", width = 10, height = 6)
+
+```
+
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "apap") %>% 
+  filter(Study %>% str_detect("Rawlins")) %>% 
+  filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% names(observables_apap))
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/apap_only_Rawlins.png", width = 10, height = 6)
+
+```
+
+
+## Bic-plots
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "bic") %>% 
+  # filter(Study %>% str_detect("Rawlins")) %>% 
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% names(observables_bic))
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/bic.png", width = 10, height = 6)
+
+```
+
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "bic") %>% 
+  filter(Study %>% str_detect("(Fuller)|(Leij)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% "cum_rec_co2c13")
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+  
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/bic_cum_rec.png", width = 10, height = 6)
+
+```
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "bic") %>% 
+  filter(Study %>% str_detect("(Bars)|(Irv)|(Moh)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% "DOB")
+
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/bic_DOB.png", width = 10, height = 6)
+
+```
+
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "bic") %>% 
+  filter(Study %>% str_detect("(Mei)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% "P_CO2F")
+
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/bic_P_CO2F.png", width = 10, height = 6)
+
 ```
 
 
 
 
+## Met-plots
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "met") %>% 
+  filter(! Study %>% str_detect("(2013)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% names(observables_met)) %>% 
+  {.}
+
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  coord_cartesian(ylim = c(0,50)) +
+  geom_blank() 
+
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/met.png", width = 10, height = 6)
+
+```
+
+### exploration of problems in met
+There is sth wrong in cum_rec_metc13, but its not the obesrvation function: The trick with init_PODOSE works, as the ratio between Abreatch and cum_rec stays constant.
+Therefore I think, that either something is wrong with the parameter values or with Abreatch_co2c13, but not both.
+But, if you uncomment the line "mutate(value = value * 0.1) %>%" two chunks below to scale down cum_rec by a constant, then you see, it's not a question of the parameters but of Abreath.
+```{r}
+
+controls(g_apapbicmet, name = "attach.input") <- T
+(g_apapbicmet*abmx*p_apapbicmet)(seq(0,10,length.out = 10), prbest_parvec, deriv = F) %>% 
+  wide2long() %>% 
+  left_join(conditions_df) %>% 
+  filter(drug_identifier == "met") %>% 
+  # filter(! Study %>% str_detect("(2013)")) %>%
+  filter(Study %>% str_detect("(Lala)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  # filter(name %in% names(observables_met)) %>% 
+  filter(name%in%c("cum_rec_metc13", "Abreath_co2c13", "Alu_co2c13")) %>% 
+  {.} %>% 
+  spread(name,value) %>% 
+  mutate(rat = Abreath_co2c13/cum_rec_metc13) %>% 
+  mutate(rat2 = Alu_co2c13/cum_rec_metc13) %>% 
+  {.}
+```
+
+```{r}
+observables_met #%>% getSymbols()
+mypars[observables_met %>% getSymbols()]
+controls(g_apapbicmet, name = "attach.input") <- T
+# 
+# data_met %>% filter(study %>% str_detect("Lal"))
+mypars <- pars_raw
+mypars["PODOSE_metc13"] <- c(75)
+# mypars["PODOSE_co2c13"] <- c(75)
+# mypars["ti_co2c13"] <- 10
+# mypars["ti_metc13"] <- 10
+
+mypars <- c(mypars, init_PODOSE_metc13 = mypars["PODOSE_metc13"] %>% unname(), offset_bic = 0)
+# mypars
+(g_apapbicmet*abmx)(seq(0,20,length.out = 5), mypars, deriv = F) %>%
+  # plot %>% 
+{.}
+
+# (abmx)(seq(0,10,length.out = 5), mypars, deriv = F) %>% .[[1]] %>% attributes()
+```
 
 
 
 
+```{r}
+
+g_test <- Y(observables_met, x_apapbicmet)
+
+(g_test*abmx)(seq(0,10,length.out = 5), mypars, deriv = F) 
 
 
 
 
+bla <- apapbicmet.frame$p_0[[1]](prbest_parvec) %>% str_subset_name("Lala") %>% .[[1]]
+(g_test*abmx)(seq(0,10,length.out = 5), bla, deriv = F) 
 
 
 
+mypars %>% unclass
+bla %>% unclass 
+wup <- ((bla %>% unclass() %>% sort_by_name())-(mypars%>% unclass() %>% sort_by_name())) %>% sort() %>% .[.!=0]
+
+```
+
+
+```{r}
+controls(g_apapbicmet, name = "attach.input") <- F
+# 
+# data_met %>% filter(study %>% str_detect("Lal"))
+mypars <- pars_raw
+mypars["PODOSE_metc13"] <- c(75)
+mypars <- c(mypars, init_PODOSE_metc13 = mypars["PODOSE_metc13"] %>% unname(), offset_bic = 0)
+
+mypars["KBO_FIXCO2"] <- 1.3e+04
+mypars["KBO_MAXCO2"] <- 0.08
+mypars["KBO_RELCO2"] <- 4.88e+02
+mypars["KLU_EXCO2"] <- 3.2
+
+mypars["CYP1A2MET_Km_met"] <- exp(-16)
+
+# bla %>% unclass %>% str_subset_name("CO2")
+
+(g_apapbicmet*abmx)(seq(0,20,length.out = 5), mypars, deriv = F)
+```
 
 
 
+### continue with plots
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "met") %>% 
+  filter(! Study %>% str_detect("(2013)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  # filter(name %in% names(observables_met)) %>% 
+  filter(name%in%"cum_rec_metc13") %>% 
+  {.}
 
 
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+
+abmprd(seq(0,10,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+# mutate(value = value * 0.1) %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  coord_cartesian(ylim = c(0,60)) +
+  geom_blank() 
+
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/met_cum_rec_metc13.png", width = 10, height = 6)
+
+```
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "met") %>% 
+  filter(! Study %>% str_detect("(2013)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  # filter(name %in% names(observables_met)) %>% 
+  filter(name%in%"mom_rec_metc13") %>% 
+  {.}
 
 
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
 
+abmprd(seq(0,10,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+# mutate(value = value * 0.1) %>% 
 
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  coord_cartesian(ylim = c(0,60)) +
+  geom_blank() 
 
+ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/met_mom_rec_metc13.png", width = 10, height = 6)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
 
 
 
