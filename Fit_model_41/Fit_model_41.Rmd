@@ -1277,3 +1277,91 @@ pars_raw
 
 
 
+
+
+# Make plots for Peter Jansen
+
+```{r prepare condition legends}
+conditions_all <- apapbicmet.frame$data %>% .[[1]] %>% names
+
+condition_split <- conditions_all %>% str_split("_", simplify = T) %>% .[,1:3]%>% as.tibble() %>% 
+  mutate(V3na = is.na(as.numeric(V3))) %>% 
+  mutate(V4 = map_chr(seq_along(V2), function(i) {
+    if(V3na[i]) return(paste(V2[i], V3[i])) 
+    else return(V2[i])
+  })) %>% 
+  select(-V2, -V3, -V3na) %>% 
+  mutate(V4 = str_replace(V4, "NaN", "")) %>% 
+  add_column(conditions_all)
+  
+
+drugs <- c("apap", "bic", "met")
+study_df <- map(drugs, function(dr) {
+  mystudies <- paste0("data_",dr,"$study %>% unique") %>% parse(text = .) %>% eval
+  if(dr != "apap")  mystudies <- c(mystudies, paste0("data_",dr,"_sigma_NA$study %>% unique") %>% parse(text = .) %>% eval)
+  # print(mystudies)
+  condition_names <- conditions_all[map_lgl(conditions_all,. %>% str_detect(mystudies) %>% any)]
+  
+  drug_name <- c(apap = "Paracetamol", bic = "Bicarbonate", met = "Methacetin")
+  
+  return(tibble(drug = dr, drug_name = drug_name[dr], conditions_all = condition_names))
+}) %>% do.call(rbind,.)
+
+
+conditions_df <- left_join(condition_split, study_df) %>% 
+  rename(Study = V1,
+         Group = V4,
+         drug_identifier = drug,
+         Drug = drug_name) %>% 
+  mutate(`Data set` = paste(Study, Group))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
