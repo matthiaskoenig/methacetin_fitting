@@ -894,3 +894,386 @@ tibble(oldcond%>% str_trunc(20), oldcondwise %>% map_dbl("value"), oldcondwise2 
 ```
 
 
+# Start fits without Albert capsule 
+
+The section above here we found out that the capsule data set is really different from all the others and kills everything
+```{r load workspace with dMod.frames}
+load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
+rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
+```
+
+
+```{r}
+no_alb_caps.frame <- apapbicmet.frame
+no_alb_caps.frame <- no_alb_caps.frame %>% 
+  mutate(data_0 = map(data_0, . %>% .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] )) %>% 
+  mutate(hypothesis= "apapbicmet_no_albert_capsule") %>% 
+  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
+         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
+  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
+         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
+  
+  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
+  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
+  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
+  
+```
+
+
+```{r}
+no_alb_caps.frame %>% mutate(test = map(seq_along(x), function(i) obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
+```
+
+```{r}
+no_alb_caps.frame <- no_alb_caps.frame %>% dMf_reduce()
+
+no_alb_caps.frame[["pars"]] <- getParameters(no_alb_caps.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
+
+# fit_no_alb_caps_broad_sampling <- runbg({
+#   ncores <- detectFreeCores()
+#   assign("ncores", ncores, pos = .GlobalEnv)
+#   
+#   no_alb_caps.frame %>%
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+#               sd = 4,
+#               blather = F, cores = ncores, fits = 30*ncores)
+#     }))
+# }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_no_alb_caps_broad_sampling")), input = "no_alb_caps.frame")
+saveRDS(fit_no_alb_caps_broad_sampling, tpaste0("fit_job_no_alb_caps_broad_sampling.rds"))
+```
+
+```{r}
+fit_no_alb_caps_broad_sampling <- readRDS("2018_04_01_09_21_fit_no_alb_caps_broad_sampling.rds")
+no_alb_caps.frame$fits <- fit_no_alb_caps_broad_sampling$get() %>% map("fits") %>% map(1) %>%  Reduce(c.parlist,.) %>% list()
+saveRDS(no_alb_caps.frame, tpaste0("fits_no_alb_caps_broad_sampling.rds"))
+```
+
+
+```{r}
+no_alb_caps.frame$obj %>% walk(loadDLL)
+no_alb_caps.frame <- no_alb_caps.frame %>% 
+  dMf_expand_fits() %>% 
+  dMf_append_plots()
+```
+
+```{r}
+no_alb_caps.frame$parframes[[1]] %>% .[1:1000,] %>% plotValues(tol = 10 )
+```
+
+
+```{r}
+no_alb_caps.frame$parframes %>% .[[1]] %>% .[c(1,42,50,80)] %>% plotPars(tol = 10)
+```
+
+
+```{r condition wise contributions}
+
+condition_wise <- function(no_alb_caps.frame, index) {
+  mypars <- no_alb_caps.frame$parframes[[1]] %>% as.parvec(index = index)
+  
+  myobj <- no_alb_caps.frame$obj_0[[1]]
+  mycond <-  myobj %>% getConditions()
+  
+  condwise_contributions_0 <- map(mycond, function(cn) {
+    # print(cn)
+    myobj(pars = mypars, conditions = cn)
+    }) %>% set_names(mycond)
+  
+  myobj <- no_alb_caps.frame$obj_sig[[1]]
+  mycond <-  myobj %>% getConditions()
+  
+  condwise_contributions_sig <- map(mycond, function(cn) {
+    # print(cn)
+    myobj(pars = mypars, conditions = cn)
+    }) %>% set_names(mycond)
+  
+  
+  condwise_contributions <- c(condwise_contributions_0, condwise_contributions_sig)
+  
+  condwise_contributions %>% map_dbl("value")
+}
+
+
+myconditions <- sapply(c(1,42,80), function(i) condition_wise(no_alb_caps.frame, i))
+
+myconditions %>% apply(1, function(i) (i-i[1]) %>% round(2)) 
+```
+
+
+
+# Start fits without Mohr
+```{r load workspace with dMod.frames, dependson="setup"}
+load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
+rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
+```
+
+
+```{r prepare no mohr frame}
+no_mohr.frame <- apapbicmet.frame
+no_mohr.frame <- no_mohr.frame %>% 
+  mutate(data_0 = map(data_0, . %>% 
+                        .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>% 
+                        .[!(names(.) %>% str_detect("Mohr"))])) %>% 
+  mutate(hypothesis= "apapbicmet no albert caps, no Mohr") %>% 
+  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
+         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
+  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
+         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
+  
+  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
+  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
+  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
+  
+```
+
+
+```{r start no mohr fits}
+no_mohr.frame <- no_mohr.frame %>% dMf_reduce()
+
+no_mohr.frame[["pars"]] <- getParameters(no_mohr.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
+
+fit_job_no_mohr_broad_sampling <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+
+  no_mohr.frame %>%
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+              sd = 4,
+              blather = F, cores = ncores, fits = 10*ncores)
+    }))
+}, machine = paste0("knecht", c(1,2,4)), filename = paste0("tmp_",tpaste0("fit_job_no_mohr_broad_sampling")), input = "no_mohr.frame")
+saveRDS(fit_job_no_mohr_broad_sampling, tpaste0("fit_job_no_mohr_broad_sampling.rds"))
+```
+
+## get and analyze fits without mohr and albert_caps
+
+```{r get no mohr fits}
+fit_job_no_mohr_broad_sampling <- readRDS("2018_04_01_19_58_fit_job_no_mohr_broad_sampling.rds")
+no_mohr.frame$fits <- fit_job_no_mohr_broad_sampling$get() %>% map("fits") %>% map(1) %>%  Reduce(c.parlist,.) %>% list()
+saveRDS(no_mohr.frame, tpaste0("fits_no_mohr_broad_sampling.rds"))
+```
+
+
+```{r expand no mohr fits}
+no_mohr.frame <- no_mohr.frame %>% 
+  dMf_expand_fits()
+```
+```{r no mohr plot values}
+no_mohr.frame$parframes %>% .[[1]] %>% .[1:100] %>% plotValues()
+```
+
+```{r}
+no_mohr.frame$parframes %>% .[[1]] %>% .[1:50] %>% plotPars()
+```
+
+```{r}
+cond_apap <- apapbicmet.frame$obj[[1]]
+
+plotCombined(no_mohr.frame$best_prediction[[1]], data  = no_mohr.frame$data[[1]], name  %in% names(observables_bic))
+
+
+
+```
+
+
+
+
+# Profile Likelihoods
+
+# PL no Mohr, no albert
+```{r, dependson="setup"}
+load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
+no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds") %>% dMf_expand_fits()
+
+rbind(no_mohr.frame, bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
+```
+
+
+```{r}
+profile_job_no_mohr <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+
+  no_mohr.frame %>%
+    mutate(profiles = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
+      profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
+    }))
+}, machine = paste0("knecht", c(1)), filename = paste0("tmp_",tpaste0("profile_job_no_mohr")), input = "no_mohr.frame")
+saveRDS(profile_job_no_mohr, tpaste0("profile_job_no_mohr.rds"))
+```
+
+
+
+
+## PL no Mohr, no albert, fixed errorpars
+```{r, dependson="setup"}
+load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
+no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
+
+rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
+no_mohr.frame %>% .$obj %>% walk(loadDLL)
+no_mohr.frame <- no_mohr.frame %>% dMf_expand_fits()
+```
+
+
+```{r}
+profile_job_no_mohr_fix_error_pars <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+  
+  no_mohr.frame %>%
+    mutate(hypothesis = "No albert_caps and mohr, Profiles with fixed error pars") %>% 
+    mutate(profiles = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
+      
+      fixedPars <- best_parvec[[i]] %>% .[str_detect(names(.),"^S")] 
+      assign("fixed_pars", fixedPars, pos = .GlobalEnv)
+      
+      whichPars <- best_parvec[[i]][setdiff(names(best_parvec[[i]]), names(fixed_pars)) ]
+      assign("which_pars", whichPars, pos = .GlobalEnv)
+
+      profile(obj = fit_obj, pars = which_pars, whichPar = names(which_pars), cores = ncores, fixed = fixed_pars)
+    }))
+}, machine = paste0("knecht", c(2)), filename = paste0("tmp_",tpaste0("profile_job_no_mohr_fix_error_pars")), input = "no_mohr.frame")
+saveRDS(profile_job_no_mohr_fix_error_pars, tpaste0("profile_job_no_mohr_fix_error_pars.rds"))
+```
+
+
+
+
+## PL no Mohr, no albert, fiix errorpars, bigger stepsize
+```{r, dependson="setup"}
+load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
+no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
+
+rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
+no_mohr.frame %>% .$obj %>% walk(loadDLL)
+no_mohr.frame <- no_mohr.frame %>% dMf_expand_fits()
+```
+
+
+```{r}
+profile_job_no_mohr_fix_error_pars_bigger_stepsize <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+  
+  no_mohr.frame %>%
+    mutate(hypothesis = "No albert_caps and mohr, Profiles with fixed error pars, bigger stepsize") %>% 
+    mutate(profiles = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
+      
+      fixedPars <- best_parvec[[i]] %>% .[str_detect(names(.),"^S")] 
+      assign("fixed_pars", fixedPars, pos = .GlobalEnv)
+      
+      whichPars <- best_parvec[[i]][setdiff(names(best_parvec[[i]]), names(fixed_pars)) ]
+      assign("which_pars", whichPars, pos = .GlobalEnv)
+
+      profile(obj = fit_obj, pars = which_pars, whichPar = names(which_pars), cores = ncores, fixed = fixed_pars, stepControl = list(stepsize = 1e-3, min = 1e-3, limit = 80), optControl = list(iterlim = 8))
+    }))
+}, machine = paste0("knecht", c(3)), filename = paste0("tmp_",tpaste0("profile_job_no_mohr_fix_error_pars")), input = "no_mohr.frame")
+saveRDS(profile_job_no_mohr_fix_error_pars_bigger_stepsize, tpaste0("profile_job_no_mohr_fix_error_pars_bigger_stepsize.rds"))
+```
+
+
+## Get all three profiles
+```{r, dependson="setup"}
+load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
+no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds") 
+
+list(no_mohr.frame, apapbicmet.frame) %>% walk(. %>% .$obj %>% walk(loadDLL))
+
+no_mohr.frame <- no_mohr.frame %>% dMf_expand_fits()
+# profile_jobs <- c("2018_04_01_20_51_profile_job_no_mohr.rds", "2018_04_02_00_27_profile_job_no_mohr_fix_error_pars.rds", "2018_04_02_01_09_profile_job_no_mohr_fix_error_pars_bigger_stepsize.rds")
+# 
+# profile.frame <- map(profile_jobs, function(i) {
+#   myjob <- readRDS(i)
+#   myframe <- myjob$get()[[1]]
+# })
+# profile.frame <- profile.frame %>% do.call(rbind,.)
+# saveRDS(profile.frame, tpaste0("profile.frame_no_mohr.rds"))
+
+profile.frame <- readRDS("2018_04_02_10_35_profile.frame_no_mohr.rds")
+```
+
+
+The profiles are wiggly, but it helps to increase the minimum stepsize.
+What does this wiggling mean? That there are several really closely located optima? I doubt that.
+Maybe I could try to run profiles with "optimize"?
+
+Description of the profiles:
+awesome: klu_exco2 and offset_bic 
+identifiable: Co2fix_Hlm_cl, cyp1a2met_cl, ka_metc13 and kbo_maxco2.
+probably idfy, but profile stopped: apapd_hlm_cl, apapkm_apap and ka_co2c13
+flat: cyp1a2_km_met, kbo_relco2, errorpars
+```{r}
+profile.frame$profiles %>% .[1] %>%  map(plotProfile)
+```
+
+
+Seems as if KBO_RELCO2 and KBO_FIXCO2 are dependent on each other
+Also, CYP1A2_KM_MET appears to change always, but since this parameter is so small anyway, I'll just fix it in the next profiles.
+```{r}
+profile.frame$profiles  %>% .[1] %>% map(. %>% plotPaths(whichPar =11))
+```
+
+
+## start some more profiles with more fixed pars
+Fix CYP1A2MET_KM_MET and KBO_FIXCO2
+```{r start profiles with more fixed pars}
+profile_job_no_mohr_fix_more_pars <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+  
+  
+  
+  no_mohr.frame %>%
+    mutate(hypothesis = "No albert_caps and mohr, Profiles with fixed error pars") %>% 
+    mutate(profiles = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
+      
+      fixedPars <- best_parvec[[i]] %>% .[str_detect(names(.),"^S")] 
+      fixedPars <- c(fixedPars, best_parvec[[i]][c("KBO_FIXCO2", "CYP1A2MET_KM_MET")])
+      assign("fixed_pars", fixedPars, pos = .GlobalEnv)
+      
+      whichPars <- best_parvec[[i]][setdiff(names(best_parvec[[i]]), names(fixed_pars)) ]
+      assign("which_pars", whichPars, pos = .GlobalEnv)
+
+      profile(obj = fit_obj, pars = which_pars, whichPar = names(which_pars), cores = ncores, fixed = fixed_pars)
+    }))
+}, machine = paste0("knecht", c(2)), filename = paste0("tmp_",tpaste0("profile_job_no_mohr_fix_error_pars")), input = "no_mohr.frame")
+saveRDS(profile_job_no_mohr_fix_more_pars, tpaste0("profile_job_no_mohr_fix_more_pars.rds"))
+```
+
+```{r}
+profile.frame <- rbind(profile.frame, profile_job_no_mohr_fix_more_pars$get()[[1]])
+profile.frame$hypothesis[4] <- "No_mohr, fix errorpars, KBO_FIXCO2 and CYP1A2MET_KM_MET"
+```
+
+```{r}
+profile.frame$best_parvec[[1]]
+```
+
+
+```{r}
+pars_raw
+```
+
+
+
+
+
+
+
