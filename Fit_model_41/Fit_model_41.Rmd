@@ -906,6 +906,8 @@ flat: cyp1a2_km_met, kbo_relco2, errorpars
 profile.frame$profiles %>% .[3] %>%  map(plotProfile) %>% .[[1]] +geom_smooth()
 ```
 
+Even with more parameters fixed: The profiles are still wiggly
+Jens is saying: There has to be a problem with the numerics
 ```{r}
 profile.frame$profiles %>% .[[4]] %>% plotProfile()
 ```
@@ -980,80 +982,38 @@ prior.frame %>% mutate(test = map(seq_along(x), function(i)  obj[[i]](pars[[i]])
 ```
 
 ```{r start fits}
-fit_with_prior <- runbg({
-  ncores <- detectFreeCores()
-  assign("ncores", ncores, pos = .GlobalEnv)
-
-  prior.frame %>%
-    
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-              sd = 3,
-              blather = F, cores = ncores, fits = 10*ncores)
-    }))
-  }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_with_prior")), input = "prior.frame")
-
-saveRDS(fit_with_prior, tpaste0("fit_with_prior.rds"))
-```
-
-```{r}
-# bla <- fit_with_prior$get()
-
-```
-
-```{r}
-# myfits <- bla %>% map("fits") %>% .[c(1,2,3,5)] %>% transpose() %>% map(. %>% Reduce(c.parlist,.))
+# fit_with_prior <- runbg({
+#   ncores <- detectFreeCores()
+#   assign("ncores", ncores, pos = .GlobalEnv)
 # 
+#   prior.frame %>%
+#     
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+#               sd = 3,
+#               blather = F, cores = ncores, fits = 10*ncores)
+#     }))
+#   }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_with_prior")), input = "prior.frame")
+# 
+# saveRDS(fit_with_prior, tpaste0("fit_with_prior.rds"))
+# fit_with_prior <- fit_with_prior$get()
+# myfits <- fit_with_prior %>% map("fits") %>% .[c(1,2,3,5)] %>% transpose() %>% map(. %>% Reduce(c.parlist,.))
 # prior.frame[["fits"]] <- myfits
-# saveRDS(prior.frame, tpaste0("prior.frame.rds"))
+# saveRDS(prior.frame, tpaste0("prior.frame.rds")) # "2018_04_02_22_37_prior.frame.rds"
 prior.frame <- readRDS("2018_04_02_22_37_prior.frame.rds")
 ```
+
 ```{r}
 prior.frame <- prior.frame %>% dMf_expand_fits() %>% dMf_append_plots()
 ```
 
 ```{r}
 prior.frame$plot_value
-
 prior.frame$parframes %>% map(. %>% .[1:600]) %>% map(plotValues,tol = 10)
 ```
-
-
-```{r dMf_append_plots}
-dMf_append_plots <- function(mydMod.frame, tol = 1, ...) {
-
-  message("Please write down what you see")
-
-  # Append waterfall, pars, and prediction of the best fit
-  mydMod.frame <- mydMod.frame %>%
-    
-    mutate(best_prediction = map(seq_along(x), function(i) {
-      prd[[i]](times = seq(0, max(as.data.frame(data[[i]])$time),length.out = 100),
-               pars = best_parvec[[i]],
-               deriv = F)
-      })) %>% 
-    
-    mutate(plot_value = map(parframes, plotValues, tol = tol),
-           plot_pars = map(parframes, plotPars, tol = tol),
-           plot_combined = map(seq_along(x), function(i) plotCombined(best_prediction[[i]], data[[i]],...))) %>%
-    mutate(plot_value = map(seq_along(x), function(i) plot_value[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t", best_value[[i]]))),
-           plot_pars = map(seq_along(x), function(i) plot_pars[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t", best_value[[i]]))),
-           plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + ggtitle(label = paste(hypothesis[[i]], ",\t", best_value[[i]]))))
-
-  # Adjust labels
-  if ("conditions" %in% names(mydMod.frame)) {
-    mydMod.frame <- mydMod.frame %>%
-      mutate(plot_combined = map(seq_along(x), function(i) plot_combined[[i]] + scale_color_dMod(labels = conditions[[i]])))
-  }
-
-  return(mydMod.frame)
-}
-
-```
-
 
 ```{r}
 prior.frame %>% dMf_append_plots(tol  = 10, name %in% names(observables_bic)&(condition %in% names(rbind(data_bic,data_bic_sigma_NA) %>% as.datalist))) %>% .$plot_combined
@@ -1062,34 +1022,31 @@ prior.frame %>% dMf_append_plots(tol  = 10, name %in% names(observables_bic)&(co
 ## Run profiles for the prior.frame
 
 ```{r}
-profile_jobs_prior <- map(1:4, function(j) {
-  assign("myframe",  prior.frame[j,], pos = .GlobalEnv)
-  runbg({
-    ncores <- detectFreeCores()
-    assign("ncores", ncores, pos = .GlobalEnv)
-    
-    myframe %>%
-      mutate(profiles = map(seq_along(x), function(i) {
-        assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-        assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
-        
-        profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
-      }))
-  }, machine = paste0("knecht", c(j)), filename = paste0("tmp_",tpaste0("profile_jobs_prior")), input = "myframe")
-})
-
- saveRDS(profile_jobs_prior, tpaste0("profile_jobs_prior.rds"))
-
-# profile_job_no_mohr_fix_more_pars <- readRDS("2018_04_02_11_11_profile_job_no_mohr_fix_more_pars.rds")
-# profile.frame <- rbind(profile.frame, profile_job_no_mohr_fix_more_pars$get()[[1]])
-# profile.frame$hypothesis[4] <- "No_mohr, fix errorpars, KBO_FIXCO2 and CYP1A2MET_KM_MET"
-# profile.frame %>% saveRDS(tpaste0("profile.frame.rds"))
+# profile_jobs_prior <- map(1:4, function(j) {
+#   assign("myframe",  prior.frame[j,], pos = .GlobalEnv)
+#   runbg({
+#     ncores <- detectFreeCores()
+#     assign("ncores", ncores, pos = .GlobalEnv)
+#     
+#     myframe %>%
+#       mutate(profiles = map(seq_along(x), function(i) {
+#         assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#         assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
+#         
+#         profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
+#       }))
+#   }, machine = paste0("knecht", c(j)), filename = paste0("tmp_",tpaste0("profile_jobs_prior")), input = "myframe")
+# })
+# 
+#  saveRDS(profile_jobs_prior, tpaste0("profile_jobs_prior.rds"))
+profile_jobs_prior <- readRDS("2018_04_02_23_22_profile_jobs_prior.rds")
 ```
 
 ```{r}
-bla <- profile_jobs_prior[[2]]$get()
 
-bla[[1]]$profiles %>% plotProfile() + coord_cartesian(ylim = c(-0.2, 4))
+bla <- profile_jobs_prior[[4]]$get()
+
+bla[[1]]$profiles %>% plotProfile() + coord_cartesian(ylim = c(-0.2, 4)) + geom_line(aes(color = mode))
 ```
 
 
