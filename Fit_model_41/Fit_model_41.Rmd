@@ -1039,14 +1039,30 @@ prior.frame %>% dMf_append_plots(tol  = 10, name %in% names(observables_bic)&(co
 # })
 # 
 #  saveRDS(profile_jobs_prior, tpaste0("profile_jobs_prior.rds"))
-profile_jobs_prior <- readRDS("2018_04_02_23_22_profile_jobs_prior.rds")
+# profile_jobs_prior <- readRDS("2018_04_02_23_22_profile_jobs_prior.rds")
+# prior.frame <- profile_jobs_prior %>% map(. %>% {.$get()} %>% .[[1]]) %>% do.call(rbind,.)
+# saveRDS(prior.frame %>% shrink_fits() %>% shrink_plots(), tpaste0("prior.frame_with_profiles.rds")) # "2018_04_06_13_50_prior.frame_with_profiles.rds"
+prior.frame <- readRDS("2018_04_06_13_50_prior.frame_with_profiles.rds")
 ```
 
-```{r}
 
-bla <- profile_jobs_prior[[4]]$get()
 
-bla[[1]]$profiles %>% plotProfile() + coord_cartesian(ylim = c(-0.2, 4)) + geom_line(aes(color = mode))
-```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
