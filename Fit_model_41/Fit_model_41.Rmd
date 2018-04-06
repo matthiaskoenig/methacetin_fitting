@@ -594,8 +594,6 @@ load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
 rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
 ```
 
-
-
 ```{r start fits with broad sampling}
 apapbicmet.frame <- apapbicmet.frame %>% dMf_reduce()
 
@@ -642,8 +640,6 @@ fit_bicmet_broad_sampling <- runbg({
 save.image(tpaste0("workspace_apapbicmet_and_bicmet_fits_started.rda"))
 ```
 
-
-
 # Load and look at fits
 ```{r get fit results from knechte}
 # load("2018_03_31_02_30_workspace_apapbicmet_and_bicmet_fits_started.rda")
@@ -652,10 +648,8 @@ save.image(tpaste0("workspace_apapbicmet_and_bicmet_fits_started.rda"))
 # save.image(tpaste0("workspace_apapbicmet_with_fits.rda"))
 ```
 
-
-
 ```{r }
-load("20")
+load("2018_03_31_03_29_workspace_apapbicmet_with_fits.rda")
 apapbicmet.frame %>% .$obj %>% walk(loadDLL)
 saveRDS(apapbicmet.frame$parframes, tpaste0("fits_apapbicmet_1.rds"))
 ```
@@ -685,8 +679,6 @@ apapbicmet.frame$parframes %>% .[[1]] %>% .[1:20,] %>% plotPars() +
 apapbicmet.frame$best_parvec
 ```
 
-
-
 Browsing through the conditions, one can see that met isnt met very well (haha)
 ```{r}
 apapbicmet.frame %>% dMf_append_plots() %>% .[["plot_combined"]]
@@ -694,8 +686,8 @@ apapbicmet.frame %>% dMf_append_plots() %>% .[["plot_combined"]]
 plotCombined(apapbicmet.frame[["prd"]][[1]](seq(0,24,0.1), 
                                             apapbicmet.frame$best_parvec[[1]], deriv = F),
              apapbicmet.frame[["data"]][[1]], 
-             condition %in% rownames(rbind(data_bic_sigma_NA) %>% as.datalist %>% covariates()) &
-               name %in% names(observables_bic)#getEquations(apapbicmet.frame[["g"]][[1]])[[1]])
+             condition %in% rownames(rbind(data_met, data_met_sigma_NA) %>% as.datalist %>% covariates()) &
+               name %in% names(observables_met)#getEquations(apapbicmet.frame[["g"]][[1]])[[1]])
              )
 # ggplotly()
 ```
@@ -809,7 +801,7 @@ myfits <- fit_basic_hypotheses_broad_sampling$get()
 
 basic_hypotheses.frame[["fits"]] <- myfits %>% map("fits") %>% transpose() %>% map(function(i) Reduce(c.parlist, i))
 
-saveRDS(basic_hypotheses.frame, tpaste0("fits_basic_hypotheses"))
+saveRDS(basic_hypotheses.frame, tpaste0("fits_basic_hypotheses")) # "2018_03_31_04_35_fits_basic_hypotheses"
 ```
 
 ```{r}
@@ -821,186 +813,6 @@ Was ist da los, wieso findet er Ka_apap nicht mehr bei den hohen Werten?
 checkout_hypothesis(basic_hypotheses.frame, "apap", prefix = "fucker")
 ```
 
-```{r}
-plotCombined(fuckerprd(seq(0,24,0.1), fuckerbest_parvec), fuckerdata)
-```
-
-```{r}
-checkout_hypothesis(old_basic.frame, "apap", "old")
-```
-
-
-```{r}
-cbind(olddata %>% as.data.frame() %>% arrange(study,group, time) %>% select(time,value,sigma,study,group, dosing_strategy),
-fuckerdata %>% as.data.frame() %>% arrange(study,group, time)%>% select(name,time,value,sigma,study,group) %>% {names(.) <- paste0("fucker",names(.));.}) %>% 
-  mutate(same_sig = near(sigma,fuckersigma, 0.01)) %>% 
-  filter(!same_sig)
-
-fuckerdata %>% as.data.frame() %>% arrange(study,group, time) %>% filter(name== "Mve_apap") %>% arrange(sigma)
-```
-
-
-```{r}
-some_na %>% arrange(study)%>% select(name,time,value,sigma,study,group)
-```
-
-
-```{r}
-data <-
-  read_tsv("../data/limax_pkpd_v41_data.csv") %>%
-  select(-model) %>% 
-  rename(name = observer) %>% 
-  rename(n = subjects) %>% 
-  unique() #noch matthias sagen, dass lalazar2008 doppelte einträge hat
-
-
-fitErrorModel_factors <- c("study", "group", "name", "BW", "PODOSE_apap", "IVDOSE_apap", 
-"PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", 
-"IVDOSE_metc13", "ti_metc13")
-some_na_before <- 
-  data %>% 
-  group_by(study, group, name) %>% 
-  mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
-  filter(sna>0 & sna != nna) %>% 
-  select(-sna, -nna) %>% 
-  as.data.frame()
-some_na <- some_na_before %>% fitErrorModel(fitErrorModel_factors)
-
-none_or_all_na <- data %>% 
-  group_by(study, group, name) %>% 
-  mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
-  filter(sna==0 | sna == nna) %>% 
-  select(-sna, -nna) %>% 
-  as.data.frame()
-
-data <- rbind(some_na, none_or_all_na) %>% 
-  select(-n)
-```
-
-```{r}
-mycond <- fuckerobj %>% getConditions() %>% set_names(.,.)
-fuckercondwise <- map(mycond, function(cn) fuckerobj(fuckerbest_parvec, conditions = cn))
-fuckercondwise2 <- map(mycond, function(cn) fuckerobj(prior_apap, conditions = cn))
-
-oldcond <- oldobj%>% getConditions() %>% set_names(.,.)
-oldcondwise <-  map(oldcond, function(cn) oldobj(fuckerbest_parvec, conditions = cn))
-oldcondwise2 <- map(oldcond, function(cn) oldobj(prior_apap, conditions = cn))
-
-cbind(tibble(mycond %>% str_trunc(15), fuckercondwise %>% map_dbl("value"), fuckercondwise2 %>% map_dbl("value")) %>% arrange(mycond),
-tibble(oldcond%>% str_trunc(20), oldcondwise %>% map_dbl("value"), oldcondwise2 %>% map_dbl("value")) %>% arrange(oldcond)) %>% set_names(c("new_cond", "new obj, new fit", "new obj, old fit", "old cond", "old obj, new fit", "old obj, old fit")) %>% 
-{.}
-  # write_csv("comparsion_of_apap.csv")
-```
-
-
-# Start fits without Albert capsule 
-
-The section above here we found out that the capsule data set is really different from all the others and kills everything
-```{r load workspace with dMod.frames}
-load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
-rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
-```
-
-
-```{r}
-no_alb_caps.frame <- apapbicmet.frame
-no_alb_caps.frame <- no_alb_caps.frame %>% 
-  mutate(data_0 = map(data_0, . %>% .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] )) %>% 
-  mutate(hypothesis= "apapbicmet_no_albert_capsule") %>% 
-  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
-         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
-  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
-         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
-  
-  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
-  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
-  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
-  
-```
-
-
-```{r}
-no_alb_caps.frame %>% mutate(test = map(seq_along(x), function(i) obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
-```
-
-```{r}
-no_alb_caps.frame <- no_alb_caps.frame %>% dMf_reduce()
-
-no_alb_caps.frame[["pars"]] <- getParameters(no_alb_caps.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
-
-# fit_no_alb_caps_broad_sampling <- runbg({
-#   ncores <- detectFreeCores()
-#   assign("ncores", ncores, pos = .GlobalEnv)
-#   
-#   no_alb_caps.frame %>%
-#     mutate(fits = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-#               sd = 4,
-#               blather = F, cores = ncores, fits = 30*ncores)
-#     }))
-# }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_no_alb_caps_broad_sampling")), input = "no_alb_caps.frame")
-saveRDS(fit_no_alb_caps_broad_sampling, tpaste0("fit_job_no_alb_caps_broad_sampling.rds"))
-```
-
-```{r}
-fit_no_alb_caps_broad_sampling <- readRDS("2018_04_01_09_21_fit_no_alb_caps_broad_sampling.rds")
-no_alb_caps.frame$fits <- fit_no_alb_caps_broad_sampling$get() %>% map("fits") %>% map(1) %>%  Reduce(c.parlist,.) %>% list()
-saveRDS(no_alb_caps.frame, tpaste0("fits_no_alb_caps_broad_sampling.rds"))
-```
-
-
-```{r}
-no_alb_caps.frame$obj %>% walk(loadDLL)
-no_alb_caps.frame <- no_alb_caps.frame %>% 
-  dMf_expand_fits() %>% 
-  dMf_append_plots()
-```
-
-```{r}
-no_alb_caps.frame$parframes[[1]] %>% .[1:1000,] %>% plotValues(tol = 10 )
-```
-
-
-```{r}
-no_alb_caps.frame$parframes %>% .[[1]] %>% .[c(1,42,50,80)] %>% plotPars(tol = 10)
-```
-
-
-```{r condition wise contributions}
-
-condition_wise <- function(no_alb_caps.frame, index) {
-  mypars <- no_alb_caps.frame$parframes[[1]] %>% as.parvec(index = index)
-  
-  myobj <- no_alb_caps.frame$obj_0[[1]]
-  mycond <-  myobj %>% getConditions()
-  
-  condwise_contributions_0 <- map(mycond, function(cn) {
-    # print(cn)
-    myobj(pars = mypars, conditions = cn)
-    }) %>% set_names(mycond)
-  
-  myobj <- no_alb_caps.frame$obj_sig[[1]]
-  mycond <-  myobj %>% getConditions()
-  
-  condwise_contributions_sig <- map(mycond, function(cn) {
-    # print(cn)
-    myobj(pars = mypars, conditions = cn)
-    }) %>% set_names(mycond)
-  
-  
-  condwise_contributions <- c(condwise_contributions_0, condwise_contributions_sig)
-  
-  condwise_contributions %>% map_dbl("value")
-}
-
-
-myconditions <- sapply(c(1,42,80), function(i) condition_wise(no_alb_caps.frame, i))
-
-myconditions %>% apply(1, function(i) (i-i[1]) %>% round(2)) 
-```
 
 
 
@@ -1055,9 +867,10 @@ saveRDS(fit_job_no_mohr_broad_sampling, tpaste0("fit_job_no_mohr_broad_sampling.
 ## get and analyze fits without mohr and albert_caps
 
 ```{r get no mohr fits}
-fit_job_no_mohr_broad_sampling <- readRDS("2018_04_01_19_58_fit_job_no_mohr_broad_sampling.rds")
-no_mohr.frame$fits <- fit_job_no_mohr_broad_sampling$get() %>% map("fits") %>% map(1) %>%  Reduce(c.parlist,.) %>% list()
-saveRDS(no_mohr.frame, tpaste0("fits_no_mohr_broad_sampling.rds"))
+# fit_job_no_mohr_broad_sampling <- readRDS("2018_04_01_19_58_fit_job_no_mohr_broad_sampling.rds")
+# no_mohr.frame$fits <- fit_job_no_mohr_broad_sampling$get() %>% map("fits") %>% map(1) %>%  Reduce(c.parlist,.) %>% list()
+# saveRDS(no_mohr.frame, tpaste0("fits_no_mohr_broad_sampling.rds"))
+no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
 ```
 
 
@@ -1065,6 +878,7 @@ saveRDS(no_mohr.frame, tpaste0("fits_no_mohr_broad_sampling.rds"))
 no_mohr.frame <- no_mohr.frame %>% 
   dMf_expand_fits()
 ```
+
 ```{r no mohr plot values}
 no_mohr.frame$parframes %>% .[[1]] %>% .[1:100] %>% plotValues()
 ```
@@ -1079,9 +893,6 @@ cond_apap <- apapbicmet.frame$obj[[1]]
 plotCombined(no_mohr.frame$best_prediction[[1]], data  = no_mohr.frame$data[[1]], name  %in% names(observables_bic))
 
 ```
-
-
-
 
 # Profile Likelihoods
 
