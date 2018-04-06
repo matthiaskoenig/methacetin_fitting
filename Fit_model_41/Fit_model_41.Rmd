@@ -824,44 +824,41 @@ rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
 
 
 ```{r prepare no mohr frame}
-no_mohr.frame <- apapbicmet.frame
-no_mohr.frame <- no_mohr.frame %>% 
-  mutate(data_0 = map(data_0, . %>% 
-                        .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>% 
-                        .[!(names(.) %>% str_detect("Mohr"))])) %>% 
-  mutate(hypothesis= "apapbicmet no albert caps, no Mohr") %>% 
-  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
-         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
-  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
-         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
+# no_mohr.frame <- apapbicmet.frame
+# no_mohr.frame <- no_mohr.frame %>% 
+#   mutate(data_0 = map(data_0, . %>% 
+#                         .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>% 
+#                         .[!(names(.) %>% str_detect("Mohr"))])) %>% 
+#   mutate(hypothesis= "apapbicmet no albert caps, no Mohr") %>% 
+#   mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
+#          prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
+#   mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
+#          obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
+#   
+#   mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
+#   mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
+#   mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
   
-  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
-  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
-  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
-  
-```
-
-
-```{r start no mohr fits}
-no_mohr.frame <- no_mohr.frame %>% dMf_reduce()
-
-no_mohr.frame[["pars"]] <- getParameters(no_mohr.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
-
-fit_job_no_mohr_broad_sampling <- runbg({
-  ncores <- detectFreeCores()
-  assign("ncores", ncores, pos = .GlobalEnv)
-
-  no_mohr.frame %>%
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-              sd = 4,
-              blather = F, cores = ncores, fits = 10*ncores)
-    }))
-}, machine = paste0("knecht", c(1,2,4)), filename = paste0("tmp_",tpaste0("fit_job_no_mohr_broad_sampling")), input = "no_mohr.frame")
-saveRDS(fit_job_no_mohr_broad_sampling, tpaste0("fit_job_no_mohr_broad_sampling.rds"))
+# Start fits no Mohr----
+# no_mohr.frame <- no_mohr.frame %>% dMf_reduce()
+# 
+# no_mohr.frame[["pars"]] <- getParameters(no_mohr.frame[["obj"]][[1]]) %>% are_names_of(0) %>% list
+# 
+# fit_job_no_mohr_broad_sampling <- runbg({
+#   ncores <- detectFreeCores()
+#   assign("ncores", ncores, pos = .GlobalEnv)
+# 
+#   no_mohr.frame %>%
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+#               sd = 4,
+#               blather = F, cores = ncores, fits = 10*ncores)
+#     }))
+# }, machine = paste0("knecht", c(1,2,4)), filename = paste0("tmp_",tpaste0("fit_job_no_mohr_broad_sampling")), input = "no_mohr.frame")
+# saveRDS(fit_job_no_mohr_broad_sampling, tpaste0("fit_job_no_mohr_broad_sampling.rds"))
 ```
 
 ## get and analyze fits without mohr and albert_caps
@@ -869,133 +866,27 @@ saveRDS(fit_job_no_mohr_broad_sampling, tpaste0("fit_job_no_mohr_broad_sampling.
 ```{r get no mohr fits}
 # fit_job_no_mohr_broad_sampling <- readRDS("2018_04_01_19_58_fit_job_no_mohr_broad_sampling.rds")
 # no_mohr.frame$fits <- fit_job_no_mohr_broad_sampling$get() %>% map("fits") %>% map(1) %>%  Reduce(c.parlist,.) %>% list()
-# saveRDS(no_mohr.frame, tpaste0("fits_no_mohr_broad_sampling.rds"))
+# saveRDS(no_mohr.frame, tpaste0("fits_no_mohr_broad_sampling.rds")) # "2018_04_01_20_34_fits_no_mohr_broad_sampling.rds"
 no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
 ```
-
 
 ```{r expand no mohr fits}
 no_mohr.frame <- no_mohr.frame %>% 
   dMf_expand_fits()
-```
 
-```{r no mohr plot values}
 no_mohr.frame$parframes %>% .[[1]] %>% .[1:100] %>% plotValues()
-```
 
-```{r}
 no_mohr.frame$parframes %>% .[[1]] %>% .[1:50] %>% plotPars()
-```
-
-```{r}
-cond_apap <- apapbicmet.frame$obj[[1]]
 
 plotCombined(no_mohr.frame$best_prediction[[1]], data  = no_mohr.frame$data[[1]], name  %in% names(observables_bic))
-
 ```
 
 # Profile Likelihoods
 
-# PL no Mohr, no albert
-```{r, dependson="setup"}
-load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
-no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds") %>% dMf_expand_fits()
 
-rbind(no_mohr.frame, bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
-```
+## Profile Likelihood with three different settings on no_mohr.frame
 
 
-```{r}
-profile_job_no_mohr <- runbg({
-  ncores <- detectFreeCores()
-  assign("ncores", ncores, pos = .GlobalEnv)
-
-  no_mohr.frame %>%
-    mutate(profiles = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
-      profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
-    }))
-}, machine = paste0("knecht", c(1)), filename = paste0("tmp_",tpaste0("profile_job_no_mohr")), input = "no_mohr.frame")
-saveRDS(profile_job_no_mohr, tpaste0("profile_job_no_mohr.rds"))
-```
-
-
-
-
-## PL no Mohr, no albert, fixed errorpars
-```{r, dependson="setup"}
-load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
-no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
-
-rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
-no_mohr.frame %>% .$obj %>% walk(loadDLL)
-no_mohr.frame <- no_mohr.frame %>% dMf_expand_fits()
-```
-
-
-```{r}
-profile_job_no_mohr_fix_error_pars <- runbg({
-  ncores <- detectFreeCores()
-  assign("ncores", ncores, pos = .GlobalEnv)
-  
-  no_mohr.frame %>%
-    mutate(hypothesis = "No albert_caps and mohr, Profiles with fixed error pars") %>% 
-    mutate(profiles = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
-      
-      fixedPars <- best_parvec[[i]] %>% .[str_detect(names(.),"^S")] 
-      assign("fixed_pars", fixedPars, pos = .GlobalEnv)
-      
-      whichPars <- best_parvec[[i]][setdiff(names(best_parvec[[i]]), names(fixed_pars)) ]
-      assign("which_pars", whichPars, pos = .GlobalEnv)
-
-      profile(obj = fit_obj, pars = which_pars, whichPar = names(which_pars), cores = ncores, fixed = fixed_pars)
-    }))
-}, machine = paste0("knecht", c(2)), filename = paste0("tmp_",tpaste0("profile_job_no_mohr_fix_error_pars")), input = "no_mohr.frame")
-saveRDS(profile_job_no_mohr_fix_error_pars, tpaste0("profile_job_no_mohr_fix_error_pars.rds"))
-```
-
-
-
-
-## PL no Mohr, no albert, fiix errorpars, bigger stepsize
-```{r, dependson="setup"}
-load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
-no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
-
-rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
-no_mohr.frame %>% .$obj %>% walk(loadDLL)
-no_mohr.frame <- no_mohr.frame %>% dMf_expand_fits()
-```
-
-
-```{r}
-profile_job_no_mohr_fix_error_pars_bigger_stepsize <- runbg({
-  ncores <- detectFreeCores()
-  assign("ncores", ncores, pos = .GlobalEnv)
-  
-  no_mohr.frame %>%
-    mutate(hypothesis = "No albert_caps and mohr, Profiles with fixed error pars, bigger stepsize") %>% 
-    mutate(profiles = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
-      
-      fixedPars <- best_parvec[[i]] %>% .[str_detect(names(.),"^S")] 
-      assign("fixed_pars", fixedPars, pos = .GlobalEnv)
-      
-      whichPars <- best_parvec[[i]][setdiff(names(best_parvec[[i]]), names(fixed_pars)) ]
-      assign("which_pars", whichPars, pos = .GlobalEnv)
-
-      profile(obj = fit_obj, pars = which_pars, whichPar = names(which_pars), cores = ncores, fixed = fixed_pars, stepControl = list(stepsize = 1e-3, min = 1e-3, limit = 80), optControl = list(iterlim = 8))
-    }))
-}, machine = paste0("knecht", c(3)), filename = paste0("tmp_",tpaste0("profile_job_no_mohr_fix_error_pars")), input = "no_mohr.frame")
-saveRDS(profile_job_no_mohr_fix_error_pars_bigger_stepsize, tpaste0("profile_job_no_mohr_fix_error_pars_bigger_stepsize.rds"))
-```
-
-
-## Get all three profiles
 ```{r, dependson="setup"}
 load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
 no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds") 
