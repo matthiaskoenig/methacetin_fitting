@@ -881,29 +881,15 @@ no_mohr.frame$parframes %>% .[[1]] %>% .[1:50] %>% plotPars()
 plotCombined(no_mohr.frame$best_prediction[[1]], data  = no_mohr.frame$data[[1]], name  %in% names(observables_bic))
 ```
 
-# Profile Likelihoods
-
-
-## Profile Likelihood with three different settings on no_mohr.frame
-
+# Profile Likelihood with three different settings on no_mohr.frame
 
 ```{r, dependson="setup"}
 load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
 no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds") 
-
 list(no_mohr.frame, apapbicmet.frame) %>% walk(. %>% .$obj %>% walk(loadDLL))
 
 no_mohr.frame <- no_mohr.frame %>% dMf_expand_fits()
-# profile_jobs <- c("2018_04_01_20_51_profile_job_no_mohr.rds", "2018_04_02_00_27_profile_job_no_mohr_fix_error_pars.rds", "2018_04_02_01_09_profile_job_no_mohr_fix_error_pars_bigger_stepsize.rds")
-# 
-# profile.frame <- map(profile_jobs, function(i) {
-#   myjob <- readRDS(i)
-#   myframe <- myjob$get()[[1]]
-# })
-# profile.frame <- profile.frame %>% do.call(rbind,.)
-# saveRDS(profile.frame, tpaste0("profile.frame_no_mohr.rds"))
-
-profile.frame <- readRDS("2018_04_02_10_35_profile.frame_no_mohr.rds")
+profile.frame <- readRDS("2018_04_02_19_40_profile.frame.rds")
 ```
 
 
@@ -919,51 +905,6 @@ flat: cyp1a2_km_met, kbo_relco2, errorpars
 ```{r}
 profile.frame$profiles %>% .[3] %>%  map(plotProfile) %>% .[[1]] +geom_smooth()
 ```
-
-
-Seems as if KBO_RELCO2 and KBO_FIXCO2 are dependent on each other
-Also, CYP1A2_KM_MET appears to change always, but since this parameter is so small anyway, I'll just fix it in the next profiles.
-```{r}
-profile.frame$profiles  %>% .[1] %>% map(. %>% plotPaths(whichPar =11))
-```
-
-
-## start some more profiles with more fixed pars
-Fix CYP1A2MET_KM_MET and KBO_FIXCO2
-```{r start profiles with more fixed pars}
-# profile_job_no_mohr_fix_more_pars <- runbg({
-#   ncores <- detectFreeCores()
-#   assign("ncores", ncores, pos = .GlobalEnv)
-#   
-#   
-#   
-#   no_mohr.frame %>%
-#     mutate(hypothesis = "No albert_caps and mohr, Profiles with fixed error pars") %>% 
-#     mutate(profiles = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
-#       
-#       fixedPars <- best_parvec[[i]] %>% .[str_detect(names(.),"^S")] 
-#       fixedPars <- c(fixedPars, best_parvec[[i]][c("KBO_FIXCO2", "CYP1A2MET_KM_MET")])
-#       assign("fixed_pars", fixedPars, pos = .GlobalEnv)
-#       
-#       whichPars <- best_parvec[[i]][setdiff(names(best_parvec[[i]]), names(fixed_pars)) ]
-#       assign("which_pars", whichPars, pos = .GlobalEnv)
-# 
-#       profile(obj = fit_obj, pars = which_pars, whichPar = names(which_pars), cores = ncores, fixed = fixed_pars)
-#     }))
-# }, machine = paste0("knecht", c(2)), filename = paste0("tmp_",tpaste0("profile_job_no_mohr_fix_error_pars")), input = "no_mohr.frame")
-# saveRDS(profile_job_no_mohr_fix_more_pars, tpaste0("profile_job_no_mohr_fix_more_pars.rds"))
-
-# profile_job_no_mohr_fix_more_pars <- readRDS("2018_04_02_11_11_profile_job_no_mohr_fix_more_pars.rds")
-# profile.frame <- rbind(profile.frame, profile_job_no_mohr_fix_more_pars$get()[[1]])
-# profile.frame$hypothesis[4] <- "No_mohr, fix errorpars, KBO_FIXCO2 and CYP1A2MET_KM_MET"
-# profile.frame %>% saveRDS(tpaste0("profile.frame.rds"))
-
-profile.frame <- readRDS("2018_04_02_19_40_profile.frame.rds")
-```
-
-
 
 ```{r}
 profile.frame$profiles %>% .[[4]] %>% plotProfile()
