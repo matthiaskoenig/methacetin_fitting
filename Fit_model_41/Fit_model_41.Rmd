@@ -917,7 +917,6 @@ profile.frame$profiles %>% .[[4]] %>% plotProfile()
 # Fit with prior around pars_raw, srel = -1, s0 = -2
 ```{r, dependson="setup"}
 load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
-no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
 
 rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
 no_mohr.frame %>% .$obj %>% walk(loadDLL)
@@ -1046,14 +1045,126 @@ prior.frame <- readRDS("2018_04_06_13_50_prior.frame_with_profiles.rds")
 ```
 
 
+Looking at the profiles, some of the parameters are really far off their original values, whereas many can be determined quite well from the data.
+
+Prior were good guesses for
+  KA_APAP, offset_bic
+
+APAPD_HLM_CL, APAPD_KM_APAP, CO2FIX_HLM_CL, CYP1A2MET_CL, 
+    CYP1A2MET_KM_MET, , KA_CO2C13, KA_METC13, KBO_FIXCO2, 
+    KBO_MAXCO2, KBO_RELCO2, KLU_EXCO2, offset_bic
+
+I think, data is contributing enough for the following parameters, so the prior is not needed for them anymore
+  APAPD_HLM_CL, APAPD_KM_APAP, KA_APAP
 
 
 
+```{r}
+prior.frame$obj[[1]] %>% getParameters() %>% map(as.name) %>% unlist %>% dput
+```
 
 
+```{r}
+prior.frame$profiles %>% 
+  plotProfile() + 
+  coord_cartesian(ylim = c(-2, 4))
+```
+
+No comment on the paths yet.
+```{r}
+prior.frame$profiles %>% plotPaths(whichPar = "KBO_FIXCO2")
+```
+
+The plotCombined looks much better with weaker priors!
+```{r}
+prior.frame$obj %>% walk(loadDLL)
+# prior.frame %>% plotCombined.dMod.frame(hypothesis = 4)
+# map(1:4, . %>% plotCombined.dMod.frame(prior.frame, hypothesis = .))
+```
 
 
+# Run one fit with even weaker prior
+```{r, dependson="setup"}
+load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
 
+rbind(bicmet.frame, apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
+```
+
+```{r fix errorpars}
+# s0 <- paste(c("S0"), c("CUM_REC_METC13", "DOB", "P_CO2F"), sep = "_")
+# srel <- paste(c("SREL"), c("CUM_REC_METC13", "DOB", "P_CO2F"), sep = "_")
+# trafo_sigma_set <- trafo_apapbicmet_sigma_NA %>%
+#   insert("x~-1", x = srel) %>%
+#   insert("x~-2", x = s0)
+# 
+# p_sig <- P(trafo_sigma_set, modelname = "p_apapbicmet_sigma_set_2", compile = F)
+# compile(p_sig, output = "p_apapbicmet_sigma_set")
+saveRDS(p_sig, "p_sig_2.rds")
+p_sig <- readRDS("p_sig_2.rds")
+```
+
+```{r setup prior}
+getParameters(p_sig)
+
+myindices <- pars_raw %>% names %>% toupper() %>% {which(. %in% getParameters(p_sig))}
+
+prior_mu <- log(pars_raw[myindices])
+names(prior_mu) <- toupper(names(prior_mu))
+
+```
+
+```{r setup prior.frame}
+prior.frame_weak <- apapbicmet.frame
+prior.frame_weak[["hypothesis"]] <- "srel = -1,s0=-2, prior_sigma ="
+
+prior.frame_weak[["p_sig"]] <- list(p_sig)
+
+prior.frame_weak <- prior.frame_weak %>% 
+  mutate(data_0 = map(data_0, . %>% 
+                        .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>% 
+                        .[!(names(.) %>% str_detect("Mohr"))])) %>% 
+  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
+         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
+  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
+         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
+  
+  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
+  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
+  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
+  
+
+prior.frame_weak <- rbind(prior.frame_weak, prior.frame_weak) %>% 
+  mutate(obj = map(c(1:2), function(i) {
+    {obj[[i]] + constraintL2(prior_mu, sigma = i*5)}
+  })) %>% 
+  mutate(hypothesis = map_chr(c(1:2), function(i) paste0(hypothesis[i], i*5)))
+prior.frame_weak[["pars"]] <- map(1:2, function(i) c(prior_mu, offset_bic = -0.011))
+```
+
+```{r}
+fit_with_weaker_prior <- runbg({
+  ncores <- detectFreeCores()
+  assign("ncores", ncores, pos = .GlobalEnv)
+  
+  prior.frame_weak %>% 
+  mutate(fits = map(seq_along(x), function(i) {
+    assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+    assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+    assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+    mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+            sd = 3,
+            blather = F, cores = ncores, fits = 10*ncores)
+  }))
+},  machine = c(paste0("knecht", 3:4), paste0("ruprecht",1:2)), input = "prior.frame_weak", filename = "2018_04_12_18_28_fit_with_weaker_prior_runbg")
+saveRDS(fit_with_weaker_prior, file = "2018_04_12_18_28_fit_with_weaker_prior.rds")
+# fit_with_weaker_prior <- readRDS("2018_04_12_18_28_fit_with_weaker_prior.rds")
+# fit_with_weaker_prior$check()
+# wait_for_runbg(fit_with_weaker_prior)
+# fit_with_weaker_prior_results <- fit_with_weaker_prior$get()
+# saveRDS(fit_with_weaker_prior_results, file = "2018_04_12_18_28_fit_with_weaker_prior_results.rds")
+# fit_with_weaker_prior$purge()
+# fit_with_weaker_prior <- readRDS("2018_04_12_18_28_fit_with_weaker_prior_results.rds")
+```
 
 
 
