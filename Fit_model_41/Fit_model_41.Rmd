@@ -136,6 +136,16 @@ data <- rbind(some_na, none_or_all_na) %>%
   select(-n)
 
 supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
+
+# data %>% 
+#   group_by(study, group, name) %>% 
+#   mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
+#   filter(!sna == nna) %>% 
+#   select(-sna, -nna) %>% 
+#   as.data.frame() %>% 
+#   fitErrorModel(factors = fitErrorModel_factors, plotting = T, blather = F)
+# ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/Errormodels.png")
+
 ```
 
 
@@ -1083,7 +1093,7 @@ prior.frame$obj %>% walk(loadDLL)
 ```
 
 
-# Run one fit with even weaker prior
+# Run one fit with weak prior
 ```{r, dependson="setup"}
 load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
 
@@ -1142,38 +1152,113 @@ prior.frame_weak[["pars"]] <- map(1:2, function(i) c(prior_mu, offset_bic = -0.0
 ```
 
 ```{r}
-fit_with_weaker_prior <- runbg({
-  ncores <- detectFreeCores()
-  assign("ncores", ncores, pos = .GlobalEnv)
-  
-  prior.frame_weak %>% 
-  mutate(fits = map(seq_along(x), function(i) {
-    assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-    assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-    assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-    mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-            sd = 3,
-            blather = F, cores = ncores, fits = 10*ncores)
-  }))
-},  machine = c(paste0("knecht", 3:4), paste0("ruprecht",1:2)), input = "prior.frame_weak", filename = "2018_04_12_18_28_fit_with_weaker_prior_runbg")
-saveRDS(fit_with_weaker_prior, file = "2018_04_12_18_28_fit_with_weaker_prior.rds")
+# fit_with_weaker_prior <- runbg({
+#   ncores <- detectFreeCores()
+#   assign("ncores", ncores, pos = .GlobalEnv)
+#   
+#   prior.frame_weak %>% 
+#   mutate(fits = map(seq_along(x), function(i) {
+#     assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#     assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#     assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#     mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
+#             sd = 3,
+#             blather = F, cores = ncores, fits = 10*ncores)
+#   }))
+# },  machine = c(paste0("knecht", 3:4), paste0("ruprecht",1:2)), input = "prior.frame_weak", filename = "2018_04_12_18_28_fit_with_weaker_prior_runbg")
+# saveRDS(fit_with_weaker_prior, file = "2018_04_12_18_28_fit_with_weaker_prior.rds")
 # fit_with_weaker_prior <- readRDS("2018_04_12_18_28_fit_with_weaker_prior.rds")
 # fit_with_weaker_prior$check()
 # wait_for_runbg(fit_with_weaker_prior)
 # fit_with_weaker_prior_results <- fit_with_weaker_prior$get()
 # saveRDS(fit_with_weaker_prior_results, file = "2018_04_12_18_28_fit_with_weaker_prior_results.rds")
 # fit_with_weaker_prior$purge()
-# fit_with_weaker_prior <- readRDS("2018_04_12_18_28_fit_with_weaker_prior_results.rds")
+fit_with_weaker_prior <- readRDS("2018_04_12_18_28_fit_with_weaker_prior_results.rds")
+```
+
+```{r}
+myfits <-
+  map(fit_with_weaker_prior, "fits") %>% 
+  transpose() %>% 
+  map(. %>% Reduce(c.parlist,.)) 
+prior.frame_weak <- fit_with_weaker_prior[[1]]
+prior.frame_weak$fits <- myfits
+```
+
+
+```{r}
+prior.frame_weak$obj %>% walk(loadDLL)
+prior.frame_weak <- prior.frame_weak %>% dMf_expand_fits() #%>% dMf_append_plots(index = 1:400)
+
+prior.frame$obj %>% walk(loadDLL)
+prior.frame$prd <- map(1:4, function(i) prior.frame_weak$prd[[1]])
+prior.frame <- prior.frame %>% dMf_expand_fits() %>% dMf_append_plots()
+
+```
+
+Seems as if there are some decent steps this time
+```{r}
+prior.frame$plot_value
+prior.frame_weak %>% str1
+```
+
+## profiles with weak prior
+```{r}
+# profiles_weak_prior_job <- runbg({
+#     ncores <- detectFreeCores()
+#     assign("ncores", ncores, pos = .GlobalEnv)
+#   
+#   prior.frame_weak %>%
+#     mutate(profiles = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
+#       
+#       profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
+#     }))
+# },  machine = c(paste0("ruprecht", 1)), input = "prior.frame_weak", filename = "2018_04_13_12_56_profiles_weak_prior_job_runbg")
+# saveRDS(profiles_weak_prior_job, file = "2018_04_13_12_56_profiles_weak_prior_job.rds")
+# profiles_weak_prior_job <- readRDS("2018_04_13_12_56_profiles_weak_prior_job.rds")
+# profiles_weak_prior_job$check()
+# wait_for_runbg(profiles_weak_prior_job, delta_t = 60)
+# beepr::beep()
+# profiles_weak_prior_job_results <- profiles_weak_prior_job$get()
+# saveRDS(profiles_weak_prior_job_results, file = "2018_04_13_12_56_profiles_weak_prior_job_results.rds")
+# profiles_weak_prior_job$purge()
+profiles_weak_prior <- readRDS("2018_04_13_12_56_profiles_weak_prior_job_results.rds")
+```
+
+
+```{r}
+prior.frame_weak <- profiles_weak_prior$ruprecht1
+prior.frame_weak$obj %>% walk(loadDLL)
+
+prior.frame <- readRDS("2018_04_06_13_50_prior.frame_with_profiles.rds")
+prior.frame$obj %>% walk(loadDLL)
+prior.frame$prd <- map(1:4, function(i) prior.frame_weak$prd[[1]])
+```
+
+
+The profiles of the weak fits are really bad and again slip into the trap with CYP1A2MET_KM_MET going to zero.
+```{r}
+c(prior.frame$profiles, prior.frame_weak$profiles)%>% plotProfile() +
+  coord_cartesian(ylim = c(-2, 4)) + 
+  # scale_color_brewer() +
+  geom_blank()
+# ggplotly()
+```
+
+```{r}
+prior.frame %>% dMf_expand_fits() %>% {.$parframes <- map(.$parframes, . %>% .[1:400]);.} %>%  dMf_append_plots() %>% .$plot_value
 ```
 
 
 
+# combine prior.frame and prior.frame_weak
 
+Next plan is to analyze the prior.frames at their respective optimum.
 
+Qeustion: Which conditions push the parameter CYP1A2MET_KM_MET to -Inf?
+```{r}
 
-
-
-
-
-
+```
 
