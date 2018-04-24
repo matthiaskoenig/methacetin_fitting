@@ -13,9 +13,9 @@ knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(fig.height = 10)
 knitr::opts_chunk$set(fig.width = 15)
 library(dMod)
-library(stringr) # Um bequem mit strings zu arbeiten
-library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für schöne plots
-library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
+# library(stringr) # Um bequem mit strings zu arbeiten
+# library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für schöne plots
+# library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
 library(conveniencefunctions)
 ```
 
@@ -597,7 +597,7 @@ save.image(tpaste0("workspace_with_dMod.frames.rda"))
 
 # Fit with prior around pars_raw, srel = -1, s0 = -2
 ```{r, dependson="setup"}
-load("2018_04_23_13_03_workspace_with_dMod.frames.rda")
+load("2018_04_23_16_57_workspace_with_dMod.frames.rda")
 apapbicmet.frame %>% .$obj %>% walk(loadDLL)
 ```
 
@@ -728,7 +728,7 @@ prior.frame[["pars"]] <- map(1:4, function(i) c(prior_mu, offset_bic = -0.011))
 # profile_jobs_prior <- readRDS("2018_04_02_23_22_profile_jobs_prior.rds")
 # prior.frame <- profile_jobs_prior %>% map(. %>% {.$get()} %>% .[[1]]) %>% do.call(rbind,.)
 # saveRDS(prior.frame %>% shrink_fits() %>% shrink_plots(), tpaste0("prior.frame_with_profiles.rds")) # "2018_04_06_13_50_prior.frame_with_profiles.rds"
-# prior.frame_old <- readRDS("2018_04_06_13_50_prior.frame_with_profiles.rds")
+# prior.frame <- readRDS("2018_04_06_13_50_prior.frame_with_profiles.rds")
 ```
 
 
@@ -779,36 +779,36 @@ The plotCombined looks much better with weaker priors!
 ```
 
 
-```{r setup prior.frame}
-# prior.frame_weak <- apapbicmet.frame
-# prior.frame_weak[["hypothesis"]] <- "srel = -1,s0=-2, prior_sigma ="
-# 
-# prior.frame_weak[["p_sig"]] <- list(p_sig)
-# 
-# prior.frame_weak <- prior.frame_weak %>% 
-#   mutate(data_0 = map(data_0, . %>% 
-#                         .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>% 
-#                         .[!(names(.) %>% str_detect("Mohr"))])) %>% 
-#   mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
-#          prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
-#   mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
-#          obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
-#   
-#   mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
-#   mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
-#   mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
-#   
-# 
-# prior.frame_weak <- rbind(prior.frame_weak, prior.frame_weak) %>% 
-#   mutate(obj_data = obj) %>% 
-#   mutate(constr = map(seq_along(x), function(i) {
-#     {constraintL2(prior_mu, sigma = i*5)}
-#   })) %>% 
-#   mutate(obj = map(seq_along(x), function(i) {
-#     obj_data[[i]]+constr[[i]]
-#   })) %>% 
-#   mutate(hypothesis = map_chr(c(1:2), function(i) paste0(hypothesis[i], i*5)))
-# prior.frame_weak[["pars"]] <- map(1:2, function(i) c(prior_mu, offset_bic = -0.011))
+```{r setup prior.frame_weak}
+prior.frame_weak <- apapbicmet.frame
+prior.frame_weak[["hypothesis"]] <- "srel = -1,s0=-2, prior_sigma ="
+
+prior.frame_weak[["p_sig"]] <- list(p_sig)
+
+prior.frame_weak <- prior.frame_weak %>%
+  mutate(data_0 = map(data_0, . %>%
+                        .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>%
+                        .[!(names(.) %>% str_detect("Mohr"))])) %>%
+  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
+         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>%
+  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
+         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>%
+
+  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>%
+  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>%
+  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]]))
+
+
+prior.frame_weak <- rbind(prior.frame_weak, prior.frame_weak) %>%
+  mutate(obj_data = obj) %>%
+  mutate(constr = map(seq_along(x), function(i) {
+    {constraintL2(prior_mu, sigma = i*5)}
+  })) %>%
+  mutate(obj = map(seq_along(x), function(i) {
+    obj_data[[i]]+constr[[i]]
+  })) %>%
+  mutate(hypothesis = map_chr(c(1:2), function(i) paste0(hypothesis[i], i*5)))
+prior.frame_weak[["pars"]] <- map(1:2, function(i) c(prior_mu, offset_bic = -0.011))
 ```
 
 ```{r fit and profiles weak prior}
@@ -887,7 +887,7 @@ The plotCombined looks much better with weaker priors!
 # profiles_weak_prior_job_results <- profiles_weak_prior_job$get()
 # saveRDS(profiles_weak_prior_job_results, file = "2018_04_13_12_56_profiles_weak_prior_job_results.rds")
 # profiles_weak_prior_job$purge()
-# prior.frame_weak_old <- readRDS("2018_04_13_12_56_profiles_weak_prior_job_results.rds")$ruprecht1
+# prior.frame_weak <- readRDS("2018_04_13_12_56_profiles_weak_prior_job_results.rds")$ruprecht1
 ```
 
 
@@ -895,49 +895,136 @@ The plotCombined looks much better with weaker priors!
 # Reconcile fit results with new .c-files
 I had the trouble that there was a random string attached to the function names in the .c-files, so when I let the script run again, these changed and the saved objects couldn't find their functions anymore in the DLLs. This is now fixed
 ```{r}
-# prior.frame <- prior.frame %>% 
+# prior.frame_old <- readRDS("2018_04_06_13_50_prior.frame_with_profiles.rds")
+# prior.frame <- prior.frame %>%
 #   add_column(parframes = prior.frame_old$parframes,
 #              profiles = prior.frame_old$profiles)
 # 
-# prior.frame_weak <- prior.frame_weak %>% 
+# prior.frame_weak_old <- readRDS("2018_04_13_12_56_profiles_weak_prior_job_results.rds")$ruprecht1
+# prior.frame_weak <- prior.frame_weak %>%
 #   add_column(parframes = prior.frame_weak_old$parframes,
 #     profiles = prior.frame_weak_old$profiles)
-
+# 
 # saveRDS(rbind(prior.frame, prior.frame_weak), file = tpaste0("prior.frame_full.rds"))
-# prior.frame <- readRDS("2018_04_23_13_36_prior.frame_full.rds")
+# prior.frame <- readRDS("2018_04_23_17_00_prior.frame_full.rds")
 
 ```
 
 
 # Look at results
 ```{r}
-prior.frame <- readRDS("2018_04_23_13_36_prior.frame_full.rds")
+prior.frame <- readRDS("2018_04_23_17_00_prior.frame_full.rds")
 prior.frame$obj %>% walk(loadDLL)
 ```
 
 
-
 The profiles of the weak fits are really bad and again slip into the trap with CYP1A2MET_KM_MET going to zero.
+This again results in the profiles being wiggly and not reaching the limits.
+Description of the profiles and further thoughts:
+* Profiles for which I think the prior can definitely be removed:
+    1. APAPD_HLM_CL
+    1. APAP_KM_APAP
+    1. KLU_EXCO2C13
+* 
 ```{r}
-prior.frame %>% plotProfile(1) +
-  # coord_cartesian(ylim = c(-2, 4)) + 
+prior.frame$profiles %>% 
+  plotProfile() +
+  coord_cartesian(ylim = c(-2, 4)) +
   # scale_color_brewer() +
   geom_blank()
 # ggplotly()
 ```
 
+
+## Question: Which conditions push the parameter CYP1A2MET_KM_MET to -Inf?
 ```{r}
-prior.frame %>% dMf_expand_fits() %>% {.$parframes <- map(.$parframes, . %>% .[1:400]);.} %>%  dMf_append_plots() %>% .$plot_value
+prior.frame <-
+  prior.frame %>% 
+  rowwise() %>% 
+  mutate(condwise_data = list(obj_condition_wise(obj_data, parframes %>% as.parvec)),
+         condwise_sum = list(obj_condition_wise(obj, parframes %>% as.parvec)),
+         condwise_constr = list(obj_condition_wise(constr, parframes %>% as.parvec)))
+```
+
+Look at the conditions in hypothesis 4
+```{r}
+unnest_name <- function(myframe, unique = "condition", unnest_var = "gradient") {
+  myframe_2 <- myframe %>% .[c(unique, unnest_var)]
+  myframe_2 <- myframe_2 %>% apply(1, function(i) {
+    tibble(condition = i[[unique]], grad_value = unlist(i[[unnest_var]]), grad_name = unlist(names(i[[unnest_var]])))
+  }) %>% do.call(rbind,.)
+  
+  left_join(myframe, myframe_2)
+}
+
+prior.frame$condwise_data[[4]] %>% 
+  do.call(rbind,.) %>% 
+  unnest_name() %>% 
+  ggplot(aes(y = grad_name, x = grad_value, color = condition)) + 
+  geom_point()
+
+# ggplotly()
+
+
+git_add_dMod.frame("2018_04_23_17_00_prior.frame_full.rds")
+
+```
+
+```{r}
+prior.frame$condwise_data[[4]] %>% 
+  do.call(rbind,.) %>% 
+  unnest_name() %>% 
+  group_by(grad_name) %>%
+  mutate(sum_val = sum(grad_value)) %>% 
+  ggplot(aes(y = grad_name, x = sum_val, color = condition)) + 
+  geom_point()
+```
+
+```{r}
+prior.frame$condwise_sum[[4]] %>% 
+  do.call(rbind,.) %>% 
+  unnest_name() %>% 
+  group_by(grad_name) %>%
+  mutate(sum_val = sum(grad_value)) %>% 
+  arrange(desc(sum_val), grad_name)
+  ggplot(aes(y = grad_name, x = sum_val, color = condition)) + 
+  geom_point()
+```
+
+```{r}
+prior.frame <- prior.frame %>% 
+  mutate(val_sum = list(obj(parframes %>% as.parvec)),
+         val_data = list(obj_data(parframes %>% as.parvec)),
+         val_constr = list(constr(parframes %>% as.parvec)))
+```
+
+```{r}
+prior.frame$val_sum[[4]]$gradient
+```
+
+
+```{r}
+# myframe <- prior.frame$condwise[[4]] %>% 
+#   do.call(rbind,.) 
+
+
+unnest_name(myframe) %>% print
+
+
 ```
 
 
 
-# combine prior.frame and prior.frame_weak
 
-Next plan is to analyze the prior.frames at their respective optimum.
 
-Qeustion: Which conditions push the parameter CYP1A2MET_KM_MET to -Inf?
-```{r}
 
-```
+
+
+
+
+
+
+
+
+
 
