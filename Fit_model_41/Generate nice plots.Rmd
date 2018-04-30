@@ -18,13 +18,13 @@ library(conveniencefunctions)
 
 ```{r, dependson="setup", eval=FALSE}
 load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
-no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
+# no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
+# 
+# rbind(apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
+# no_mohr.frame %>% .$obj %>% walk(loadDLL)
+# no_mohr.frame <- no_mohr.frame %>% dMf_expand_fits()
 
-rbind(apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
-no_mohr.frame %>% .$obj %>% walk(loadDLL)
-no_mohr.frame <- no_mohr.frame %>% dMf_expand_fits()
-
-prior.frame <- readRDS("2018_04_02_23_55_prior.frame.rds")
+prior.frame <- readRDS("2018_04_23_17_00_prior.frame_full.rds")
 prior.frame %>% .$obj %>% walk(loadDLL)
 
 ```
@@ -32,7 +32,7 @@ prior.frame %>% .$obj %>% walk(loadDLL)
 # Prepare conditions
 
 ```{r prepare condition legends}
-conditions_all <- apapbicmet.frame$data %>% .[[1]] %>% names
+conditions_all <- prior.frame$data %>% .[[1]] %>% names
 
 condition_split <- conditions_all %>% str_split("_", simplify = T) %>% .[,1:3]%>% as.tibble() %>% 
   mutate(V3na = is.na(as.numeric(V3))) %>% 
@@ -79,6 +79,33 @@ obs_df <- map(drugs, function(dr) {
 checkout_hypothesis(apapbicmet.frame,  1, "abm")
 checkout_hypothesis(prior.frame, 4, "pr")
 ```
+
+```{r}
+myplot <- plotCombined(prior.frame,4,1) %>% attributes() 
+
+myplot$data$prediction %>% 
+  ggplot(aes(x = time, y = value, color = condition)) + 
+  geom_line() +
+  facet_wrap("name", scale = "free", nrow = 3)+
+  
+  geom_point(data = myplot$data$data, size = 0.5)+ 
+  geom_errorbar(data = myplot$data$data, aes(ymin = value - sigma, ymax = value + sigma))+
+  theme_dMod()+
+  
+  
+  # scale_color_dMod(guide = F) +
+  scale_color_hue(guide = F)+
+  # guide_colorbar()
+  
+  ggtitle("") +
+  ylab("Concentration [a.u.]") +
+  xlab("Time [min]")+
+  geom_blank()
+
+ggsave("~/Promotion/Writing/Conferences/2018 05 LiSym Mannheim midterm evaluation/pics/Limax_all.png", width = 4, height = 6)
+```
+
+
 
 ## apap-plots
 ```{r}
@@ -527,7 +554,13 @@ ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 
 ```{r}
 myplot <- prprofiles %>% plotProfile() + coord_cartesian(ylim = c(-.2,4))
 
-ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/profiles.png", width = 10, height = 6)
+prior.frame$profiles[[4]] %>% 
+  filter(!str_detect(whichPar, "offset")) %>% 
+  list() %>% 
+  plotProfile() + 
+  coord_cartesian(ylim = c(-.2,4))
+
+ggsave(filename  = "~/Promotion/Writing/Conferences/2018 05 LiSym Mannheim midterm evaluation/pics/Limaxprofiles.png", width = 6, height = 5)
 ```
 
 
