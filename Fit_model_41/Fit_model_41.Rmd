@@ -1,5 +1,5 @@
 ---
-title: "Fitting model 39"
+title: "Fitting model 41"
 output: 
   html_document:
     toc: TRUE
@@ -597,61 +597,61 @@ save.image(tpaste0("workspace_with_dMod.frames.rda"))
 
 # Fit with prior around pars_raw, srel = -1, s0 = -2
 ```{r, dependson="setup"}
-load("2018_04_23_16_57_workspace_with_dMod.frames.rda")
-apapbicmet.frame %>% .$obj %>% walk(loadDLL)
+# load("2018_04_23_16_57_workspace_with_dMod.frames.rda")
+# apapbicmet.frame %>% .$obj %>% walk(loadDLL)
 ```
 
 ```{r fix errorpars}
-s0 <- paste(c("S0"), c("CUM_REC_METC13", "DOB", "P_CO2F"), sep = "_")
-srel <- paste(c("SREL"), c("CUM_REC_METC13", "DOB", "P_CO2F"), sep = "_")
-trafo_sigma_set <- trafo_apapbicmet_sigma_NA %>% 
-  insert("x~-1", x = srel) %>% 
-  insert("x~-2", x = s0)
-
-p_sig <- P(trafo_sigma_set, modelname = "p_apapbicmet_sigma_set", compile = F)
-compile(p_sig, output = "p_apapbicmet_sigma_set")
-```
-
-```{r setup prior}
-getParameters(p_sig)
-
-myindices <- pars_raw %>% names %>% toupper() %>% {which(. %in% getParameters(p_sig))}
-
-prior_mu <- log(pars_raw[myindices])
-names(prior_mu) <- toupper(names(prior_mu))
+# s0 <- paste(c("S0"), c("CUM_REC_METC13", "DOB", "P_CO2F"), sep = "_")
+# srel <- paste(c("SREL"), c("CUM_REC_METC13", "DOB", "P_CO2F"), sep = "_")
+# trafo_sigma_set <- trafo_apapbicmet_sigma_NA %>% 
+#   insert("x~-1", x = srel) %>% 
+#   insert("x~-2", x = s0)
+# 
+# p_sig <- P(trafo_sigma_set, modelname = "p_apapbicmet_sigma_set", compile = F)
+# compile(p_sig, output = "p_apapbicmet_sigma_set")
+# ```
+# 
+# ```{r setup prior}
+# getParameters(p_sig)
+# 
+# myindices <- pars_raw %>% names %>% toupper() %>% {which(. %in% getParameters(p_sig))}
+# 
+# prior_mu <- log(pars_raw[myindices])
+# names(prior_mu) <- toupper(names(prior_mu))
 
 ```
 
 ```{r setup prior.frame}
-prior.frame <- apapbicmet.frame
-prior.frame[["hypothesis"]] <- "srel = -1,s0=-2, prior_sigma ="
-
-prior.frame[["p_sig"]] <- list(p_sig)
-
-prior.frame <- prior.frame %>% 
-  mutate(data_0 = map(data_0, . %>% 
-                        .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>% 
-                        .[!(names(.) %>% str_detect("Mohr"))])) %>% 
-  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
-         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
-  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
-         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
-  
-  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
-  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
-  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
-  
-
-prior.frame <- rbind(prior.frame, prior.frame, prior.frame, prior.frame) %>% 
-  mutate(obj_data = obj) %>% 
-  mutate(constr = map(seq_along(x), function(i) {
-    {constraintL2(prior_mu, sigma = 10^(i-4))}
-  })) %>% 
-  mutate(obj = map(seq_along(x), function(i) {
-    obj_data[[i]]+constr[[i]]
-  })) %>% 
-  mutate(hypothesis = map_chr(1:4, function(i) paste0(hypothesis[i], 10^(i-4))))
-prior.frame[["pars"]] <- map(1:4, function(i) c(prior_mu, offset_bic = -0.011))
+# prior.frame <- apapbicmet.frame
+# prior.frame[["hypothesis"]] <- "srel = -1,s0=-2, prior_sigma ="
+# 
+# prior.frame[["p_sig"]] <- list(p_sig)
+# 
+# prior.frame <- prior.frame %>% 
+#   mutate(data_0 = map(data_0, . %>% 
+#                         .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>% 
+#                         .[!(names(.) %>% str_detect("Mohr"))])) %>% 
+#   mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
+#          prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
+#   mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
+#          obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
+#   
+#   mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
+#   mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
+#   mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
+#   
+# 
+# prior.frame <- rbind(prior.frame, prior.frame, prior.frame, prior.frame) %>% 
+#   mutate(obj_data = obj) %>% 
+#   mutate(constr = map(seq_along(x), function(i) {
+#     {constraintL2(prior_mu, sigma = 10^(i-4))}
+#   })) %>% 
+#   mutate(obj = map(seq_along(x), function(i) {
+#     obj_data[[i]]+constr[[i]]
+#   })) %>% 
+#   mutate(hypothesis = map_chr(1:4, function(i) paste0(hypothesis[i], 10^(i-4))))
+# prior.frame[["pars"]] <- map(1:4, function(i) c(prior_mu, offset_bic = -0.011))
 ```
 
 ```{r test objfn}
@@ -780,35 +780,35 @@ The plotCombined looks much better with weaker priors!
 
 
 ```{r setup prior.frame_weak}
-prior.frame_weak <- apapbicmet.frame
-prior.frame_weak[["hypothesis"]] <- "srel = -1,s0=-2, prior_sigma ="
-
-prior.frame_weak[["p_sig"]] <- list(p_sig)
-
-prior.frame_weak <- prior.frame_weak %>%
-  mutate(data_0 = map(data_0, . %>%
-                        .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>%
-                        .[!(names(.) %>% str_detect("Mohr"))])) %>%
-  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
-         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>%
-  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
-         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>%
-
-  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>%
-  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>%
-  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]]))
-
-
-prior.frame_weak <- rbind(prior.frame_weak, prior.frame_weak) %>%
-  mutate(obj_data = obj) %>%
-  mutate(constr = map(seq_along(x), function(i) {
-    {constraintL2(prior_mu, sigma = i*5)}
-  })) %>%
-  mutate(obj = map(seq_along(x), function(i) {
-    obj_data[[i]]+constr[[i]]
-  })) %>%
-  mutate(hypothesis = map_chr(c(1:2), function(i) paste0(hypothesis[i], i*5)))
-prior.frame_weak[["pars"]] <- map(1:2, function(i) c(prior_mu, offset_bic = -0.011))
+# prior.frame_weak <- apapbicmet.frame
+# prior.frame_weak[["hypothesis"]] <- "srel = -1,s0=-2, prior_sigma ="
+# 
+# prior.frame_weak[["p_sig"]] <- list(p_sig)
+# 
+# prior.frame_weak <- prior.frame_weak %>%
+#   mutate(data_0 = map(data_0, . %>%
+#                         .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>%
+#                         .[!(names(.) %>% str_detect("Mohr"))])) %>%
+#   mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
+#          prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>%
+#   mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
+#          obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>%
+# 
+#   mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>%
+#   mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>%
+#   mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]]))
+# 
+# 
+# prior.frame_weak <- rbind(prior.frame_weak, prior.frame_weak) %>%
+#   mutate(obj_data = obj) %>%
+#   mutate(constr = map(seq_along(x), function(i) {
+#     {constraintL2(prior_mu, sigma = i*5)}
+#   })) %>%
+#   mutate(obj = map(seq_along(x), function(i) {
+#     obj_data[[i]]+constr[[i]]
+#   })) %>%
+#   mutate(hypothesis = map_chr(c(1:2), function(i) paste0(hypothesis[i], i*5)))
+# prior.frame_weak[["pars"]] <- map(1:2, function(i) c(prior_mu, offset_bic = -0.011))
 ```
 
 ```{r fit and profiles weak prior}
@@ -918,14 +918,13 @@ prior.frame$obj %>% walk(loadDLL)
 ```
 
 
-The profiles of the weak fits are really bad and again slip into the trap with CYP1A2MET_KM_MET going to zero.
+The profiles of the fits with weak prior are really bad and again slip into the trap with CYP1A2MET_KM_MET going to zero.
 This again results in the profiles being wiggly and not reaching the limits.
 Description of the profiles and further thoughts:
 * Profiles for which I think the prior can definitely be removed:
     1. APAPD_HLM_CL
     1. APAP_KM_APAP
     1. KLU_EXCO2C13
-* 
 ```{r}
 prior.frame$profiles %>% 
   plotProfile() +
@@ -988,7 +987,7 @@ prior.frame$condwise_sum[[4]] %>%
   mutate(sum_val = sum(grad_value)) %>% 
   arrange(desc(sum_val), grad_name)
   ggplot(aes(y = grad_name, x = sum_val, color = condition)) + 
-  geom_point()
+  geom_point() 
 ```
 
 ```{r}
