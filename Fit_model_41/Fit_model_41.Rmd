@@ -38,6 +38,7 @@ Read data, insert the default values for the parameters supplied in the data she
 * Taheri rausschmeißen zum Fitten: Wird weiter unten getan
 
 ```{r, message=FALSE}
+# Read data
 data <-
   read_tsv("../data/limax_pkpd_v41_data.csv") %>%
   select(-model) %>% 
@@ -45,7 +46,7 @@ data <-
   rename(n = subjects) %>% 
   unique() #noch matthias sagen, dass lalazar2008 doppelte einträge hat
 
-
+# For those studies where some data points have no sigma, infer it from the other sigmas of the same study
 fitErrorModel_factors <- c("study", "group", "name", "BW", "PODOSE_apap", "IVDOSE_apap", 
 "PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", 
 "IVDOSE_metc13", "ti_metc13")
@@ -67,17 +68,6 @@ none_or_all_na <- data %>%
 
 data <- rbind(some_na, none_or_all_na) %>% 
   select(-n)
-
-supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
-
-# data %>% 
-#   group_by(study, group, name) %>% 
-#   mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
-#   filter(!sna == nna) %>% 
-#   select(-sna, -nna) %>% 
-#   as.data.frame() %>% 
-#   fitErrorModel(factors = fitErrorModel_factors, plotting = T, blather = F)
-# ggsave("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/Errormodels.png")
 
 ```
 
@@ -109,27 +99,38 @@ errors_met_sigma_NA <- paste0("sqrt(s0_", names(observables_met), "^2 + srel_", 
 errors_met_sigma_NA["mom_rec_metc13"] <- 1 #hierfür gibts eh keine daten mit sigma=NA
 ```
 
-```{r x, g and e apapbicmet}
+```{r x g and e apapbicmet}
 free_pars_apapbicmet <- c(free_pars_apap, free_pars_bic, free_pars_met)
 odemodel_apapbicmet <- odemodel(dxdt_dmod, modelname = "odemodel_apapbicmet", fixed = setdiff(pars_in_dxdtdmod, c(free_pars_apapbicmet, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
 x_apapbicmet <- Xs(odemodel_apapbicmet)
 
 g_apapbicmet <- Y(c(observables_apap, observables_bic, observables_met), x_apapbicmet, attach.input = F, modelname = "g_apapbicmet", compile = F)
+compile(g_apapbicmet, output = "g_apapbicmet")
 
 e_apapbicmet_sigma_NA <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g_apapbicmet)#, modelname = "e_apapbicmet", compile = F) #cant cope with NaNs passed to it, if compiled
-
-pars_errors_apapbicmet <- getSymbols(c(errors_bic_sigma_NA, errors_met_sigma_NA)) %>% str_subset("^s")
 ```
 
 ```{r data and p apapbicmet}
+# Remove certain studies from the data which goes into fitting
+mydata <- data %>% 
+  filter(!str_detect(simulation, "limax")) %>% 
+  filter(!str_detect(study, "Mohr2018")) %>% 
+  filter(!(str_detect(study, "Albert")&str_detect(group, "capsule")))
+
 # Split the data in datasets with and without sigma
-data_apapbicmet <- data %>% filter(!is.na(sigma)) %>% select(-simulation)
-data_apapbicmet_sigma_NA <- data %>% filter(is.na(sigma)) %>% select(-simulation)
+data_apapbicmet <- mydata  %>% filter(!is.na(sigma)) %>% select(-simulation)
+data_apapbicmet_sigma_NA <- mydata  %>% filter(is.na(sigma)) %>% select(-simulation)
 
 # Get all parameters that in some way replace pars_raw (parameters supplied by the SBML file) or are additional parameters that we need to fit
 # This could be e.g. Study specific pars such as IVDOSE* or pars that are fitted
+supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
 outer_pars_apapbicmet <- sort(unique(c(free_pars_apapbicmet, supplied_pars)))
-outer_pars_apapbicmet_sigma_NA <- sort(unique(c(outer_pars_apapbicmet, pars_errors_apapbicmet)))
+
+pars_errors_apapbicmet <- c(errors_bic_sigma_NA, errors_met_sigma_NA) %>% 
+  getSymbols %>% 
+  str_subset("^s") %>% 
+  are_names_of(1)
+outer_pars_apapbicmet_sigma_NA <- sort(unique(c(outer_pars_apapbicmet, names(pars_errors_apapbicmet))))
 
 # Define the parameter trafos which in turn define the different conditions
 trafo_apapbicmet<-
@@ -148,13 +149,15 @@ trafo_apapbicmet<-
   define("x~x", x = "offset_bic")
 
 
+
+
 trafo_apapbicmet_sigma_NA <-
   c(pars_raw, pars_errors_apapbicmet) %>% 
   sort_by_name() %>% 
-  replace(names(.) %in% outer_pars_apapbicmet_sigma_NA, outer_pars_apapbicmet_sigma_NA) %>% 
+  replace(names(.) %in% outer_pars_apapbicmet_sigma_NA, outer_pars_apapbicmet_sigma_NA) %>%
   
   branch(data_apapbicmet_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
-  insert("name ~ value", value = unlist(mget(supplied_pars)), name = supplied_pars) %>% 
+  insert("name ~ value", value = unlist(mget(supplied_pars)), name = supplied_pars) %>%
   #bic
 
   #met
@@ -170,21 +173,24 @@ trafo_apapbicmet_sigma_NA <-
 
 
 
+
 p_apapbicmet <- P(trafo_apapbicmet, modelname = "p_apapbicmet", compile = F)
 pars_apapbicmet <- getParameters(p_apapbicmet) %>% are_names_of(0)
 
 p_apapbicmet_sigma_NA <- P(trafo_apapbicmet_sigma_NA, modelname = "p_sig_apapbicmet", compile = F)
-
 pars_apapbicmet_sigma_NA <- getParameters(p_apapbicmet_sigma_NA) %>% are_names_of(0)
 
 
-compile(g_apapbicmet,  p_apapbicmet, p_apapbicmet_sigma_NA, cores = 3, output = "apapbicmet")
+compile(p_apapbicmet, p_apapbicmet_sigma_NA, cores = 3, output = "p_apapbicmet")
+
 ```
 
 
 # dMod.frames
 
 ```{r initialize dMod.frames }
+# remove(data)
+
 apapbicmet.frame <- dMod.frame(
   hypothesis = "apapbicmet",
   x = x_apapbicmet,
@@ -196,63 +202,64 @@ apapbicmet.frame <- dMod.frame(
   g_sig = list(g_apapbicmet),
   p_sig = list(p_apapbicmet_sigma_NA),
   e_sig = list(e_apapbicmet_sigma_NA),
-  data_sig = as.datalist(data_apapbicmet_sigma_NA)
+  data_sig = list(as.datalist(data_apapbicmet_sigma_NA))
 )
 
+apapbicmet.frame <- apapbicmet.frame %>% 
+  rowwise() %>% 
+  mutate(prd_sig = list(g_sig * x_sig * p_sig), 
+         obj_data_sig = list(normL2(data_sig, prd_sig, e_sig))) %>% 
+  appendObj(obj = list(obj_data+ obj_data_sig)) %>% 
+  mutate(pars = list(structure(rnorm(length(getParameters(obj))), names =  getParameters(obj))), 
+         times = list(seq(min(rbind(as.data.frame(data),as.data.frame(data_sig))[["time"]]), 
+                          max(rbind(as.data.frame(data),as.data.frame(data_sig))[["time"]]) * 1.1, 
+                          length.out = 200))) %>% 
+  mutate(prd_data = list(prd),
+         prd = list(prd_data+prd_sig), 
+         desciption = "The problem with the need to split up both datasets makes the dMod.frame less tidy.
+         Especially, prd_data refers to only the data with sigmas, whereas prd refers to the sum of prd_0 and prd_sig.")
 
-
-```
-
-
-# Prepare fits
-
-```{r functions for dMod.frames to create objfuns and make them frame smaller again}
-dMf_append_objfuns <- function(dMod.frame) dMod.frame %>% 
-    mutate(data_0 = map(data_0, as.datalist),
-         data_sig = map(data_sig, as.datalist)) %>% 
-  mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
-         prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
-  mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
-         obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
-  
-  mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
-  mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
-  mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
-
-dMf_reduce <- function(dMod.frame) dMod.frame %>% 
-  select(-contains("_0")) %>% 
-  select(-contains("_sig"))
-```
-
-```{r augment dMod.frames}
-basic_hypotheses.frame <- basic_hypotheses.frame %>% 
-  dMf_append_objfuns()
-  
-bicmet.frame <- bicmet.frame%>% 
-  dMf_append_objfuns()
-
-apapbicmet.frame <- apapbicmet.frame%>% 
-  dMf_append_objfuns()
 ```
 
 
 ```{r test objfuns}
-basic_hypotheses.frame %>% .$obj %>% walk(loadDLL)
-bicmet.frame %>% .$obj %>% walk(loadDLL)
-apapbicmet.frame %>% .$obj %>% walk(loadDLL)
-
-
-# basic_hypotheses.frame %>% mutate(test = map(seq_along(x), function(i) {
-#   return(obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))})
-#   ) %>% .$test
-
-bicmet.frame %>% mutate(test = map(seq_along(x), function(i) obj_sig[[i]](getParameters(obj_sig[[i]]) %>% are_names_of(0)))) %>% .$test
-
-apapbicmet.frame%>% dMf_reduce() %>%  mutate(test = map(seq_along(x), function(i) obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
-
-
-
+# # save.image("workspace.rda")
+# 
+# # load("workspace.rda")
+# # apapbicmet.frame %>% .$obj %>% walk(loadDLL)
+# 
+# 
+# mytest <- apapbicmet.frame %>%
+#   # mutate(test = list(prd_data(times, pars))) %>%
+#   # mutate(test = list(normL2(prd_data, data, NULL))) %>%
+#   # mutate(test = test(pars)) %>%
+#   mutate(test = list(obj(pars))) %>%
+#   .$test %>%
+#   # .[[1]] %>%
+#   # head(1)
+#   {.}
+# 
+# mytest %>% head(1)
+# 
+# checkout_hypothesis(apapbicmet.frame, 1, suffix = "wup")
+# 
+# mycondwise <- obj_condition_wise(obj_datawup, parswup)
+# mycondwise
+# 
+# condwise_sig <- obj_condition_wise(obj_data_sigwup, parswup)
+# condwise_sig
+# data %>% filter(study %>%  str_detect("Taher"))
+# data %>% filter(simulation %>% str_detect("lim"))
+# 
+# getConditions(prdwup) %>% str_subset("Taher")
+# 
+# prdwup(timeswup, parswup, conditions = "Taheri2013_NaN_74.9_0_0_0_0_0_10_149.8_0_30", deriv = F)
 ```
+
+
+
+
+
 
 
 ```{r}
