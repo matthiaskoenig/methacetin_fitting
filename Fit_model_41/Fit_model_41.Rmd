@@ -746,39 +746,95 @@ profile_job_results$profiles %>% setNames(profile_job_results$hypothesis) %>%  p
 ```{r}
 prior_frame2 <- readRDS("2018_05_08_10_09_profile_job_results.rds")
 prior_frame <- readRDS("2018_04_23_17_00_prior.frame_full.rds")
-```
 
-
-```{r}
-names_old <- names(prior_frame)
-names_new <- names(prior_frame2)
-```
-
-```{r}
-names_old
-```
-```{r}
-names_new
-```
-
-
-```{r}
 prior_frame <- prior_frame %>% 
   select(-data, -obj_data) %>% 
   rename(g = g, x = x, p = p_0, data  = data_0, obj_data =  obj_0, prd_data = prd_0,
          p_sig = p_sig, obj_data_sig = obj_sig, e_sig = e) %>% 
   mutate(
     x_sig =x, g_sig = g, 
-    
     times = list(seq(min(as.data.frame(data)[["time"]]),
                      max(as.data.frame(data)[["time"]]) * 1.1, length.out = 200)))
 
 
+prior_frame <- bind_rows(prior_frame, prior_frame2)
+```
+
+
+```{r}
+prior_frame$profiles %>% setNames(prior_frame$hypothesis) %>%  plotProfile() +
+  coord_cartesian(ylim = c(-0.5,4))
+```
+
+## Profile steps of prior strength 1 and 1.5
+
+```{r}
+
+# walk(myframe$obj, loadDLL)
+# profile_steps_job <- map(1:2, function(hypothesis) {
+#   myframe <- assign("myframe", prior_frame[c(4,7)[hypothesis], drop = F], pos = .GlobalEnv)
+#   runbg({
+#     ncores <- detectFreeCores()
+#     assign("ncores", ncores, pos = .GlobalEnv)
+# 
+#     myframe %>%
+#     ungroup %>%
+#     mutate(profile_steps = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+# 
+#       steps <- getSteps(parframes[[i]], tol = 1, nsteps = 3)
+#       lapply(steps, function(step) {
+#         assign("fit_pars", parframes[[i]] %>% as.parvec(step), pos = .GlobalEnv)
+#         profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
+#       }) %>%
+#         list
+#        })) %>%
+#       rowwise
+# 
+# 
+#   },  machine = c(paste0("knecht", c(4,5)[hypothesis])), input = "myframe", filename = paste0("2018_05_11_13_40_profile_steps_job_runbg_", hypothesis))
+# })
+# saveRDS(profile_steps_job, file = "2018_05_11_13_40_profile_steps_job.rds")
+# profile_steps_job <- readRDS("2018_05_11_13_40_profile_steps_job.rds")
+# map(profile_steps_job, . %>% {.$check()})
+# wait_for_runbg(profile_steps_job)
+# profile_steps_job_results <- map(profile_steps_job, . %>% {.$get()})
+# saveRDS(profile_steps_job_results, file = "2018_05_11_13_40_profile_steps_job_results.rds")
+# map(profile_steps_job, . %>% {.$purge()})
+profile_steps_job_results <- readRDS("2018_05_11_13_40_profile_steps_job_results.rds") %>% map(1) %>% do.call(rbind,.)
 ```
 
 ```{r}
-bind_rows(prior_frame, prior_frame2)$profiles %>% setNames(bind_rows(prior_frame, prior_frame2)$hypothesis) %>%  plotProfile() +
-  coord_cartesian(ylim = c(-0.5,4))
+myframe <- readRDS("2018_05_11_13_40_profile_steps_job_results.rds") %>% map(1) %>% do.call(rbind,.)
+prior_frame <- full_join(prior_frame, myframe[c("hypothesis", "profile_steps")], by = "hypothesis")
+# git_add_dMod.frame(prior_frame)
+
+```
+
+```{r}
+myframe[["profile_steps"]][[1]] %>% .[[1]] %>% 
+  c(myframe[["profile_steps"]][[2]] %>% .[[1]] %>% setNames(letters[1:3])) %>% 
+  plotProfile() +
+  coord_cartesian(ylim = c(-.5,4))
+```
+
+
+
+```{r}
+stepDetect <- dMod:::stepDetect
+
+getSteps <- function(myparframe, nsteps = 5, tol = 1) {
+  steps <- stepDetect(myparframe$value, tol)
+  steps <- steps[order(c(diff(steps), nrow(myparframe)-max(steps)), decreasing = T)][1:nsteps]
+  steps <- unique(sort(c(1, steps))) #include the first step no matter what
+  setNames(steps, paste0("index", steps))
+}
+
+
+
+
+
+
 
 
 ```
