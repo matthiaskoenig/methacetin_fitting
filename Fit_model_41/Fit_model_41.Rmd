@@ -24,10 +24,7 @@ library(conveniencefunctions)
 # Read model
 ```{r read_model, dependson="setup"}
 source("../model/limax_pkpd_v41.R")
-```
 
-
-```{r pars_raw, dependson="read_model"}
 pars_raw <- c(x0, p) 
 pars_in_dxdtdmod <- c(getSymbols(dxdt_dmod), names(dxdt_dmod))
 ```
@@ -648,7 +645,7 @@ unnest_name(myframe) %>% print
 
 
 # Scan the prior range between 1 and 5
-```{r dependson="pars_raw"}
+```{r dependson="read_model"}
 apapbicmet_frame <- readRDS("2018_05_07_22_22_apapbicmet_frame.rds")
 walk(apapbicmet_frame$obj, loadDLL)
 myindices <- pars_raw %>% names %>% toupper() %>% {which(. %in% getParameters(apapbicmet_frame$p_sig[[1]]))}
@@ -801,39 +798,107 @@ prior_frame$profiles %>% setNames(prior_frame$hypothesis) %>%  plotProfile() +
 # profile_steps_job_results <- map(profile_steps_job, . %>% {.$get()})
 # saveRDS(profile_steps_job_results, file = "2018_05_11_13_40_profile_steps_job_results.rds")
 # map(profile_steps_job, . %>% {.$purge()})
-profile_steps_job_results <- readRDS("2018_05_11_13_40_profile_steps_job_results.rds") %>% map(1) %>% do.call(rbind,.)
+# profile_steps_job_results <- readRDS("2018_05_11_13_40_profile_steps_job_results.rds") %>% map(1) %>% do.call(rbind,.)
 ```
 
 ```{r}
-myframe <- readRDS("2018_05_11_13_40_profile_steps_job_results.rds") %>% map(1) %>% do.call(rbind,.)
-prior_frame <- full_join(prior_frame, myframe[c("hypothesis", "profile_steps")], by = "hypothesis")
+# myframe <- readRDS("2018_05_11_13_40_profile_steps_job_results.rds") %>% map(1) %>% do.call(rbind,.)
+# prior_frame <- full_join(prior_frame, myframe[c("hypothesis", "profile_steps")], by = "hypothesis")
 # git_add_dMod.frame(prior_frame)
-
 ```
 
 ```{r}
-myframe[["profile_steps"]][[1]] %>% .[[1]] %>% 
-  c(myframe[["profile_steps"]][[2]] %>% .[[1]] %>% setNames(letters[1:3])) %>% 
+prior_frame[["profile_steps"]][[4]] %>% .[[1]] %>% 
+  c(prior_frame[["profile_steps"]][[7]] %>% .[[1]] %>% setNames(.,paste0(names(.), "_2"))) %>% 
   plotProfile() +
   coord_cartesian(ylim = c(-.5,4))
 ```
 
+```{r}
+plotPaths(prior_frame$profiles[[4]], whichPar = "KBO_RELCO2")
+
+plotPaths(prior_frame$profiles[[4]], whichPar = "CYP1A2MET_KM_MET")
+
+plotPaths(prior_frame$profiles[[4]], whichPar = "CYP1A2MET_CL")
+```
 
 
 ```{r}
-stepDetect <- dMod:::stepDetect
-
-getSteps <- function(myparframe, nsteps = 5, tol = 1) {
-  steps <- stepDetect(myparframe$value, tol)
-  steps <- steps[order(c(diff(steps), nrow(myparframe)-max(steps)), decreasing = T)][1:nsteps]
-  steps <- unique(sort(c(1, steps))) #include the first step no matter what
-  setNames(steps, paste0("index", steps))
+myframe <- prior_frame
+plotResiduals.dMod.frame <- function(myframe, hypothesis = 1, split = "condition") {
+  
+  plotResiduals(parframe = myframe[["parframes"]][[hypothesis]], 
+                x = myframe[["prd"]][[hypothesis]],
+                data = myframe[["data"]][[hypothesis]] + myframe[["data_sig"]][[hypothesis]],
+                errmodel = myframe[["e"]][[hypothesis]],
+                split = split)
 }
+```
 
 
 
+```{r}
+# prior_frame$obj %>% walk(loadDLL)
+prior_frame %>% 
+  plotCombined(4,1, str_detect(name, "rec"))
+prior_frame %>% 
+  plotCombined(4,98, str_detect(name, "rec"))
+prior_frame %>% 
+  plotCombined(4,518, str_detect(name, "rec"))
+
+# plotResiduals.dMod.frame(prior_frame,4, split = "condition") # TODO
+```
 
 
+
+## Plot the fluxes
+Create reactions, a dMod-object which contains the stoichiometric matrix.
+```{r, dependson="read_model"}
+symbolic <- readr::read_lines("../model/limax_pkpd_v41.R", 649, 693-649)
+mynames <- symbolic  %>%  str_split( "=", simplify = T) %>% .[,1] %>% str_replace_all(c(" "= "", "^ " = "", "^d" = ""))
+equations <- symbolic  %>%  str_split( "=", simplify = T) %>% .[,2] %>% str_replace_all(c(" "= "", "^ " = "", "^d" = "", "," = ""))
+ratenames <- getSymbols(c(equations)) %>% str_subset_not("^p")
+
+S_preliminary <- outer(equations, ratenames, str_detect) # "Where do the reactions appear"?
+S_negative <- outer(equations, paste0("\\-", ratenames), str_detect) # "Where do they appear with a negative sign"?
+S <- (S_preliminary - 2 * S_negative) %>% t %>% magrittr::set_colnames(mynames)
+
+rates <- y_dmod[ratenames]
+
+reactions <- data.frame(Description = ratenames, Rate = rates, S, stringsAsFactors = F) %>% as.eqnlist()
+```
+
+Fuller and Leijssen are the only ones which have Ri_co2c13 unequal zero.
+```{r}
+pr1_data %>% covariates()
+```
+
+```{r}
+reactions %>%
+  as.data.frame() %>% 
+  filter(Rate %>% str_detect("KBO"))
+
+
+reactions %>% as.data.frame() %>% 
+  filter(Rate %>% str_detect("Ri_co2c13"))
+
+
+plotFluxes(pr1_parframes %>% as.parvec(98), pr1_prd, seq(0,20*max(pr1_times), length.out = 500), rates %>% str_subset("KBO")) %>% 
+  attr("out") %>% 
+  spread()
+
+```
+
+
+```{r}
+checkout_hypothesis(prior_frame, 4, "pr1_")
+
+plotFluxes(pr1_parframes %>% as.parvec(98), pr1_prd, seq(0,20*max(pr1_times), length.out = 500), rates %>% str_subset("KBO")) %>% attr("out") %>% 
+  mutate(condition = as.character(condition) %>% str_trunc(17)) %>% 
+  ggplot(aes(time, value, fill = name)) + 
+  geom_area(aes(ymax = value)) +
+  facet_wrap("condition", scales = "free_y") + 
+  guides(fill = F)
 
 
 
@@ -842,18 +907,55 @@ getSteps <- function(myparframe, nsteps = 5, tol = 1) {
 
 
 ```{r}
+myobjvals <- obj_condition_wise(pr1_obj_data, pr1_parframes %>% as.parvec)
 
-reactions %>% 
-  as.data.frame() %>% 
-  filter(Rate %>% str_detect("KBO_RE"))
+myobjvals %>% 
+  conveniencefunctions:::unnest_name() %>% 
+  mutate(condition = as.character(condition) %>% str_trunc(17)) %>% 
+  ggplot(aes(grad_value, grad_name)) + 
+  geom_point(aes(color = condition))
 
+ggplotly()
 ```
 
 
 
 
 
+# Profile around optimum of priorsig=1 without prior
 
+
+```{r}
+# myframe <- prior_frame[4,]
+# profile_without_prior <- runbg({
+#     ncores <- detectFreeCores()
+#     assign("ncores", ncores, pos = .GlobalEnv)
+# 
+#    myframe %>%
+#     ungroup %>%
+#     mutate(profiles_wo_prior = map(seq_along(x), function(i) {
+#       
+#       myobj <- obj_data[[i]]+obj_data_sig[[i]]
+#       assign("fit_obj", myobj, pos = .GlobalEnv)
+#       assign("fit_pars", parframes[[i]] %>% as.parvec, pos = .GlobalEnv)
+#       profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores) })) %>%
+#       rowwise
+# 
+# 
+#   },  machine = c(paste0("knecht", 5)), input = "myframe", filename = "2018_05_11_20_13_profile_without_prior_runbg")
+# saveRDS(profile_without_prior, file = "2018_05_11_20_13_profile_without_prior.rds")
+profile_without_prior <- readRDS("2018_05_11_20_13_profile_without_prior.rds")
+# profile_without_prior$check()
+# wait_for_runbg(profile_without_prior)
+# profile_without_prior_results <- profile_without_prior$get()
+# saveRDS(profile_without_prior_results, file = "2018_05_11_20_13_profile_without_prior_results.rds")
+profile_without_prior$purge()
+profile_without_prior <- readRDS("2018_05_11_20_13_profile_without_prior_results.rds")
+```
+
+```{r}
+profile_without_prior$knecht5$profiles_wo_prior %>% plotProfile()
+```
 
 
 
@@ -880,15 +982,29 @@ reactions <- data.frame(Description = ratenames, Rate = rates, S, stringsAsFacto
 
 
 ```{r}
-prior_frame <- readRDS("2018_04_23_17_00_prior.frame_full.rds")
+prior_frame <- readRDS("2018_05_11_17_26_prior_frame.rds")
+walk(prior_frame$obj, loadDLL)
+walk(1:nrow(prior_frame), function(i) {
+  controls(prior_frame$g[[i]], name = "attach.input") <- T
+  controls(prior_frame$g_sig[[i]], name = "attach.input") <- T
+  controls(prior_frame$prd[[i]], name = "attach.input") <- T
+  controls(prior_frame$prd_data[[i]], name = "attach.input") <- T
+  controls(prior_frame$prd_sig[[i]], name = "attach.input") <- T
+})
+
+# plotCombined(prior_frame,1,1)
 
 prior_frame <- prior_frame %>% 
   mutate(reactions = map(seq_along(x), function(i) reactions)) %>% 
-  mutate(sigma = str_replace(hypothesis, "srel = -1,s0=-2, prior_sigma =", ""))#%>% str_replace("\\.", ""))
+  mutate(sigma = str_replace_all(hypothesis, c("srel = -1,s0=-2, " = "", "=" = "", " " = "", "\\." = "")))#%>% str_replace("\\.", ""))
 
-walk(1:6, function(i) {
+# prior_frame$sigma
+
+walk(c(3,4,7,6), function(i) {
   saveShiny_dMod.frame(prior_frame, i, projectname = paste0("LiMaX", prior_frame$sigma[i]))
 })
+
+
 ```
 
 
