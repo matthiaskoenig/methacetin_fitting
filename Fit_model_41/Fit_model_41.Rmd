@@ -57,7 +57,7 @@ some_na <-
   filter(sna>0 & sna != nna) %>% 
   select(-sna, -nna) %>% 
   as.data.frame() %>% 
-  fitErrorModel(factors = fitErrorModel_factors, plotting = F, blather = T) 
+  fitErrorModel(factors = fitErrorModel_factors, plotting = F, blather = F) 
 
 none_or_all_na <- data_full %>% 
   group_by(study, group, name) %>% 
@@ -83,13 +83,9 @@ free_pars_met <- c("Ka_metc13", "CYP1A2MET_CL", "CYP1A2MET_Km_met")
 observables_apap <- y_dmod[c("Mve_apap")] %>% set_names(c("Mve_apap"))
 
 recovery_bic <- paste(y_dmod["Exhalation_co2c13"], "/ 60 * Mr_co2c13 / Ri_co2c13 * 100")
-P_CO2F <- y_dmod["P_CO2Fc13"] %>% str_replace("R_PDB", "0")
+P_CO2F <- paste0(y_dmod["P_CO2Fc13"], "-", str_replace(y_dmod["P_CO2Fc13"], "Alu_co2c13", "0")) # Alu_co2c13 is the only dynamic variable which goes into the equation and it's initial value is fixed to zero.
 
-observables_bic <- c(recovery_bic, P_CO2Fc13 = P_CO2F y_dmod[c("DOB")])
-
-
-names(observables_bic) <- c("cum_rec_co2c13", "DOB", "P_CO2F")
-observables_bic["P_CO2F"] <- paste0(observables_bic["P_CO2F"], " + offset_bic")
+observables_bic <- c(cum_rec_co2c13 = recovery_bic, y_dmod[c("DOB")], P_CO2F = P_CO2F)
 
 recovery_met <- paste(y_dmod["Exhalation_co2c13"], "/ init_PODOSE_metc13 * Mr_metc13 * 100" )
 cum_met <- paste( "Abreath_co2c13/ init_PODOSE_metc13 * Mr_metc13 * 100")
@@ -112,6 +108,25 @@ g <- Y(c(observables_apap, observables_bic, observables_met), x, attach.input = 
 compile(g, output = "g")
 
 e_sigma_NA <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g)#, modelname = "e", compile = F) #cant cope with NaNs passed to it, if compiled
+```
+
+
+```{r explorative plotting of offset_bic and data with estimated error bars}
+
+datasig <- data_full %>% 
+  as.data.frame() %>% 
+  group_by(study, group, name) %>% 
+  mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
+  filter(sna == nna) %>% 
+  select(-sna, -nna) %>% 
+  as.data.frame() %>% 
+  mutate(sigma = sqrt(exp(-11)^2 + (value * exp(-3))^2))  %>% #Meineke
+  # mutate(sigma = sqrt(exp(0)^2 + (value * exp(-3))^2))  %>% #Barstow and Krumbiegel
+  as.datalist
+
+
+
+plotData(datasig)
 ```
 
 ```{r data and p apapbicmet}
@@ -149,8 +164,7 @@ trafo <-
   define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
   
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
-  
-  define("x~x", x = "offset_bic")
+  {.}
 
 
 
@@ -167,10 +181,10 @@ trafo_sigma_NA <-
   
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
   
-  insert("x~-2", x = str_subset(getSymbols(mytrafo[[i]]), "^S0")) %>% # Fix the error parameters to a value
-  insert("x~-1", x = str_subset(getSymbols(mytrafo[[i]]), "^SREL")) %>% 
-  
-  define("x~x", x = "offset_bic") 
+  insert("x~-11", x = str_subset(getSymbols(mytrafo[[i]]), "^S0"), conditionMatch = "Meineke1993") %>% # Fix the error parameters to a value
+  insert("x~0", x = str_subset(getSymbols(mytrafo[[i]]), "^S0"), conditionMatch = "(Krumbiegel|Barstow)") %>% 
+  insert("x~-3", x = str_subset(getSymbols(mytrafo[[i]]), "^SREL")) %>% 
+  {.}
 
 
 p <- P(trafo, modelname = "p", compile = F)
@@ -182,6 +196,8 @@ pars_sigma_NA <- getParameters(p_sigma_NA) %>% are_names_of(0)
 
 compile(p, p_sigma_NA, cores = 3, output = "p")
 ```
+
+
 
 
 # dMod.frames
@@ -214,12 +230,56 @@ apapbicmet_frame <- apapbicmet_frame %>%
                           length.out = 200))) %>% 
   mutate(prd_data = list(prd),
          prd = list(prd_data+prd_sig), 
+         data_data = list(data),
+         data = list(data_data + data_sig),
          desciption = "The problem with the need to split up both datasets makes the dMod.frame less tidy.
-         Especially, prd_data refers to only the data with sigmas, whereas prd refers to the sum of prd_0 and prd_sig.")
+         Especially, prd_data refers to only the data with sigmas, whereas prd refers to the sum of prd_0 and prd_sig.
+         Also, data_data refers to the data without errors and data to the whole data.
+         
+         Furthermore, in this hypothesis, all error-parameters in the error model are fixed so that the error bars optically look ok, so that the data points provide some information. I do this, because before I had problems with fitting.
+If the fitting is more stable again, I can set them free again, maybe,.
+         ")
 
-git_add_dMod.frame(apapbicmet_frame)
+
+apapbicmet_frame_updated_errormodel <- apapbicmet_frame
+
+git_add_dMod.frame(apapbicmet_frame_updated_errormodel)
 remove_c_and_o()
+
+
 ```
+
+
+
+
+
+```{r check if the fixed error models are somewhat sensible}
+# checkout_hypothesis(apapbicmet_frame, 1, "wup")
+# 
+# mypred <- (wupprd)(wuptimes, wuppars, deriv = F)
+# 
+# mypred2 <- (wupe_sig*wupprd)(wuptimes, wuppars, deriv = F)
+# myplot2 <- plotPrediction(mypred2) %>% 
+#   attr("data") %>% 
+#   rename(value_sig = value)
+# 
+# plotPrediction(mypred) %>% 
+#   attr("data") %>% 
+#   left_join(myplot2) %>% 
+#   
+#   filter(!str_detect(name, "(MVe)")) %>% 
+#   filter(!(str_detect(name, "P_C")&str_detect(condition, "Krum"))) %>% 
+# 
+#   ggplot(aes(time, value, color = condition, fill = condition)) + 
+#   facet_wrap("name", scales = "free") + 
+#   geom_line() +
+#   geom_ribbon(mapping = aes(ymin = value-value_sig, ymax = value + value_sig)) + 
+#   
+#   coord_cartesian(ylim = c(-0.01, 0.01))
+#   geom_blank()
+# # ggplotly()
+```
+
 
 
 # Fit and profile with priors
