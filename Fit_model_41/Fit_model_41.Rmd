@@ -10,6 +10,8 @@ Load all important libraries
 ```{r setup, message=FALSE, warning=FALSE, eval=TRUE, echo=FALSE}
 knitr::opts_chunk$set(eval = TRUE)
 knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(fig.height = 10)
 knitr::opts_chunk$set(fig.width = 15)
 library(dMod)
@@ -55,7 +57,7 @@ some_na <-
   filter(sna>0 & sna != nna) %>% 
   select(-sna, -nna) %>% 
   as.data.frame() %>% 
-  fitErrorModel(factors = fitErrorModel_factors, plotting = F, blather = F) 
+  fitErrorModel(factors = fitErrorModel_factors, plotting = F, blather = T) 
 
 none_or_all_na <- data_full %>% 
   group_by(study, group, name) %>% 
@@ -81,7 +83,11 @@ free_pars_met <- c("Ka_metc13", "CYP1A2MET_CL", "CYP1A2MET_Km_met")
 observables_apap <- y_dmod[c("Mve_apap")] %>% set_names(c("Mve_apap"))
 
 recovery_bic <- paste(y_dmod["Exhalation_co2c13"], "/ 60 * Mr_co2c13 / Ri_co2c13 * 100")
-observables_bic <- c(recovery_bic, y_dmod[c("DOB", "P_CO2Fc13")])
+P_CO2F <- y_dmod["P_CO2Fc13"] %>% str_replace("R_PDB", "0")
+
+observables_bic <- c(recovery_bic, P_CO2Fc13 = P_CO2F y_dmod[c("DOB")])
+
+
 names(observables_bic) <- c("cum_rec_co2c13", "DOB", "P_CO2F")
 observables_bic["P_CO2F"] <- paste0(observables_bic["P_CO2F"], " + offset_bic")
 
@@ -216,346 +222,136 @@ remove_c_and_o()
 ```
 
 
+# Fit and profile with priors
+
+```{r load results and format them for analysis, message=FALSE, warning = FALSE}
+# Load results, prepare the prediction function for plotFluxes
+prior_frame <- readRDS("2018_05_11_17_26_prior_frame.rds")
+walk(prior_frame$obj, loadDLL)
+walk(1:nrow(prior_frame), function(i) {
+  controls(prior_frame$g[[i]], name = "attach.input") <- T
+  controls(prior_frame$g_sig[[i]], name = "attach.input") <- T
+  controls(prior_frame$prd[[i]], name = "attach.input") <- T
+  controls(prior_frame$prd_data[[i]], name = "attach.input") <- T
+  controls(prior_frame$prd_sig[[i]], name = "attach.input") <- T
+})
+# Put the columns into the right order
+prior_frame <- prior_frame[c(1,3,2,4,22, 5,20,19,6,7,8,9,10,14,11,12,15,13,16,21,17,18,25,23)]
+
+# Add the result of the profiles without prior, which started from a fit position with prior. 
+# I think it would be better to first refit around the optimum and then start profiling
+profile_without_prior <- readRDS("2018_05_11_20_13_profile_without_prior_results.rds")[[1]]
+prior_frame[4, "profile_wo_prior"] <- list(profile_without_prior$profiles_wo_prior)
 
 
-# Fit with prior around pars_raw, srel = -1, s0 = -2
-```{r, dependson="setup"}
-# load("2018_04_23_16_57_workspace_with_dMod.frames.rda")
-# apapbicmet_frame %>% .$obj %>% walk(loadDLL)
-```
+# Rename hypotheses
+prior_frame$hypothesis <- prior_frame$hypothesis %>% str_replace_all(c("srel = -1,s0=-2, " = "", " =" = "=")) 
+# Put the rows into correct order
+prior_frame <- prior_frame[c(1L, 2L, 3L, 4L, 7L, 8L, 9L, 10L, 5L, 6L),]
 
-```{r fix errorpars}
-# s0 <- paste(c("S0"), c("CUM_REC_METC13", "DOB", "P_CO2F"), sep = "_")
-# srel <- paste(c("SREL"), c("CUM_REC_METC13", "DOB", "P_CO2F"), sep = "_")
-# trafo_sigma_set <- trafo_apapbicmet_sigma_NA %>% 
-#   insert("x~-1", x = srel) %>% 
-#   insert("x~-2", x = s0)
-# 
-# p_sig <- P(trafo_sigma_set, modelname = "p_apapbicmet_sigma_set", compile = F)
-# compile(p_sig, output = "p_apapbicmet_sigma_set")
-# ```
-# 
-# ```{r setup prior}
-# getParameters(p_sig)
-# 
-# myindices <- pars_raw %>% names %>% toupper() %>% {which(. %in% getParameters(p_sig))}
-# 
-# prior_mu <- log(pars_raw[myindices])
-# names(prior_mu) <- toupper(names(prior_mu))
 
-```
 
-```{r setup prior_frame}
-# prior_frame <- apapbicmet_frame
-# prior_frame[["hypothesis"]] <- "srel = -1,s0=-2, prior_sigma ="
-# 
-# prior_frame[["p_sig"]] <- list(p_sig)
-# 
-# prior_frame <- prior_frame %>% 
-#   mutate(data_0 = map(data_0, . %>% 
-#                         .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>% 
-#                         .[!(names(.) %>% str_detect("Mohr"))])) %>% 
-#   mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
-#          prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>% 
-#   mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
-#          obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>% 
-#   
-#   mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>% 
-#   mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>% 
-#   mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]])) 
-#   
-# 
-# prior_frame <- rbind(prior_frame, prior_frame, prior_frame, prior_frame) %>% 
-#   mutate(obj_data = obj) %>% 
-#   mutate(constr = map(seq_along(x), function(i) {
-#     {constraintL2(prior_mu, sigma = 10^(i-4))}
-#   })) %>% 
-#   mutate(obj = map(seq_along(x), function(i) {
-#     obj_data[[i]]+constr[[i]]
-#   })) %>% 
-#   mutate(hypothesis = map_chr(1:4, function(i) paste0(hypothesis[i], 10^(i-4))))
-# prior_frame[["pars"]] <- map(1:4, function(i) c(prior_mu, offset_bic = -0.011))
-```
-
-```{r test objfn}
-# prior_frame %>% mutate(test = map(seq_along(x), function(i) getParameters(obj[[i]]))) %>% .$test
-
-# # prior_frame %>% mutate(test = map(seq_along(x), function(i) obj[[i]](getParameters(obj[[i]]) %>% are_names_of(0)))) %>% .$test
-# prior_frame %>% mutate(test = map(seq_along(x), function(i)  obj[[i]](pars[[i]]))) %>% .$test %>% page
-# 
-# prior_frame %>% mutate(test = map(seq_along(x), function(i)  obj_data[[i]](pars[[i]]))) %>% .$test %>% page
-# 
-# prior_frame %>% mutate(test = map(seq_along(x), function(i)  constr[[i]](pars[[i]]))) %>% .$test %>% page
+prior_frame$data_data <- prior_frame$data
+prior_frame <- prior_frame %>% 
+  rowwise %>% 
+  mutate(data = list(data + data_sig))
 
 ```
 
-```{r start and retrieve fits}
-# fit_with_prior <- runbg({
-#   ncores <- detectFreeCores()
-#   assign("ncores", ncores, pos = .GlobalEnv)
-# 
-#   prior_frame %>%
-#     
-#     mutate(fits = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-#               sd = 3,
-#               blather = F, cores = ncores, fits = 10*ncores)
-#     }))
-#   }, machine = paste0("knecht", 1:5), filename = paste0("tmp_",tpaste0("fit_with_prior")), input = "prior_frame")
-# 
-# saveRDS(fit_with_prior, tpaste0("fit_with_prior.rds"))
-# fit_with_prior <- fit_with_prior$get()
-# myfits <- fit_with_prior %>% map("fits") %>% .[c(1,2,3,5)] %>% transpose() %>% map(. %>% Reduce(c.parlist,.))
-# prior_frame[["fits"]] <- myfits
-# saveRDS(prior_frame, tpaste0("prior_frame.rds")) # "2018_04_02_22_37_prior_frame.rds"
-# 
-# prior_frame <- readRDS("2018_04_02_22_37_prior_frame.rds")
-# ```
-# 
-# ```{r}
-# prior_frame <- prior_frame %>% dMf_expand_fits() %>% dMf_append_plots()
-# ```
-# 
-# ```{r}
-# prior_frame$plot_value
-# prior_frame$parframes %>% map(. %>% .[1:600]) %>% map(plotValues,tol = 10)
-# ```
-# 
-# ```{r}
-# prior_frame %>% dMf_append_plots(tol  = 10, name %in% names(observables_bic)&(condition %in% names(rbind(data_bic,data_bic_sigma_NA) %>% as.datalist))) %>% .$plot_combined
+```{r plotting helpers}
+observables <- prior_frame$g[[1]] %>% getEquations() %>%.[[1]] %>%  names
+
+observables_apap <- "Mve_apap"
+observables_bic <- c("cum_rec_co2c13", "DOB","P_CO2F")
+observables_met <- c("mom_rec_metc13", "cum_rec_metc13")
+
+conditions <- prior_frame$obj[[1]] %>% getConditions()
+data <- (prior_frame$data[[1]] + prior_frame$data_sig[[1]]) %>% as.data.frame()
+
+cond_apap <- data %>% filter(name%in%"Mve_apap") %>% .[["condition"]] %>% unique %>% as.character()
+cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[["condition"]] %>% unique %>% as.character()
+cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
+
+nhyp <- nrow(prior_frame)
+
+pars_raw["R_PDB"]
+
+
+
+myfn <- funC0(c(bla = "((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60) / ((1 / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + ((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60))"))
+
+
+pars_raw[getSymbols("((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60) / ((1 / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + ((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60))")]
+
+do.call(myfn, as.list(pars_raw[getSymbols("((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60) / ((1 / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + ((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60))")]))
 ```
 
-## Run profiles for the prior_frame
-
-```{r start and retrieve profiles for prior_frame}
-# profile_jobs_prior <- map(1:4, function(j) {
-#   assign("myframe",  prior_frame[j,], pos = .GlobalEnv)
-#   runbg({
-#     ncores <- detectFreeCores()
-#     assign("ncores", ncores, pos = .GlobalEnv)
-#     
-#     myframe %>%
-#       mutate(profiles = map(seq_along(x), function(i) {
-#         assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#         assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
-#         
-#         profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
-#       }))
-#   }, machine = paste0("knecht", c(j)), filename = paste0("tmp_",tpaste0("profile_jobs_prior")), input = "myframe")
-# })
-# 
-#  saveRDS(profile_jobs_prior, tpaste0("profile_jobs_prior.rds"))
-# profile_jobs_prior <- readRDS("2018_04_02_23_22_profile_jobs_prior.rds")
-# prior_frame <- profile_jobs_prior %>% map(. %>% {.$get()} %>% .[[1]]) %>% do.call(rbind,.)
-# saveRDS(prior_frame %>% shrink_fits() %>% shrink_plots(), tpaste0("prior_frame_with_profiles.rds")) # "2018_04_06_13_50_prior_frame_with_profiles.rds"
-# prior_frame <- readRDS("2018_04_06_13_50_prior_frame_with_profiles.rds")
+```{r plot values}
+map(1:nhyp, . %>% plotValues(prior_frame, .))
 ```
 
 
-
-Looking at the profiles, some of the parameters are really far off their original values, whereas many can be determined quite well from the data.
-
-Prior were good guesses for
-  KA_APAP, offset_bic
-
-APAPD_HLM_CL, APAPD_KM_APAP, CO2FIX_HLM_CL, CYP1A2MET_CL, 
-    CYP1A2MET_KM_MET, , KA_CO2C13, KA_METC13, KBO_FIXCO2, 
-    KBO_MAXCO2, KBO_RELCO2, KLU_EXCO2, offset_bic
-
-I think, data is contributing enough for the following parameters, so the prior is not needed for them anymore
-  APAPD_HLM_CL, APAPD_KM_APAP, KA_APAP
-
-
-
-```{r}
-# prior_frame$obj[[1]] %>% getParameters() %>% map(as.name) %>% unlist %>% dput
+```{r plot pars}
+map(1:nhyp, function(i) {
+  plotPars(prior_frame, i, nsteps = 4)
+})
 ```
 
+```{r plot predictions}
+pdf(file = "plots.pdf", width = 16, height = 9)
 
-```{r}
-# prior_frame$profiles %>% 
-#   plotProfile() + 
-#   coord_cartesian(ylim = c(-2, 4))
-```
+map(1:nhyp, function(i) {
+  plotCombined(prior_frame, i, 1, condition %in% cond_apap & name %in% observables_apap)
+})
 
-No comment on the paths yet.
-```{r}
-# prior_frame$profiles %>% plotPaths(whichPar = "KBO_FIXCO2")
-```
+map(1:nhyp, function(i) {
+  plotCombined(prior_frame, i, 1, condition %in% cond_bic & name %in% observables_bic)
+})
 
-The plotCombined looks much better with weaker priors!
-```{r}
-# prior_frame$obj %>% walk(loadDLL)
-# prior_frame %>% plotCombined.dMod.frame(hypothesis = 4)
-# map(1:4, . %>% plotCombined.dMod.frame(prior_frame, hypothesis = .))
-```
+map(1:nhyp, function(i) {
+  plotCombined(prior_frame, i, 1, condition %in% cond_met & name %in% observables_met)
+})
 
-
-# Run one fit with weak prior
-```{r, dependson="setup"}
-# load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
-# 
-# rbind(bicmet_frame, apapbicmet_frame) %>% .$obj %>% walk(loadDLL)
-```
-
-
-```{r setup prior_frame_weak}
-# prior_frame_weak <- apapbicmet_frame
-# prior_frame_weak[["hypothesis"]] <- "srel = -1,s0=-2, prior_sigma ="
-# 
-# prior_frame_weak[["p_sig"]] <- list(p_sig)
-# 
-# prior_frame_weak <- prior_frame_weak %>%
-#   mutate(data_0 = map(data_0, . %>%
-#                         .[!((names(.) %>% str_detect("lbert")) & (names(.) %>% str_detect("caps")))] %>%
-#                         .[!(names(.) %>% str_detect("Mohr"))])) %>%
-#   mutate(prd_0 = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_0[[i]]))),
-#          prd_sig = map(seq_along(x), function(i) cfn(g[[i]], cfn(x[[i]],p_sig[[i]])))) %>%
-#   mutate(obj_0 = map(seq_along(x), function(i) normL2(data_0[[i]], prd_0[[i]])),
-#          obj_sig = map(seq_along(x), function(i) cf_normL2(data = data_sig[[i]], prd_sig[[i]], e = e[[i]]))) %>%
-# 
-#   mutate(obj = map(seq_along(x), function(i) obj_sig[[i]]+obj_0[[i]])) %>%
-#   mutate(prd = map(seq_along(x), function(i) prd_sig[[i]]+prd_0[[i]])) %>%
-#   mutate(data= map(seq_along(x), function(i) data_sig[[i]]+data_0[[i]]))
-# 
-# 
-# prior_frame_weak <- rbind(prior_frame_weak, prior_frame_weak) %>%
-#   mutate(obj_data = obj) %>%
-#   mutate(constr = map(seq_along(x), function(i) {
-#     {constraintL2(prior_mu, sigma = i*5)}
-#   })) %>%
-#   mutate(obj = map(seq_along(x), function(i) {
-#     obj_data[[i]]+constr[[i]]
-#   })) %>%
-#   mutate(hypothesis = map_chr(c(1:2), function(i) paste0(hypothesis[i], i*5)))
-# prior_frame_weak[["pars"]] <- map(1:2, function(i) c(prior_mu, offset_bic = -0.011))
-```
-
-```{r fit and profiles weak prior}
-# fit_with_weaker_prior <- runbg({
-#   ncores <- detectFreeCores()
-#   assign("ncores", ncores, pos = .GlobalEnv)
-#   
-#   prior_frame_weak %>% 
-#   mutate(fits = map(seq_along(x), function(i) {
-#     assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#     assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-#     assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-#     mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname,
-#             sd = 3,
-#             blather = F, cores = ncores, fits = 10*ncores)
-#   }))
-# },  machine = c(paste0("knecht", 3:4), paste0("ruprecht",1:2)), input = "prior_frame_weak", filename = "2018_04_12_18_28_fit_with_weaker_prior_runbg")
-# saveRDS(fit_with_weaker_prior, file = "2018_04_12_18_28_fit_with_weaker_prior.rds")
-# fit_with_weaker_prior <- readRDS("2018_04_12_18_28_fit_with_weaker_prior.rds")
-# fit_with_weaker_prior$check()
-# wait_for_runbg(fit_with_weaker_prior)
-# fit_with_weaker_prior_results <- fit_with_weaker_prior$get()
-# saveRDS(fit_with_weaker_prior_results, file = "2018_04_12_18_28_fit_with_weaker_prior_results.rds")
-# fit_with_weaker_prior$purge()
-
-
-# fit_with_weaker_prior <- readRDS("2018_04_12_18_28_fit_with_weaker_prior_results.rds")
-# ```
-# 
-# ```{r}
-# myfits <-
-#   map(fit_with_weaker_prior, "fits") %>% 
-#   transpose() %>% 
-#   map(. %>% Reduce(c.parlist,.)) 
-# prior_frame_weak <- fit_with_weaker_prior[[1]]
-# prior_frame_weak$fits <- myfits
-# ```
-# 
-# 
-# ```{r}
-# prior_frame_weak$obj %>% walk(loadDLL)
-# prior_frame_weak <- prior_frame_weak %>% dMf_expand_fits() #%>% dMf_append_plots(index = 1:400)
-# 
-# prior_frame$obj %>% walk(loadDLL)
-# prior_frame$prd <- map(1:4, function(i) prior_frame_weak$prd[[1]])
-# prior_frame <- prior_frame %>% dMf_expand_fits() %>% dMf_append_plots()
-# 
-# ```
-# 
-# Seems as if there are some decent steps this time
-# ```{r}
-# prior_frame$plot_value
-# prior_frame_weak %>% str1
-# ```
-# 
-
-# ## profiles with weak prior
-# ```{r}
-# profiles_weak_prior_job <- runbg({
-#     ncores <- detectFreeCores()
-#     assign("ncores", ncores, pos = .GlobalEnv)
-#   
-#   prior_frame_weak %>%
-#     mutate(profiles = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", best_parvec[[i]], pos = .GlobalEnv)
-#       
-#       profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
-#     }))
-# },  machine = c(paste0("ruprecht", 1)), input = "prior_frame_weak", filename = "2018_04_13_12_56_profiles_weak_prior_job_runbg")
-# saveRDS(profiles_weak_prior_job, file = "2018_04_13_12_56_profiles_weak_prior_job.rds")
-# profiles_weak_prior_job <- readRDS("2018_04_13_12_56_profiles_weak_prior_job.rds")
-# profiles_weak_prior_job$check()
-# wait_for_runbg(profiles_weak_prior_job, delta_t = 60)
-# beepr::beep()
-# profiles_weak_prior_job_results <- profiles_weak_prior_job$get()
-# saveRDS(profiles_weak_prior_job_results, file = "2018_04_13_12_56_profiles_weak_prior_job_results.rds")
-# profiles_weak_prior_job$purge()
-# prior_frame_weak <- readRDS("2018_04_13_12_56_profiles_weak_prior_job_results.rds")$ruprecht1
-```
-
-
-
-# Reconcile fit results with new .c-files
-I had the trouble that there was a random string attached to the function names in the .c-files, so when I let the script run again, these changed and the saved objects couldn't find their functions anymore in the DLLs. This is now fixed
-```{r}
-# prior_frame_old <- readRDS("2018_04_06_13_50_prior_frame_with_profiles.rds")
-# prior_frame <- prior_frame %>%
-#   add_column(parframes = prior_frame_old$parframes,
-#              profiles = prior_frame_old$profiles)
-# 
-# prior_frame_weak_old <- readRDS("2018_04_13_12_56_profiles_weak_prior_job_results.rds")$ruprecht1
-# prior_frame_weak <- prior_frame_weak %>%
-#   add_column(parframes = prior_frame_weak_old$parframes,
-#     profiles = prior_frame_weak_old$profiles)
-# 
-# saveRDS(rbind(prior_frame, prior_frame_weak), file = tpaste0("prior.frame_full.rds"))
-# prior_frame <- readRDS("2018_04_23_17_00_prior.frame_full.rds")
+dev.off()
 
 ```
 
 
-# Look at results
-```{r}
-prior_frame <- readRDS("2018_04_23_17_00_prior.frame_full.rds")
-prior_frame$obj %>% walk(loadDLL)
-```
+```{r plot Profiles}
 
-
-The profiles of the fits with weak prior are really bad and again slip into the trap with CYP1A2MET_KM_MET going to zero.
-This again results in the profiles being wiggly and not reaching the limits.
-Description of the profiles and further thoughts:
-* Profiles for which I think the prior can definitely be removed:
-    1. APAPD_HLM_CL
-    1. APAP_KM_APAP
-    1. KLU_EXCO2C13
-```{r}
 prior_frame$profiles %>% 
+  setNames(prior_frame$hypothesis) %>% 
   plotProfile() +
-  coord_cartesian(ylim = c(-2, 4)) +
-  # scale_color_brewer() +
-  geom_blank()
+  coord_cartesian(ylim = c(-0.5, 4))
+
+
 # ggplotly()
 ```
+
+# Find out what to do about the bic data
+1. Is the assumed error model correct?
+  - No for P_CO2F, the absolute error is too big!
+2. What about the offset? Should I do it correctly or can I just fix the offset?
+```{r explorative plotting of offset_bic and data with estimated error bars}
+# checkout_hypothesis(prior_frame, 4, "wup")
+dev.new()
+wuppars <- wupparframes %>% as.parvec()
+wuppars["offset_bic"] <- wuppars["offset_bic"] - .00004
+
+wupdata_sig <- wupdata_sig %>% as.data.frame() %>% 
+  mutate(sigma = sqrt(exp(-2)^2+ value * exp(-1)^2))  %>% 
+  select(-condition) %>% 
+  as.datalist
+
+wupdata <- wupdata_data + (wupdata_sig)
+
+plotCombined(wupprd(wuptimes, wuppars, deriv = F), NULL, condition %in% cond_bic & name %in% "P_CO2F") + 
+  ggplot2::geom_hline(yintercept = 0)
+
+plotData(wupdata, name %in% observables_bic)
+```
+
+
 
 
 ## Question: Which conditions push the parameter CYP1A2MET_KM_MET to -Inf?
@@ -625,215 +421,11 @@ prior_frame$val_sum[[4]]$gradient
 
 
 ```{r}
-# myframe <- prior_frame$condwise[[4]] %>% 
-#   do.call(rbind,.) 
-
-
 unnest_name(myframe) %>% print
-
-
 ```
 
 
 
-
-
-
-
-
-
-
-
-# Scan the prior range between 1 and 5
-```{r dependson="read_model"}
-apapbicmet_frame <- readRDS("2018_05_07_22_22_apapbicmet_frame.rds")
-walk(apapbicmet_frame$obj, loadDLL)
-myindices <- pars_raw %>% names %>% toupper() %>% {which(. %in% getParameters(apapbicmet_frame$p_sig[[1]]))}
-prior_mu <- log(pars_raw[myindices])
-names(prior_mu) <- toupper(names(prior_mu))
-
-# prior_mu <- prior_mu %>% .[!names(prior_mu) %in% c("APAPD_HLM_CL", "APAPD_KM_APAP")]
-
-
-prior_frame2 <- apapbicmet_frame %>% 
-  rbind(.,.,.,.) %>% 
-  ungroup() %>% 
-  mutate(
-    constr = map(seq_along(x), function(i) {
-      constraintL2(prior_mu, sigma = i/2+1) }), 
-    hypothesis = paste0("prior_sigma=", (1:4)/2+1)
-  ) %>% 
-  rowwise() %>% 
-  mutate(obj = list(obj + constr)) %>% 
-  {.}
-```
-
-
-```{r}
-# fit_job <- runbg({
-#     ncores <- detectFreeCores()
-#     assign("ncores", ncores, pos = .GlobalEnv)
-# 
-#    prior_frame2 %>%
-#     ungroup %>%
-#     mutate(fits = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
-#              blather = F, cores = ncores, fits = 10*ncores) })) %>%
-#     rowwise
-# 
-#   },  machine = c(paste0("knecht", c(1, 3,5)), "ruprecht1"), input = "prior_frame2", filename = "2018_05_07_22_49_fit_job_runbg")
-# saveRDS(fit_job, file = "2018_05_07_22_49_fit_job.rds")
-# fit_job <- readRDS("2018_05_07_22_49_fit_job.rds")
-# fit_job$check()
-# wait_for_runbg(fit_job)
-# fit_job_results <- fit_job$get()
-# saveRDS(fit_job_results, file = "2018_05_07_22_49_fit_job_results.rds")
-# fit_job$purge()
-# fit_job_results <- readRDS("2018_05_07_22_49_fit_job_results.rds")
-```
-
-```{r}
-fit_job_results <- readRDS("2018_05_07_22_49_fit_job_results.rds")
-prior_frame2 <- fit_job_results[[1]]
-prior_frame2$fits <- fit_job_results %>% map("fits") %>% transpose() %>% map(. %>%  Reduce(c.parlist,.) )
-prior_frame2 <- prior_frame2 %>% appendParframes()
-```
-
-
-```{r}
-# computers <- c(paste0("ruprecht", c(1,2)), "ruprecht1", "fermi")
-# profile_job <- map(seq_along(computers), function(i) {
-#   myframe <- assign("myframe", prior_frame2[i, drop = F], pos = .GlobalEnv)
-#   cat("job ", i, " starting. \n")
-#   runbg({
-#     ncores <- detectFreeCores()
-#     assign("ncores", ncores, pos = .GlobalEnv)
-# 
-#    myframe %>%
-#     ungroup %>%
-#     mutate(profiles = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", parframes[[i]] %>% as.parvec, pos = .GlobalEnv)
-#       profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores) })) %>%
-#       rowwise
-# 
-#   },  machine = computers[i], input = "myframe", filename = paste0("2018_05_08_10_09_profile_job_runbg_", i), recover = T)
-# })
-# saveRDS(profile_job, file = "2018_05_08_10_09_profile_job.rds")
-# profile_job <- map(seq_along(computers), function(i) recover_runbg(computers[i], paste0("2018_05_08_10_09_profile_job_runbg_", i)))
-# beepr::beep()
-# profile_job <- readRDS("2018_05_08_10_09_profile_job.rds")
-# profile_job %>% walk(. %>% {.$check()})
-# wait_for_runbg(profile_job)
-# profile_job_results <- profile_job %>% map(. %>% {.$get()})%>% do.call(c,.) %>%  do.call(rbind,.)
-# saveRDS(profile_job_results, file = "2018_05_08_10_09_profile_job_results.rds")
-# profile_job %>% walk(. %>% {.$purge()})
-prior_frame2 <- readRDS("2018_05_08_10_09_profile_job_results.rds")
-```
-
-```{r}
-profile_job_results$profiles %>% setNames(profile_job_results$hypothesis) %>%  plotProfile()
-```
-
-
-# Reconcile prior_frame and prior_frame2
-```{r}
-prior_frame2 <- readRDS("2018_05_08_10_09_profile_job_results.rds")
-prior_frame <- readRDS("2018_04_23_17_00_prior.frame_full.rds")
-
-prior_frame <- prior_frame %>% 
-  select(-data, -obj_data) %>% 
-  rename(g = g, x = x, p = p_0, data  = data_0, obj_data =  obj_0, prd_data = prd_0,
-         p_sig = p_sig, obj_data_sig = obj_sig, e_sig = e) %>% 
-  mutate(
-    x_sig =x, g_sig = g, 
-    times = list(seq(min(as.data.frame(data)[["time"]]),
-                     max(as.data.frame(data)[["time"]]) * 1.1, length.out = 200)))
-
-
-prior_frame <- bind_rows(prior_frame, prior_frame2)
-```
-
-
-```{r}
-prior_frame$profiles %>% setNames(prior_frame$hypothesis) %>%  plotProfile() +
-  coord_cartesian(ylim = c(-0.5,4))
-```
-
-## Profile steps of prior strength 1 and 1.5
-
-```{r}
-
-# walk(myframe$obj, loadDLL)
-# profile_steps_job <- map(1:2, function(hypothesis) {
-#   myframe <- assign("myframe", prior_frame[c(4,7)[hypothesis], drop = F], pos = .GlobalEnv)
-#   runbg({
-#     ncores <- detectFreeCores()
-#     assign("ncores", ncores, pos = .GlobalEnv)
-# 
-#     myframe %>%
-#     ungroup %>%
-#     mutate(profile_steps = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-# 
-#       steps <- getSteps(parframes[[i]], tol = 1, nsteps = 3)
-#       lapply(steps, function(step) {
-#         assign("fit_pars", parframes[[i]] %>% as.parvec(step), pos = .GlobalEnv)
-#         profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
-#       }) %>%
-#         list
-#        })) %>%
-#       rowwise
-# 
-# 
-#   },  machine = c(paste0("knecht", c(4,5)[hypothesis])), input = "myframe", filename = paste0("2018_05_11_13_40_profile_steps_job_runbg_", hypothesis))
-# })
-# saveRDS(profile_steps_job, file = "2018_05_11_13_40_profile_steps_job.rds")
-# profile_steps_job <- readRDS("2018_05_11_13_40_profile_steps_job.rds")
-# map(profile_steps_job, . %>% {.$check()})
-# wait_for_runbg(profile_steps_job)
-# profile_steps_job_results <- map(profile_steps_job, . %>% {.$get()})
-# saveRDS(profile_steps_job_results, file = "2018_05_11_13_40_profile_steps_job_results.rds")
-# map(profile_steps_job, . %>% {.$purge()})
-# profile_steps_job_results <- readRDS("2018_05_11_13_40_profile_steps_job_results.rds") %>% map(1) %>% do.call(rbind,.)
-```
-
-```{r}
-# myframe <- readRDS("2018_05_11_13_40_profile_steps_job_results.rds") %>% map(1) %>% do.call(rbind,.)
-# prior_frame <- full_join(prior_frame, myframe[c("hypothesis", "profile_steps")], by = "hypothesis")
-# git_add_dMod.frame(prior_frame)
-```
-
-```{r}
-prior_frame[["profile_steps"]][[4]] %>% .[[1]] %>% 
-  c(prior_frame[["profile_steps"]][[7]] %>% .[[1]] %>% setNames(.,paste0(names(.), "_2"))) %>% 
-  plotProfile() +
-  coord_cartesian(ylim = c(-.5,4))
-```
-
-```{r}
-plotPaths(prior_frame$profiles[[4]], whichPar = "KBO_RELCO2")
-
-plotPaths(prior_frame$profiles[[4]], whichPar = "CYP1A2MET_KM_MET")
-
-plotPaths(prior_frame$profiles[[4]], whichPar = "CYP1A2MET_CL")
-```
-
-
-```{r}
-myframe <- prior_frame
-plotResiduals.dMod.frame <- function(myframe, hypothesis = 1, split = "condition") {
-  
-  plotResiduals(parframe = myframe[["parframes"]][[hypothesis]], 
-                x = myframe[["prd"]][[hypothesis]],
-                data = myframe[["data"]][[hypothesis]] + myframe[["data_sig"]][[hypothesis]],
-                errmodel = myframe[["e"]][[hypothesis]],
-                split = split)
-}
-```
 
 
 
@@ -926,6 +518,46 @@ ggplotly()
 
 
 ```{r}
+myframe <- prior_frame[4,]
+myframe$obj %>% walk(loadDLL)
+profile_without_prior_after_refitting <- runbg({
+    ncores <- detectFreeCores()
+    assign("ncores", ncores, pos = .GlobalEnv)
+
+   myframe %>%
+    ungroup %>%
+     mutate(profiles_wo_prior_after_refitting = map(seq_along(x), function(i) {
+       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+       assign("fit_pars", parframes[[i]] %>% as.parvec, pos = .GlobalEnv)
+
+       mynames <- names(fit_pars)
+
+       parallel::mclapply(mynames, function(nm) {
+         mypars <- trust(fit_obj, fit_pars[!names(fit_pars)%in%nm], fixed = fit_pars[nm], 0.5, 2, iterlim = 50)$argument
+         profile(obj = fit_obj, pars = c(mypars, fit_pars[nm]), whichPar = nm, cores = 2) }, mc.cores = ncores) %>%
+         do.call(rbind,.)
+     })) %>%
+       rowwise
+
+
+
+  },  machine = c(paste0("knecht", 2)), input = "myframe", filename = "2018_05_14_14_14_profile_without_prior_after_refitting_runbg"
+    ,recover = T
+)
+profile_without_prior_after_refitting$check()
+# runbg(wait_for_runbg(profile_without_prior_after_refitting), filename = "wait", input = "profile_without_prior_after_refitting")
+profile_without_prior_after_refitting_results <- profile_without_prior_after_refitting$get()
+# saveRDS(profile_without_prior_after_refitting_results, file = "2018_05_14_14_14_profile_without_prior_after_refitting_results.rds")
+# profile_without_prior_after_refitting$purge()
+# profile_without_prior_after_refitting <- readRDS("2018_05_14_14_14_profile_without_prior_after_refitting_results.rds")
+```
+```{r}
+profile_without_prior_after_refitting_results$knecht2$profiles_wo_prior_after_refitting 
+```
+
+
+
+```{r}
 # myframe <- prior_frame[4,]
 # profile_without_prior <- runbg({
 #     ncores <- detectFreeCores()
@@ -944,12 +576,12 @@ ggplotly()
 # 
 #   },  machine = c(paste0("knecht", 5)), input = "myframe", filename = "2018_05_11_20_13_profile_without_prior_runbg")
 # saveRDS(profile_without_prior, file = "2018_05_11_20_13_profile_without_prior.rds")
-profile_without_prior <- readRDS("2018_05_11_20_13_profile_without_prior.rds")
+# profile_without_prior <- readRDS("2018_05_11_20_13_profile_without_prior.rds")
 # profile_without_prior$check()
 # wait_for_runbg(profile_without_prior)
 # profile_without_prior_results <- profile_without_prior$get()
 # saveRDS(profile_without_prior_results, file = "2018_05_11_20_13_profile_without_prior_results.rds")
-profile_without_prior$purge()
+# profile_without_prior$purge()
 profile_without_prior <- readRDS("2018_05_11_20_13_profile_without_prior_results.rds")
 ```
 
