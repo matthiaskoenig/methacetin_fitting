@@ -112,21 +112,20 @@ e_sigma_NA <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g)#, modelname = "e
 
 
 ```{r explorative plotting of offset_bic and data with estimated error bars}
-
-datasig <- data_full %>% 
-  as.data.frame() %>% 
-  group_by(study, group, name) %>% 
-  mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
-  filter(sna == nna) %>% 
-  select(-sna, -nna) %>% 
-  as.data.frame() %>% 
-  mutate(sigma = sqrt(exp(-11)^2 + (value * exp(-3))^2))  %>% #Meineke
-  # mutate(sigma = sqrt(exp(0)^2 + (value * exp(-3))^2))  %>% #Barstow and Krumbiegel
-  as.datalist
-
-
-
-plotData(datasig)
+# datasig <- data_full %>% 
+#   as.data.frame() %>% 
+#   group_by(study, group, name) %>% 
+#   mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
+#   filter(sna == nna) %>% 
+#   select(-sna, -nna) %>% 
+#   as.data.frame() %>% 
+#   mutate(sigma = sqrt(exp(-11)^2 + (value * exp(-3))^2))  %>% #Meineke
+#   # mutate(sigma = sqrt(exp(0)^2 + (value * exp(-3))^2))  %>% #Barstow and Krumbiegel
+#   as.datalist
+# 
+# 
+# 
+# plotData(datasig)
 ```
 
 ```{r data and p apapbicmet}
@@ -241,16 +240,12 @@ If the fitting is more stable again, I can set them free again, maybe,.
          ")
 
 
-apapbicmet_frame_updated_errormodel <- apapbicmet_frame
-
-git_add_dMod.frame(apapbicmet_frame_updated_errormodel)
-remove_c_and_o()
+# apapbicmet_frame_updated_errormodel <- apapbicmet_frame
+# git_add_dMod.frame(apapbicmet_frame_updated_errormodel)
+# remove_c_and_o()
 
 
 ```
-
-
-
 
 
 ```{r check if the fixed error models are somewhat sensible}
@@ -283,6 +278,62 @@ remove_c_and_o()
 
 
 # Fit and profile with priors
+
+```{r}
+prior_frame <- apapbicmet_frame
+prior_frame[["hypothesis"]] <- "prior_sigma ="
+
+prior_sigmas <- c(10^(-3:1), seq(0.5,5, by = 0.5)) %>% unique() %>% sort
+myindices <- pars_raw %>% names %>% toupper() %>% {which(. %in% getParameters(apapbicmet_frame$p_sig[[1]]))}
+prior_mu <- log(pars_raw[myindices])
+names(prior_mu) <- toupper(names(prior_mu))
+
+
+prior_frame <- map(1:length(prior_sigmas), function(i)
+  prior_frame %>% 
+    mutate(hypothesis = paste0(hypothesis, " ", prior_sigmas[i])) %>% 
+    mutate(constr = list(constraintL2(prior_mu, sigma = prior_sigmas[i]))) %>% 
+    mutate(obj = list(obj + constr))
+  ) %>% 
+  do.call(rbind,.)
+```
+
+
+```{r}
+# insert_runbg("fit_prior_frame", "fit", "prior_frame")
+fit_prior_frame <- runbg({
+    ncores <- detectFreeCores()
+    assign("ncores", ncores, pos = .GlobalEnv)
+
+   prior_frame %>%
+    ungroup %>%
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", digest::digest(hypothesis[[i]])), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
+             blather = F, cores = ncores, fits = 10*ncores) })) %>%
+    rowwise
+
+  },  machine = c(paste0("ruprecht", 1:2)), input = "prior_frame", filename = "2018_05_17_17_51_fit_prior_frame_runbg"
+    # , recover = T
+)
+# fit_prior_frame$check()
+# runbg(wait_for_runbg(fit_prior_frame), filename = "wait", input = "fit_prior_frame")
+# fit_prior_frame_results <- fit_prior_frame$get()
+# saveRDS(fit_prior_frame_results, file = "2018_05_17_17_51_fit_prior_frame_results.rds")
+# fit_prior_frame$purge()
+# fit_prior_frame <- readRDS("2018_05_17_17_51_fit_prior_frame_results.rds")
+```
+
+
+
+
+
+
+# Analysis of results
+
+
 
 ```{r load results and format them for analysis, message=FALSE, warning = FALSE}
 # Load results, prepare the prediction function for plotFluxes
