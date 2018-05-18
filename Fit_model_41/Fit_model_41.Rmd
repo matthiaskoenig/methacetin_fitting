@@ -301,31 +301,76 @@ prior_frame <- map(1:length(prior_sigmas), function(i)
 
 ```{r}
 # insert_runbg("fit_prior_frame", "fit", "prior_frame")
-fit_prior_frame <- runbg({
-    ncores <- detectFreeCores()
-    assign("ncores", ncores, pos = .GlobalEnv)
-
-   prior_frame %>%
-    ungroup %>%
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", digest::digest(hypothesis[[i]])), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
-             blather = F, cores = ncores, fits = 10*ncores) })) %>%
-    rowwise
-
-  },  machine = c(paste0("ruprecht", 1:2)), input = "prior_frame", filename = "2018_05_17_17_51_fit_prior_frame_runbg"
-    # , recover = T
-)
+# fit_prior_frame <- runbg({
+#     ncores <- detectFreeCores()
+#     assign("ncores", ncores, pos = .GlobalEnv)
+# 
+#    prior_frame %>%
+#     ungroup %>%
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", digest::digest(hypothesis[[i]])), pos = .GlobalEnv)
+#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
+#              blather = F, cores = ncores, fits = 10*ncores) })) %>%
+#     rowwise
+# 
+#   },  machine = c(paste0("ruprecht", 1:2)), input = "prior_frame", filename = "2018_05_17_17_51_fit_prior_frame_runbg"
+#     , recover = T
+# )
 # fit_prior_frame$check()
 # runbg(wait_for_runbg(fit_prior_frame), filename = "wait", input = "fit_prior_frame")
 # fit_prior_frame_results <- fit_prior_frame$get()
 # saveRDS(fit_prior_frame_results, file = "2018_05_17_17_51_fit_prior_frame_results.rds")
 # fit_prior_frame$purge()
-# fit_prior_frame <- readRDS("2018_05_17_17_51_fit_prior_frame_results.rds")
+fit_prior_frame <- readRDS("2018_05_17_17_51_fit_prior_frame_results.rds")
 ```
 
+
+```{r}
+prior_frame$fits <- fit_prior_frame %>% 
+  map("fits") %>% 
+  transpose() %>% 
+  map(. %>% Reduce(c.parlist,.)) %>% 
+  {.}
+
+prior_frame <- prior_frame %>% appendParframes()
+```
+
+```{r}
+# insert_runbg("profile_steps", "profile_steps", "prior_frame", 1,3)
+profile_steps <- runbg({
+    ncores <- detectFreeCores()
+    assign("ncores", ncores, pos = .GlobalEnv)
+
+   prior_frame %>%
+    ungroup %>%
+    mutate(profile_steps = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+
+      steps <- getStepIndices(parframes[[i]], tol = 1, nsteps = 3) %>% setNames(.,.)
+      lapply(steps, function(step) {
+        assign("fit_pars", parframes[[i]] %>% as.parvec(step), pos = .GlobalEnv)
+        myprof <- profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
+        saveRDS(myprof, tpaste0("profile_hypothesis_",i,"_step_",step,".rds"))
+        myprof
+      }) %>%
+        list
+
+       })) %>%
+      rowwise
+
+
+  },  machine = c(paste0("knecht", 2)), input = "prior_frame", filename = "2018_05_18_19_53_profile_steps_runbg"
+    , recover = T
+)
+# profile_steps$check()
+# runbg(wait_for_runbg(profile_steps), filename = "wait", input = "profile_steps")
+# profile_steps_results <- profile_steps$get()
+# saveRDS(profile_steps_results, file = "2018_05_18_19_53_profile_steps_results.rds")
+# profile_steps$purge()
+# profile_steps <- readRDS("2018_05_18_19_53_profile_steps_results.rds")
+```
 
 
 
@@ -337,7 +382,7 @@ fit_prior_frame <- runbg({
 
 ```{r load results and format them for analysis, message=FALSE, warning = FALSE}
 # Load results, prepare the prediction function for plotFluxes
-prior_frame <- readRDS("2018_05_11_17_26_prior_frame.rds")
+# prior_frame <- readRDS("2018_05_11_17_26_prior_frame.rds")
 walk(prior_frame$obj, loadDLL)
 walk(1:nrow(prior_frame), function(i) {
   controls(prior_frame$g[[i]], name = "attach.input") <- T
@@ -384,17 +429,6 @@ cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[[
 cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
 
 nhyp <- nrow(prior_frame)
-
-pars_raw["R_PDB"]
-
-
-
-myfn <- funC0(c(bla = "((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60) / ((1 / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + ((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60))"))
-
-
-pars_raw[getSymbols("((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60) / ((1 / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + ((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60))")]
-
-do.call(myfn, as.list(pars_raw[getSymbols("((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60) / ((1 / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + ((R_PDB / (1 + R_PDB)) * (0.024265 * (BW / 1)**0.5378 * (HEIGHT / 1)**0.3964 * P_CO2BSA / 60) + KLU_EXCO2 * 60 * (Alu_co2c13 / (BW * FVlu)) * (BW * FVlu) / 60))")]))
 ```
 
 ```{r plot values}
