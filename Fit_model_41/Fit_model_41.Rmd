@@ -339,38 +339,88 @@ prior_frame <- prior_frame %>% appendParframes()
 
 ```{r}
 # insert_runbg("profile_steps", "profile_steps", "prior_frame", 1,3)
-profile_steps <- runbg({
-    ncores <- detectFreeCores()
-    assign("ncores", ncores, pos = .GlobalEnv)
-
-   prior_frame %>%
-    ungroup %>%
-    mutate(profile_steps = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-
-      steps <- getStepIndices(parframes[[i]], tol = 1, nsteps = 3) %>% setNames(.,.)
-      lapply(steps, function(step) {
-        assign("fit_pars", parframes[[i]] %>% as.parvec(step), pos = .GlobalEnv)
-        myprof <- profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
-        saveRDS(myprof, tpaste0("profile_hypothesis_",i,"_step_",step,".rds"))
-        myprof
-      }) %>%
-        list
-
-       })) %>%
-      rowwise
-
-
-  },  machine = c(paste0("knecht", 2)), input = "prior_frame", filename = "2018_05_18_19_53_profile_steps_runbg"
-    , recover = T
-)
+# profile_steps <- runbg({
+#     ncores <- detectFreeCores()
+#     assign("ncores", ncores, pos = .GlobalEnv)
+# 
+#    prior_frame %>%
+#     ungroup %>%
+#     mutate(profile_steps = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+# 
+#       steps <- getStepIndices(parframes[[i]], tol = 1, nsteps = 3) %>% setNames(.,.)
+#       lapply(steps, function(step) {
+#         assign("fit_pars", parframes[[i]] %>% as.parvec(step), pos = .GlobalEnv)
+#         myprof <- profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
+#         saveRDS(myprof, tpaste0("profile_hypothesis_",i,"_step_",step,".rds"))
+#         myprof
+#       }) %>%
+#         list
+# 
+#        })) %>%
+#       rowwise
+# 
+# 
+#   },  machine = c(paste0("knecht", 2)), input = "prior_frame", filename = "2018_05_18_19_53_profile_steps_runbg"
+#     , recover = T
+# )
 # profile_steps$check()
 # runbg(wait_for_runbg(profile_steps), filename = "wait", input = "profile_steps")
 # profile_steps_results <- profile_steps$get()
 # saveRDS(profile_steps_results, file = "2018_05_18_19_53_profile_steps_results.rds")
 # profile_steps$purge()
-# profile_steps <- readRDS("2018_05_18_19_53_profile_steps_results.rds")
+profile_steps <- readRDS("2018_05_18_19_53_profile_steps_results.rds")
 ```
+
+```{r}
+profile_steps$knecht2$profile_steps %>% map(1) %>% map(1) %>% plotProfile()
+```
+
+
+# Fit conditionwise
+
+```{r}
+fit_prior_frame <- readRDS("2018_05_17_17_51_fit_prior_frame_results.rds")
+prior_frame <- fit_prior_frame[[1]]
+prior_frame$fits <- fit_prior_frame %>% 
+  map("fits") %>% 
+  transpose() %>% 
+  map(. %>% Reduce(c.parlist,.)) %>% 
+  {.}
+prior_frame <- prior_frame %>% appendParframes()
+
+# insert_runbg("refit_condwise", "fit", "prior_frame")
+
+refit_condwise <- runbg({
+    ncores <- detectFreeCores()
+    assign("ncores", ncores, pos = .GlobalEnv)
+
+   prior_frame %>%
+    ungroup %>%
+    mutate(condwise_refits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", parframes[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      
+      myconditions <- getConditions(obj[[i]]) %>% setNames(.,.)
+      lapply(myconditions, function(cond) {
+        mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
+             blather = F, cores = ncores, conditions = cond) %>% as.parframe
+      })
+    })) %>%
+     rowwise
+   
+  },  machine = c(paste0("knecht", 5)), input = "prior_frame", filename = "2018_05_20_12_28_refit_condwise_runbg"
+    , recover = T
+)
+# refit_condwise$check()
+# runbg(wait_for_runbg(refit_condwise), filename = "wait", input = "refit_condwise")
+# refit_condwise_results <- refit_condwise$get()
+# saveRDS(refit_condwise_results, file = "2018_05_20_12_28_refit_condwise_results.rds")
+# refit_condwise$purge()
+# refit_condwise <- readRDS("2018_05_20_12_28_refit_condwise_results.rds")
+```
+
 
 
 
@@ -383,6 +433,10 @@ profile_steps <- runbg({
 ```{r load results and format them for analysis, message=FALSE, warning = FALSE}
 # Load results, prepare the prediction function for plotFluxes
 # prior_frame <- readRDS("2018_05_11_17_26_prior_frame.rds")
+
+
+
+
 walk(prior_frame$obj, loadDLL)
 walk(1:nrow(prior_frame), function(i) {
   controls(prior_frame$g[[i]], name = "attach.input") <- T
@@ -414,6 +468,20 @@ prior_frame <- prior_frame %>%
 
 ```
 
+```{r}
+prior_frame <- readRDS("2018_05_18_19_53_profile_steps_results.rds")$knecht2
+walk(prior_frame$obj, loadDLL)
+walk(1:nrow(prior_frame), function(i) {
+  controls(prior_frame$g[[i]], name = "attach.input") <- T
+  controls(prior_frame$g_sig[[i]], name = "attach.input") <- T
+  controls(prior_frame$prd[[i]], name = "attach.input") <- T
+  controls(prior_frame$prd_data[[i]], name = "attach.input") <- T
+  controls(prior_frame$prd_sig[[i]], name = "attach.input") <- T
+})
+
+```
+
+
 ```{r plotting helpers}
 observables <- prior_frame$g[[1]] %>% getEquations() %>%.[[1]] %>%  names
 
@@ -443,7 +511,7 @@ map(1:nhyp, function(i) {
 ```
 
 ```{r plot predictions}
-pdf(file = "plots.pdf", width = 16, height = 9)
+pdf(file = "plots_new.pdf", width = 16, height = 9)
 
 map(1:nhyp, function(i) {
   plotCombined(prior_frame, i, 1, condition %in% cond_apap & name %in% observables_apap)
