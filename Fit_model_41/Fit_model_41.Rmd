@@ -373,11 +373,13 @@ profile_steps <- readRDS("2018_05_18_19_53_profile_steps_results.rds")
 ```
 
 ```{r}
-profile_steps$knecht2$profile_steps %>% map(1) %>% map(1) %>% plotProfile()
+profile_steps$knecht2$profile_steps %>% map(1) %>% map(1) %>% plotProfile() + coord_cartesian(ylim = c(-0.5,4))
+ggsave("profiles.pdf")
+
 ```
 
 
-# Fit conditionwise
+## Fit conditionwise
 
 ```{r}
 fit_prior_frame <- readRDS("2018_05_17_17_51_fit_prior_frame_results.rds")
@@ -391,52 +393,108 @@ prior_frame <- prior_frame %>% appendParframes()
 
 # insert_runbg("refit_condwise", "fit", "prior_frame")
 
-refit_condwise <- runbg({
-    ncores <- detectFreeCores()
-    assign("ncores", ncores, pos = .GlobalEnv)
-
-   prior_frame %>%
-    ungroup %>%
-    mutate(condwise_refits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", parframes[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      
-      myconditions <- getConditions(obj[[i]]) %>% setNames(.,.)
-      lapply(myconditions, function(cond) {
-        mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
-             blather = F, cores = ncores, conditions = cond) %>% as.parframe
-      })
-    })) %>%
-     rowwise
-   
-  },  machine = c(paste0("knecht", 5)), input = "prior_frame", filename = "2018_05_20_12_28_refit_condwise_runbg"
-    , recover = T
-)
+# refit_condwise <- runbg({
+#     ncores <- detectFreeCores()
+#     assign("ncores", ncores, pos = .GlobalEnv)
+# 
+#    prior_frame %>%
+#     ungroup %>%
+#     mutate(condwise_refits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", parframes[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       
+#       myconditions <- getConditions(obj[[i]]) %>% setNames(.,.)
+#       lapply(myconditions, function(cond) {
+#         mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
+#              blather = F, cores = ncores, conditions = cond) %>% as.parframe
+#       })
+#     })) %>%
+#      rowwise
+#    
+#   },  machine = c(paste0("knecht", 5)), input = "prior_frame", filename = "2018_05_20_12_28_refit_condwise_runbg"
+#     , recover = T
+# )
 # refit_condwise$check()
 # runbg(wait_for_runbg(refit_condwise), filename = "wait", input = "refit_condwise")
 # refit_condwise_results <- refit_condwise$get()
 # saveRDS(refit_condwise_results, file = "2018_05_20_12_28_refit_condwise_results.rds")
 # refit_condwise$purge()
-# refit_condwise <- readRDS("2018_05_20_12_28_refit_condwise_results.rds")
+refit_condwise <- readRDS("2018_05_20_12_28_refit_condwise_results.rds")
+```
+
+## Fit observable-wise
+
+```{r}
+fit_prior_frame <- readRDS("2018_05_17_17_51_fit_prior_frame_results.rds")
+# prior_frame <- fit_prior_frame[[1]]
+# prior_frame$fits <- fit_prior_frame %>% 
+#   map("fits") %>% 
+#   transpose() %>% 
+#   map(. %>% Reduce(c.parlist,.)) %>% 
+#   {.}
+# prior_frame <- prior_frame %>% appendParframes()
+
+# insert_runbg("refit_obswise", "fit", "prior_frame")
+
+# refit_obswise <- runbg({
+#     ncores <- detectFreeCores()
+#     assign("ncores", ncores, pos = .GlobalEnv)
+# 
+#    prior_frame %>%
+#     ungroup %>%
+#     mutate(obswise_refits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", parframes[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       
+#       obs <- data[[i]] %>% as.data.frame() %>% .$name %>% unique
+#         
+#       myconditions <- map(obs, function(ob) {
+#         data[[i]] %>% 
+#         as.data.frame()%>% 
+#         filter(name %in% ob) %>% 
+#         .$condition %>% 
+#         unique %>% 
+#           as.character()
+#       })  
+#       
+#       lapply(myconditions, function(cond) {
+#         mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
+#              blather = F, cores = ncores, conditions = cond) %>% as.parframe
+#       })
+#     })) %>%
+#      rowwise
+#    
+#   },  machine = c(paste0("knecht", 4)), input = "prior_frame", filename = "2018_05_20_12_29_refit_obswise_runbg"
+#     , recover = T
+# )
+# refit_obswise$check()
+# runbg(wait_for_runbg(refit_obswise), filename = "wait", input = "refit_obswise")
+# refit_obswise_results <- refit_obswise$get()
+# saveRDS(refit_obswise_results, file = "2018_05_20_12_29_refit_obswise_runbg_results.rds")
+# refit_obswise$purge()
+refit_obswise <- readRDS("2018_05_20_12_29_refit_obswise_runbg_results.rds")
 ```
 
 
 
 
+# Analyse refit-results
 
 
-# Analysis of results
+### Reconcile results of obswise and condwise refits
+
+```{r}
+refit_obswise <- readRDS("2018_05_20_12_29_refit_obswise_runbg_results.rds")
+refit_condwise <- readRDS("2018_05_20_12_28_refit_condwise_results.rds")
+
+prior_frame <- refit_condwise$knecht5
+prior_frame$obswise_refits <- refit_obswise$knecht4$obswise_refits
+```
 
 
-
-```{r load results and format them for analysis, message=FALSE, warning = FALSE}
-# Load results, prepare the prediction function for plotFluxes
-# prior_frame <- readRDS("2018_05_11_17_26_prior_frame.rds")
-
-
-
-
+```{r}
 walk(prior_frame$obj, loadDLL)
 walk(1:nrow(prior_frame), function(i) {
   controls(prior_frame$g[[i]], name = "attach.input") <- T
@@ -445,26 +503,230 @@ walk(1:nrow(prior_frame), function(i) {
   controls(prior_frame$prd_data[[i]], name = "attach.input") <- T
   controls(prior_frame$prd_sig[[i]], name = "attach.input") <- T
 })
-# Put the columns into the right order
-prior_frame <- prior_frame[c(1,3,2,4,22, 5,20,19,6,7,8,9,10,14,11,12,15,13,16,21,17,18,25,23)]
 
-# Add the result of the profiles without prior, which started from a fit position with prior. 
-# I think it would be better to first refit around the optimum and then start profiling
-profile_without_prior <- readRDS("2018_05_11_20_13_profile_without_prior_results.rds")[[1]]
-prior_frame[4, "profile_wo_prior"] <- list(profile_without_prior$profiles_wo_prior)
+```
 
 
-# Rename hypotheses
-prior_frame$hypothesis <- prior_frame$hypothesis %>% str_replace_all(c("srel = -1,s0=-2, " = "", " =" = "=")) 
-# Put the rows into correct order
-prior_frame <- prior_frame[c(1L, 2L, 3L, 4L, 7L, 8L, 9L, 10L, 5L, 6L),]
+```{r plotting helpers}
+observables <- prior_frame$g[[1]] %>% getEquations() %>%.[[1]] %>%  names
+
+observables_apap <- "Mve_apap"
+observables_bic <- c("cum_rec_co2c13", "DOB","P_CO2F")
+observables_met <- c("mom_rec_metc13", "cum_rec_metc13")
+
+conditions <- prior_frame$obj[[1]] %>% getConditions()
+data <- (prior_frame$data[[1]] + prior_frame$data_sig[[1]]) %>% as.data.frame()
+
+cond_apap <- data %>% filter(name%in%"Mve_apap") %>% .[["condition"]] %>% unique %>% as.character()
+cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[["condition"]] %>% unique %>% as.character()
+cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
+
+nhyp <- nrow(prior_frame)
+ncond <- length(prior_frame$condwise_refits[[1]])
+nobs <- length(prior_frame$obswise_refits[[1]])
+```
+
+
+```{r plot refit values}
+pdf(file = "plotValues_hyp_cn.pdf", width = 16, height = 9)
+
+map(1:nhyp, function(hyp) {
+  map(1:ncond, function(cn) {
+    prior_frame$condwise_refits[[hyp]][[cn]] %>% plotValues() +
+      ggtitle(paste0(prior_frame$hypothesis, ", condition: ", names(prior_frame$condwise_refits[[hyp]])[[cn]]))
+  })
+})
+
+dev.off()
+
+pdf(file = "plotValues_cn_hyp.pdf", width = 16, height = 9)
+
+map(1:ncond, function(cn) {
+  map(1:nhyp, function(hyp) {
+    prior_frame$condwise_refits[[hyp]][[cn]] %>% plotValues()+ 
+    ggtitle(paste0(prior_frame$hypothesis, ", condition: ", names(prior_frame$condwise_refits[[hyp]])[[cn]]))
+
+  })
+})
+
+dev.off()
+
+pdf(file = "plotValues_hyp_obs.pdf", width = 16, height = 9)
+
+map(1:nhyp, function(hyp) {
+  map(1:nobs, function(cn) {
+    prior_frame$obswise_refits[[hyp]][[cn]] %>% plotValues() + 
+            ggtitle(paste0(prior_frame$hypothesis, ", observable: ", names(prior_frame$obswise_refits[[hyp]])[[cn]]))
+
+  })
+})
+
+dev.off()
+
+pdf(file = "plotValues_obs_hyp.pdf", width = 16, height = 9)
+map(1:nobs, function(cn) {
+  map(1:nhyp, function(hyp) {
+    prior_frame$obswise_refits[[hyp]][[cn]] %>% plotValues() +
+      ggtitle(paste0(prior_frame$hypothesis, ", observable: ", names(prior_frame$obswise_refits[[hyp]])[[cn]]))
+  })
+})
+
+dev.off()
+
+```
+
+```{r plot refit pars}
+# pdf(file = "plotPars_hyp_cn.pdf", width = 16, height = 9)
+# 
+# map(1:nhyp, function(hyp) {
+#   map(1:ncond, function(cn) {
+#     prior_frame$condwise_refits[[hyp]][[cn]] %>% plotPars() +
+#       ggtitle(paste0(prior_frame$hypothesis, ", condition: ", names(prior_frame$condwise_refits[[hyp]])[[cn]]))
+#   })
+# })
+# 
+# dev.off()
+
+pdf(file = "plotPars_cn_hyp.pdf", width = 16, height = 9)
+
+map(1:ncond, function(cn) {
+  map(1:nhyp, function(hyp) {
+    prior_frame$condwise_refits[[hyp]][[cn]] %>% plotPars()+ 
+    ggtitle(paste0(prior_frame$hypothesis, ", condition: ", names(prior_frame$condwise_refits[[hyp]])[[cn]]))
+
+  })
+})
+
+dev.off()
+
+pdf(file = "plotPars_hyp_obs.pdf", width = 16, height = 9)
+
+map(1:nhyp, function(hyp) {
+  map(1:nobs, function(cn) {
+    prior_frame$obswise_refits[[hyp]][[cn]] %>% plotPars() + 
+            ggtitle(paste0(prior_frame$hypothesis, ", observable: ", names(prior_frame$obswise_refits[[hyp]])[[cn]]))
+
+  })
+})
+
+dev.off()
+
+pdf(file = "plotPars_obs_hyp.pdf", width = 16, height = 9)
+map(1:nobs, function(cn) {
+  map(1:nhyp, function(hyp) {
+    prior_frame$obswise_refits[[hyp]][[cn]] %>% plotPars() +
+      ggtitle(paste0(prior_frame$hypothesis, ", observable: ", names(prior_frame$obswise_refits[[hyp]])[[cn]]))
+  })
+})
+
+dev.off()
+
+```
+
+```{r plot single best values condition_wise}
+mydf <- map(1:nhyp, function(hyp) {
+  map(1:ncond, function(cn) {
+    tibble(cond = cn, 
+           condition = names(prior_frame$condwise_refits[[hyp]])[[cn]], 
+           value = prior_frame$condwise_refits[[hyp]][[cn]]$value[[1]])
+  }) %>% do.call(rbind, .) %>% 
+      add_column(hyp = hyp, hypothesis = prior_frame$hypothesis[[hyp]])
+}) %>% do.call(rbind,.)
+
+mydf %>% 
+  mutate(pr_sig = str_replace_all(hypothesis, "prior_sigma = ", "") %>% as.numeric %>% log10()) %>% 
+  ggplot(aes(x = pr_sig, y = value)) + 
+  geom_point(aes(color = condition)) + 
+  # facet_wrap("condition") +
+  geom_blank()
+
+```
+
+```{r plot single best values obs_wise}
+
+mydf <- map(1:nhyp, function(hyp) {
+  map(1:nobs, function(cn) {
+    observables <- prior_frame$data[[hyp]] %>% as.data.frame() %>% .$name %>% unique
+    
+    tibble(cond = cn, 
+           condition = observables[[cn]], 
+           value = prior_frame$obswise_refits[[hyp]][[cn]]$value[[1]])
+  }) %>% do.call(rbind, .) %>% 
+      add_column(hyp = hyp, hypothesis = prior_frame$hypothesis[[hyp]])
+}) %>% do.call(rbind,.)
+
+mydf %>% 
+  mutate(pr_sig = str_replace_all(hypothesis, "prior_sigma = ", "") %>% as.numeric %>% log10()) %>% 
+  ggplot(aes(x = pr_sig, y = log(value))) + 
+  geom_point(aes(color = condition)) + 
+  # facet_wrap("condition") +
+  geom_blank()
+```
 
 
 
-prior_frame$data_data <- prior_frame$data
-prior_frame <- prior_frame %>% 
-  rowwise %>% 
-  mutate(data = list(data + data_sig))
+```{r plot pars}
+map(1:nhyp, function(i) {
+  plotPars(prior_frame, i, nsteps = 4)
+})
+```
+
+```{r plot predictions}
+# pdf(file = "plots_new.pdf", width = 16, height = 9)
+
+map(1:nhyp, function(i) {
+  plotCombined(prior_frame, i, 1, condition %in% cond_apap & name %in% observables_apap)
+})
+
+map(1:nhyp, function(i) {
+  plotCombined(prior_frame, i, 1, condition %in% cond_bic & name %in% observables_bic)
+})
+
+map(1:nhyp, function(i) {
+  plotCombined(prior_frame, i, 1, condition %in% cond_met & name %in% observables_met)
+})
+
+dev.off()
+
+```
+
+
+
+
+
+# Analysis of results
+```{r load results and format them for analysis, message=FALSE, warning = FALSE}
+# # Load results, prepare the prediction function for plotFluxes
+# # prior_frame <- readRDS("2018_05_11_17_26_prior_frame.rds")
+# 
+# walk(prior_frame$obj, loadDLL)
+# walk(1:nrow(prior_frame), function(i) {
+#   controls(prior_frame$g[[i]], name = "attach.input") <- T
+#   controls(prior_frame$g_sig[[i]], name = "attach.input") <- T
+#   controls(prior_frame$prd[[i]], name = "attach.input") <- T
+#   controls(prior_frame$prd_data[[i]], name = "attach.input") <- T
+#   controls(prior_frame$prd_sig[[i]], name = "attach.input") <- T
+# })
+# # Put the columns into the right order
+# prior_frame <- prior_frame[c(1,3,2,4,22, 5,20,19,6,7,8,9,10,14,11,12,15,13,16,21,17,18,25,23)]
+# 
+# # Add the result of the profiles without prior, which started from a fit position with prior. 
+# # I think it would be better to first refit around the optimum and then start profiling
+# profile_without_prior <- readRDS("2018_05_11_20_13_profile_without_prior_results.rds")[[1]]
+# prior_frame[4, "profile_wo_prior"] <- list(profile_without_prior$profiles_wo_prior)
+# 
+# 
+# # Rename hypotheses
+# prior_frame$hypothesis <- prior_frame$hypothesis %>% str_replace_all(c("srel = -1,s0=-2, " = "", " =" = "=")) 
+# # Put the rows into correct order
+# prior_frame <- prior_frame[c(1L, 2L, 3L, 4L, 7L, 8L, 9L, 10L, 5L, 6L),]
+# 
+# 
+# 
+# prior_frame$data_data <- prior_frame$data
+# prior_frame <- prior_frame %>% 
+#   rowwise %>% 
+#   mutate(data = list(data + data_sig))
 
 ```
 
@@ -531,7 +793,6 @@ dev.off()
 
 
 ```{r plot Profiles}
-
 prior_frame$profiles %>% 
   setNames(prior_frame$hypothesis) %>% 
   plotProfile() +
