@@ -79,6 +79,8 @@ free_pars_apap <- c("Ka_apap", "APAPD_HLM_CL", "APAPD_Km_apap")
 free_pars_bic <- c("Ka_co2c13", "KLU_EXCO2", "CO2FIX_HLM_CL", "KBO_FIXCO2", "KBO_RELCO2", "KBO_MAXCO2")
 free_pars_met <- c("Ka_metc13", "CYP1A2MET_CL", "CYP1A2MET_Km_met")
 
+free_pars <- c(free_pars_apap, free_pars_bic, free_pars_met)
+
 # Observables
 observables_apap <- y_dmod[c("Mve_apap")] %>% set_names(c("Mve_apap"))
 
@@ -97,10 +99,11 @@ errors_bic_sigma_NA["cum_rec_co2c13"] <- 1 #hierfür gibts eh keine daten und ic
 
 errors_met_sigma_NA <- paste0("sqrt(s0_", names(observables_met), "^2 + srel_", names(observables_met), "^2 * ", names(observables_met), "^2)") %>% set_names(names(observables_met))
 errors_met_sigma_NA["mom_rec_metc13"] <- 1 #hierfür gibts eh keine daten mit sigma=NA
+
+
 ```
 
 ```{r x g and e apapbicmet}
-free_pars <- c(free_pars_apap, free_pars_bic, free_pars_met)
 myodemodel <- odemodel(dxdt_dmod, modelname = "odemodel", fixed = setdiff(pars_in_dxdtdmod, c(free_pars, "Aar_apap"))) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
 x <- Xs(myodemodel)
 
@@ -108,24 +111,30 @@ g <- Y(c(observables_apap, observables_bic, observables_met), x, attach.input = 
 compile(g, output = "g")
 
 e_sigma_NA <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g)#, modelname = "e", compile = F) #cant cope with NaNs passed to it, if compiled
+remove_c_and_o()
 ```
 
 
 ```{r explorative plotting of offset_bic and data with estimated error bars}
-# datasig <- data_full %>% 
-#   as.data.frame() %>% 
-#   group_by(study, group, name) %>% 
-#   mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
-#   filter(sna == nna) %>% 
-#   select(-sna, -nna) %>% 
-#   as.data.frame() %>% 
-#   mutate(sigma = sqrt(exp(-11)^2 + (value * exp(-3))^2))  %>% #Meineke
-#   # mutate(sigma = sqrt(exp(0)^2 + (value * exp(-3))^2))  %>% #Barstow and Krumbiegel
-#   as.datalist
-# 
-# 
-# 
-# plotData(datasig)
+blablab <- 3
+
+datasig <- data_full %>%
+  as.data.frame() %>%
+  group_by(study, group, name) %>%
+  mutate(nna = n(), sna = sum(is.na(sigma))) %>%
+  filter(sna == nna) %>%
+  select(-sna, -nna) %>%
+  as.data.frame() %>%
+  # mutate(sigma = sqrt(exp(-11)^2 + (value * exp(-3))^2))  %>% #Meineke
+  mutate(sigma = sqrt(exp(-2-blablab)^2 + (value * exp(-3-blablab))^2))  %>% #Krumbiegel
+  # mutate(sigma = sqrt(exp(0)^2 + (value * exp(-3))^2))  %>% # Barstow
+  as.datalist
+
+
+
+plotData(datasig)
+
+# plotData(data_for_fitting %>% as.datalist()) + guides(color = F)
 ```
 
 ```{r data and p apapbicmet}
@@ -181,8 +190,11 @@ trafo_sigma_NA <-
   insert("x~exp(X)", x = getSymbols(mytrafo[[i]]), X = toupper(getSymbols(mytrafo[[i]]))) %>% 
   
   insert("x~-11", x = str_subset(getSymbols(mytrafo[[i]]), "^S0"), conditionMatch = "Meineke1993") %>% # Fix the error parameters to a value
-  insert("x~0", x = str_subset(getSymbols(mytrafo[[i]]), "^S0"), conditionMatch = "(Krumbiegel|Barstow)") %>% 
-  insert("x~-3", x = str_subset(getSymbols(mytrafo[[i]]), "^SREL")) %>% 
+  insert("x~0", x = str_subset(getSymbols(mytrafo[[i]]), "^S0"), conditionMatch = "(Barstow)") %>% 
+  insert("x~-3", x = str_subset(getSymbols(mytrafo[[i]]), "^SREL"), conditionMatch = "(Barstow)|(Meineke)") %>% 
+  
+  insert("x~0", x = str_subset(getSymbols(mytrafo[[i]]), "S((0)|(REL))_((DOB)|(P_CO2F))")) %>% 
+  insert("x~x_Krumbiegel", x = str_subset(getSymbols(mytrafo[[i]]), "S((0)|(REL))")) %>% 
   {.}
 
 
@@ -194,6 +206,8 @@ pars_sigma_NA <- getParameters(p_sigma_NA) %>% are_names_of(0)
 
 
 compile(p, p_sigma_NA, cores = 3, output = "p")
+
+remove_c_and_o()
 ```
 
 
@@ -204,7 +218,7 @@ compile(p, p_sigma_NA, cores = 3, output = "p")
 ```{r initialize dMod_frames }
 # remove(data)
 apapbicmet_frame <- dMod.frame(
-  hypothesis = "No Mohr, Albert Caps, Taheri.",
+  hypothesis = "Weight Krumbiegel more",
   x = x,
   g = g,
   p = p,
@@ -214,7 +228,8 @@ apapbicmet_frame <- dMod.frame(
   g_sig = g,
   p_sig = list(p_sigma_NA),
   e_sig = list(e_sigma_NA),
-  data_sig = list(as.datalist(data_sigma_NA))
+  data_sig = list(as.datalist(data_sigma_NA)), 
+  fixed = list(c("S0_CUM_REC_METC13_Krumbiegel", "SREL_CUM_REC_METC13_Krumbiegel"))
 )
 
 apapbicmet_frame <- apapbicmet_frame %>% 
@@ -231,13 +246,7 @@ apapbicmet_frame <- apapbicmet_frame %>%
          prd = list(prd_data+prd_sig), 
          data_data = list(data),
          data = list(data_data + data_sig),
-         desciption = "The problem with the need to split up both datasets makes the dMod.frame less tidy.
-         Especially, prd_data refers to only the data with sigmas, whereas prd refers to the sum of prd_0 and prd_sig.
-         Also, data_data refers to the data without errors and data to the whole data.
-         
-         Furthermore, in this hypothesis, all error-parameters in the error model are fixed so that the error bars optically look ok, so that the data points provide some information. I do this, because before I had problems with fitting.
-If the fitting is more stable again, I can set them free again, maybe,.
-         ")
+         description = "Weight the data of Krumbiegel more to improve late prediction")
 
 
 # apapbicmet_frame_updated_errormodel <- apapbicmet_frame
@@ -248,233 +257,133 @@ If the fitting is more stable again, I can set them free again, maybe,.
 ```
 
 
-```{r check if the fixed error models are somewhat sensible}
-# checkout_hypothesis(apapbicmet_frame, 1, "wup")
-# 
-# mypred <- (wupprd)(wuptimes, wuppars, deriv = F)
-# 
-# mypred2 <- (wupe_sig*wupprd)(wuptimes, wuppars, deriv = F)
-# myplot2 <- plotPrediction(mypred2) %>% 
-#   attr("data") %>% 
-#   rename(value_sig = value)
-# 
-# plotPrediction(mypred) %>% 
-#   attr("data") %>% 
-#   left_join(myplot2) %>% 
-#   
-#   filter(!str_detect(name, "(MVe)")) %>% 
-#   filter(!(str_detect(name, "P_C")&str_detect(condition, "Krum"))) %>% 
-# 
-#   ggplot(aes(time, value, color = condition, fill = condition)) + 
-#   facet_wrap("name", scales = "free") + 
-#   geom_line() +
-#   geom_ribbon(mapping = aes(ymin = value-value_sig, ymax = value + value_sig)) + 
-#   
-#   coord_cartesian(ylim = c(-0.01, 0.01))
-#   geom_blank()
-# # ggplotly()
-```
-
-
-
 # Fit and profile with priors
 
 ```{r}
-prior_frame <- apapbicmet_frame
-prior_frame[["hypothesis"]] <- "prior_sigma ="
+krumbiegel_frame <- apapbicmet_frame
+krumbiegel_frame[["hypothesis"]] <- "prior_sigma ="
 
-prior_sigmas <- c(10^(-3:1), seq(0.5,5, by = 0.5)) %>% unique() %>% sort
+prior_sigmas <- c(0.5) 
 myindices <- pars_raw %>% names %>% toupper() %>% {which(. %in% getParameters(apapbicmet_frame$p_sig[[1]]))}
 prior_mu <- log(pars_raw[myindices])
 names(prior_mu) <- toupper(names(prior_mu))
 
 
-prior_frame <- map(1:length(prior_sigmas), function(i)
-  prior_frame %>% 
+krumbiegel_frame <- map(1:length(prior_sigmas), function(i)
+  krumbiegel_frame %>% 
     mutate(hypothesis = paste0(hypothesis, " ", prior_sigmas[i])) %>% 
     mutate(constr = list(constraintL2(prior_mu, sigma = prior_sigmas[i]))) %>% 
     mutate(obj = list(obj + constr))
-  ) %>% 
-  do.call(rbind,.)
+  ) %>% .[[1]]
+
+
+fixed <- map(1:3, function(i) {
+  c("S0_CUM_REC_METC13_Krumbiegel" = -2 - i, "SREL_CUM_REC_METC13_Krumbiegel" = -3 - i)
+})
+
+
+krumbiegel_frame <- map(1:3, function(i) {
+  krumbiegel_frame$fixed <- fixed[i]
+  krumbiegel_frame$hypothesis <- paste0(krumbiegel_frame$hypothesis, ", weighting ", i)
+  return(krumbiegel_frame)
+}) %>% do.call(rbind,.)
+
+```
+
+```{r}
+# insert_runbg("fit_krumbiegel", "fit", "krumbiegel_frame")
+fit_krumbiegel <- runbg({
+    ncores <- detectFreeCores()
+    assign("ncores", ncores, pos = .GlobalEnv)
+
+   krumbiegel_frame %>%
+    ungroup %>%
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      assign("fit_fixed", fixed[[i]], pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, fixed = fit_fixed, studyname = fit_studyname, sd = 3,
+             blather = F, cores = ncores, fits = 5*ncores) })) %>%
+    rowwise
+
+  },  machine = c(paste0("knecht", 3:5)), input = "krumbiegel_frame", filename = "2018_05_24_15_27_fit_krumbiegel_runbg"
+    , recover = T
+)
+# fit_krumbiegel$check()
+# runbg(wait_for_runbg(fit_krumbiegel), filename = "wait", input = "fit_krumbiegel")
+fit_krumbiegel_results <- fit_krumbiegel$get()
+# saveRDS(fit_krumbiegel_results, file = "2018_05_24_15_27_fit_krumbiegel_results.rds")
+fit_krumbiegel$purge()
+fit_krumbiegel <- readRDS("2018_05_24_15_27_fit_krumbiegel_results.rds")
+```
+
+```{r}
+
+krumbiegel_frame$fits <- fit_krumbiegel_results %>% map("fits") %>% transpose() %>% map(. %>% Reduce(c.parlist,.))
+
+krumbiegel_frame <- krumbiegel_frame %>% appendParframes()
+
+```
+
+```{r}
+map(1:3, . %>% plotValues(krumbiegel_frame, .))
 ```
 
 
 ```{r}
-# insert_runbg("fit_prior_frame", "fit", "prior_frame")
-# fit_prior_frame <- runbg({
-#     ncores <- detectFreeCores()
-#     assign("ncores", ncores, pos = .GlobalEnv)
-# 
-#    prior_frame %>%
-#     ungroup %>%
-#     mutate(fits = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-#       assign("fit_studyname", paste0("fits", digest::digest(hypothesis[[i]])), pos = .GlobalEnv)
-#       mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
-#              blather = F, cores = ncores, fits = 10*ncores) })) %>%
-#     rowwise
-# 
-#   },  machine = c(paste0("ruprecht", 1:2)), input = "prior_frame", filename = "2018_05_17_17_51_fit_prior_frame_runbg"
-#     , recover = T
-# )
-# fit_prior_frame$check()
-# runbg(wait_for_runbg(fit_prior_frame), filename = "wait", input = "fit_prior_frame")
-# fit_prior_frame_results <- fit_prior_frame$get()
-# saveRDS(fit_prior_frame_results, file = "2018_05_17_17_51_fit_prior_frame_results.rds")
-# fit_prior_frame$purge()
-fit_prior_frame <- readRDS("2018_05_17_17_51_fit_prior_frame_results.rds")
+plotPars(krumbiegel_frame, 1, nsteps = 3) + coord_cartesian(ylim = c(-6,5)) 
+plotPars(krumbiegel_frame, 2, nsteps = 3) + coord_cartesian(ylim = c(-6,5)) 
+plotPars(krumbiegel_frame, 3, nsteps = 3) + coord_cartesian(ylim = c(-6,5)) 
 ```
 
 
 ```{r}
-prior_frame$fits <- fit_prior_frame %>% 
-  map("fits") %>% 
-  transpose() %>% 
-  map(. %>% Reduce(c.parlist,.)) %>% 
-  {.}
-
-prior_frame <- prior_frame %>% appendParframes()
+map(1:3, . %>% plotCombined(krumbiegel_frame, ., 1))
 ```
 
 ```{r}
-# insert_runbg("profile_steps", "profile_steps", "prior_frame", 1,3)
-# profile_steps <- runbg({
-#     ncores <- detectFreeCores()
-#     assign("ncores", ncores, pos = .GlobalEnv)
-# 
-#    prior_frame %>%
-#     ungroup %>%
-#     mutate(profile_steps = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-# 
-#       steps <- getStepIndices(parframes[[i]], tol = 1, nsteps = 3) %>% setNames(.,.)
-#       lapply(steps, function(step) {
-#         assign("fit_pars", parframes[[i]] %>% as.parvec(step), pos = .GlobalEnv)
-#         myprof <- profile(obj = fit_obj, pars = fit_pars, whichPar = names(fit_pars), cores = ncores)
-#         saveRDS(myprof, tpaste0("profile_hypothesis_",i,"_step_",step,".rds"))
-#         myprof
-#       }) %>%
-#         list
-# 
-#        })) %>%
-#       rowwise
-# 
-# 
-#   },  machine = c(paste0("knecht", 2)), input = "prior_frame", filename = "2018_05_18_19_53_profile_steps_runbg"
-#     , recover = T
-# )
-# profile_steps$check()
-# runbg(wait_for_runbg(profile_steps), filename = "wait", input = "profile_steps")
-# profile_steps_results <- profile_steps$get()
-# saveRDS(profile_steps_results, file = "2018_05_18_19_53_profile_steps_results.rds")
-# profile_steps$purge()
-profile_steps <- readRDS("2018_05_18_19_53_profile_steps_results.rds")
+map(1:3,  . %>% {plotCombined(krumbiegel_frame, .,   getStepIndices(krumbiegel_frame$parframes[[.]], 3)[2])})
+```
+
+```{r plotting helpers}
+observables <- krumbiegel_frame$g[[1]] %>% getEquations() %>%.[[1]] %>%  names
+
+observables_apap <- "Mve_apap"
+observables_bic <- c("cum_rec_co2c13", "DOB","P_CO2F")
+observables_met <- c("mom_rec_metc13", "cum_rec_metc13")
+
+conditions <- krumbiegel_frame$obj[[1]] %>% getConditions()
+data <- (krumbiegel_frame$data[[1]] + krumbiegel_frame$data_sig[[1]]) %>% as.data.frame()
+
+cond_apap <- data %>% filter(name%in%"Mve_apap") %>% .[["condition"]] %>% unique %>% as.character()
+cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[["condition"]] %>% unique %>% as.character()
+cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
+
+nhyp <- nrow(krumbiegel_frame)
+```
+
+```{r plot predictions}
+pdf(file = "plots_krumbiegel_weighted_more_strongly.pdf", width = 16, height = 9)
+nhyp <- nrow(krumbiegel_frame)
+
+map(1:nhyp, function(i) {
+  plotCombined(krumbiegel_frame, i, 1, condition %in% cond_apap & name %in% observables_apap)
+})
+
+map(1:nhyp, function(i) {
+  plotCombined(krumbiegel_frame, i, 1, condition %in% cond_bic & name %in% observables_bic)
+})
+
+map(1:nhyp, function(i) {
+  plotCombined(krumbiegel_frame, i, 1, condition %in% cond_met & name %in% observables_met)
+})
+
+dev.off()
 ```
 
 ```{r}
-profile_steps$knecht2$profile_steps %>% map(1) %>% map(1) %>% plotProfile() + coord_cartesian(ylim = c(-0.5,4))
-ggsave("profiles.pdf")
-
-```
-
-
-## Fit conditionwise
-
-```{r}
-fit_prior_frame <- readRDS("2018_05_17_17_51_fit_prior_frame_results.rds")
-prior_frame <- fit_prior_frame[[1]]
-prior_frame$fits <- fit_prior_frame %>% 
-  map("fits") %>% 
-  transpose() %>% 
-  map(. %>% Reduce(c.parlist,.)) %>% 
-  {.}
-prior_frame <- prior_frame %>% appendParframes()
-
-# insert_runbg("refit_condwise", "fit", "prior_frame")
-
-# refit_condwise <- runbg({
-#     ncores <- detectFreeCores()
-#     assign("ncores", ncores, pos = .GlobalEnv)
-# 
-#    prior_frame %>%
-#     ungroup %>%
-#     mutate(condwise_refits = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", parframes[[i]], pos = .GlobalEnv)
-#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-#       
-#       myconditions <- getConditions(obj[[i]]) %>% setNames(.,.)
-#       lapply(myconditions, function(cond) {
-#         mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
-#              blather = F, cores = ncores, conditions = cond) %>% as.parframe
-#       })
-#     })) %>%
-#      rowwise
-#    
-#   },  machine = c(paste0("knecht", 5)), input = "prior_frame", filename = "2018_05_20_12_28_refit_condwise_runbg"
-#     , recover = T
-# )
-# refit_condwise$check()
-# runbg(wait_for_runbg(refit_condwise), filename = "wait", input = "refit_condwise")
-# refit_condwise_results <- refit_condwise$get()
-# saveRDS(refit_condwise_results, file = "2018_05_20_12_28_refit_condwise_results.rds")
-# refit_condwise$purge()
-refit_condwise <- readRDS("2018_05_20_12_28_refit_condwise_results.rds")
-```
-
-## Fit observable-wise
-
-```{r}
-fit_prior_frame <- readRDS("2018_05_17_17_51_fit_prior_frame_results.rds")
-# prior_frame <- fit_prior_frame[[1]]
-# prior_frame$fits <- fit_prior_frame %>% 
-#   map("fits") %>% 
-#   transpose() %>% 
-#   map(. %>% Reduce(c.parlist,.)) %>% 
-#   {.}
-# prior_frame <- prior_frame %>% appendParframes()
-
-# insert_runbg("refit_obswise", "fit", "prior_frame")
-
-# refit_obswise <- runbg({
-#     ncores <- detectFreeCores()
-#     assign("ncores", ncores, pos = .GlobalEnv)
-# 
-#    prior_frame %>%
-#     ungroup %>%
-#     mutate(obswise_refits = map(seq_along(x), function(i) {
-#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-#       assign("fit_pars", parframes[[i]], pos = .GlobalEnv)
-#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-#       
-#       obs <- data[[i]] %>% as.data.frame() %>% .$name %>% unique
-#         
-#       myconditions <- map(obs, function(ob) {
-#         data[[i]] %>% 
-#         as.data.frame()%>% 
-#         filter(name %in% ob) %>% 
-#         .$condition %>% 
-#         unique %>% 
-#           as.character()
-#       })  
-#       
-#       lapply(myconditions, function(cond) {
-#         mstrust(objfun = fit_obj, center = fit_pars, studyname = fit_studyname, sd = 3,
-#              blather = F, cores = ncores, conditions = cond) %>% as.parframe
-#       })
-#     })) %>%
-#      rowwise
-#    
-#   },  machine = c(paste0("knecht", 4)), input = "prior_frame", filename = "2018_05_20_12_29_refit_obswise_runbg"
-#     , recover = T
-# )
-# refit_obswise$check()
-# runbg(wait_for_runbg(refit_obswise), filename = "wait", input = "refit_obswise")
-# refit_obswise_results <- refit_obswise$get()
-# saveRDS(refit_obswise_results, file = "2018_05_20_12_29_refit_obswise_runbg_results.rds")
-# refit_obswise$purge()
-refit_obswise <- readRDS("2018_05_20_12_29_refit_obswise_runbg_results.rds")
+git_add_dMod.frame(krumbiegel_frame)
 ```
 
 
