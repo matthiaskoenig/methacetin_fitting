@@ -1,0 +1,52 @@
+study	healthy	group	n	time	recovery	recovery_sd	recovery_se	cum	cum_sd	cum_se
+Vranova2013	cirrhosis	Child-Pugh A	10	0	NA	NA	NA	NA	NA	NA
+Vranova2013	cirrhosis	Child-Pugh A	10	10	17.22	11.43	3.61	1.43	0.95	0.30
+Vranova2013	cirrhosis	Child-Pugh A	10	20	23.27	10.68	3.38	4.81	2.63	0.83
+Vranova2013	cirrhosis	Child-Pugh A	10	30	19.09	8.62	2.73	8.43	4.03	1.27
+Vranova2013	cirrhosis	Child-Pugh A	10	40	15.67	6.65	2.10	11.24	5.18	1.64
+Vranova2013	cirrhosis	Child-Pugh A	10	50	12.70	5.26	1.66	13.60	6.11	1.93
+Vranova2013	cirrhosis	Child-Pugh A	10	60	11.38	4.29	1.36	15.61	6.87	2.17
+Vranova2013	cirrhosis	Child-Pugh A	10	80	9.29	3.27	1.03	19.05	8.04	2.54
+Vranova2013	cirrhosis	Child-Pugh A	10	100	7.90	3.01	0.95	21.92	8.98	2.84
+Vranova2013	cirrhosis	Child-Pugh A	10	120	6.74	2.11	0.67	24.36	9.72	3.07
+Vranova2013	cirrhosis	Child-Pugh B	28	0	NA	NA	NA	NA	NA	NA
+Vranova2013	cirrhosis	Child-Pugh B	28	10	9.15	11.17	2.11	0.76	0.93	0.18
+Vranova2013	cirrhosis	Child-Pugh B	28	20	12.93	12.54	2.37	2.60	2.81	0.53
+Vranova2013	cirrhosis	Child-Pugh B	28	30	12.22	10.62	2.01	4.70	4.63	0.87
+Vranova2013	cirrhosis	Child-Pugh B	28	40	10.87	8.32	1.57	6.62	6.13	1.16
+Vranova2013	cirrhosis	Child-Pugh B	28	50	9.65	6.67	1.26	8.33	7.33	1.39
+Vranova2013	cirrhosis	Child-Pugh B	28	60	8.78	5.52	1.04	9.87	8.31	1.57
+Vranova2013	cirrhosis	Child-Pugh B	28	80	7.56	4.34	0.82	12.59	9.88	1.87
+Vranova2013	cirrhosis	Child-Pugh B	28	100	6.62	3.43	0.65	14.95	11.08	2.09
+Vranova2013	cirrhosis	Child-Pugh B	28	120	5.91	2.93	0.55	17.04	12.04	2.28
+Vranova2013	cirrhosis	Child-Pugh C	14	0	NA	NA	NA	NA	NA	NA
+Vranova2013	cirrhosis	Child-Pugh C	14	10	1.91	3.50	0.94	0.16	0.29	0.08
+Vranova2013	cirrhosis	Child-Pugh C	14	20	4.04	5.41	1.45	0.65	1.03	0.28
+Vranova2013	cirrhosis	Child-Pugh C	14	30	4.65	5.11	1.37	1.38	1.90	0.51
+Vranova2013	cirrhosis	Child-Pugh C	14	40	4.80	4.47	1.19	2.17	2.69	0.72
+Vranova2013	cirrhosis	Child-Pugh C	14	50	4.81	4.17	1.11	2.97	3.40	0.91
+Vranova2013	cirrhosis	Child-Pugh C	14	60	5.01	3.63	0.97	3.79	4.03	1.08
+Vranova2013	cirrhosis	Child-Pugh C	14	80	4.37	3.41	0.91	5.35	5.13	1.37
+Vranova2013	cirrhosis	Child-Pugh C	14	100	4.49	3.26	0.87	6.83	6.14	1.64
+Vranova2013	cirrhosis	Child-Pugh C	14	120	4.26	2.81	0.75	8.28	7.04	1.88
+Vranova2013	cirrhosis	cirrhosis	52	0	NA	NA	NA	NA	NA	NA
+Vranova2013	cirrhosis	cirrhosis	52	10	8.75	10.92	1.51	0.73	0.91	0.13
+Vranova2013	cirrhosis	cirrhosis	52	20	12.53	12.38	1.72	2.50	2.77	0.38
+Vranova2013	cirrhosis	cirrhosis	52	30	11.50	10.19	1.41	4.50	4.55	0.63
+Vranova2013	cirrhosis	cirrhosis	52	40	10.16	7.98	1.11	6.31	6.00	0.83
+Vranova2013	cirrhosis	cirrhosis	52	50	8.93	6.37	0.88	7.90	7.15	0.99
+Vranova2013	cirrhosis	cirrhosis	52	60	8.27	5.26	0.73	9.33	8.08	1.12
+Vranova2013	cirrhosis	cirrhosis	52	80	7.03	4.23	0.59	11.88	9.58	1.33
+Vranova2013	cirrhosis	cirrhosis	52	100	6.29	3.46	0.48	14.11	10.76	1.49
+Vranova2013	cirrhosis	cirrhosis	52	120	5.62	2.85	0.40	16.09	11.69	1.62
+Vranova2013	healthy	control	37	0	NA	NA	NA	NA	NA	NA
+Vranova2013	healthy	control	37	10	25.86	9.30	1.53	2.15	0.77	0.13
+Vranova2013	healthy	control	37	20	32.48	9.31	1.53	7.02	2.17	0.36
+Vranova2013	healthy	control	37	30	25.57	6.16	1.01	11.85	3.17	0.52
+Vranova2013	healthy	control	37	40	20.70	5.12	0.84	15.71	3.72	0.61
+Vranova2013	healthy	control	37	50	17.44	4.62	0.76	18.89	4.12	0.68
+Vranova2013	healthy	control	37	60	14.89	3.31	0.54	21.58	4.48	0.74
+Vranova2013	healthy	control	37	80	11.88	2.09	0.34	26.04	5.09	0.84
+Vranova2013	healthy	control	37	100	9.75	1.91	0.31	29.65	5.56	0.91
+Vranova2013	healthy	control	37	120	8.27	1.50	0.25	32.65	5.94	0.98
+
