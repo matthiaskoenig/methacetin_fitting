@@ -1,0 +1,630 @@
+```{r setup, message=FALSE, warning=FALSE, eval=TRUE, echo=FALSE}
+knitr::opts_chunk$set(eval = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(fig.height = 10)
+knitr::opts_chunk$set(fig.width = 15)
+library(dMod)
+library(stringr) # Um bequem mit strings zu arbeiten
+library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für schöne plots
+library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
+library(conveniencefunctions)
+
+
+
+# load("2018_03_09_17_17_workspace.rda")
+# for(i in lsdMod(classlist = "prdfn")) {loadDLL(i)}
+```
+
+
+```{r, dependson="setup", eval=FALSE}
+load("2018_03_31_02_21_workspace_with_dMod.frames.rda")
+# no_mohr.frame <- readRDS("2018_04_01_20_34_fits_no_mohr_broad_sampling.rds")
+# 
+# rbind(apapbicmet.frame) %>% .$obj %>% walk(loadDLL)
+# no_mohr.frame %>% .$obj %>% walk(loadDLL)
+# no_mohr.frame <- no_mohr.frame %>% dMf_expand_fits()
+
+prior.frame <- readRDS("2018_04_23_17_00_prior.frame_full.rds")
+prior.frame %>% .$obj %>% walk(loadDLL)
+
+```
+
+# Prepare conditions
+
+```{r prepare condition legends}
+conditions_all <- prior.frame$data %>% .[[1]] %>% names
+
+condition_split <- conditions_all %>% str_split("_", simplify = T) %>% .[,1:3]%>% as.tibble() %>% 
+  mutate(V3na = is.na(as.numeric(V3))) %>% 
+  mutate(V4 = map_chr(seq_along(V2), function(i) {
+    if(V3na[i]) return(paste(V2[i], V3[i])) 
+    else return(V2[i])
+  })) %>% 
+  select(-V2, -V3, -V3na) %>% 
+  mutate(V4 = str_replace(V4, "NaN", "")) %>% 
+  add_column(conditions_all)
+  
+
+drugs <- c("apap", "bic", "met")
+study_df <- map(drugs, function(dr) {
+  mystudies <- paste0("data_",dr,"$study %>% unique") %>% parse(text = .) %>% eval
+  if(dr != "apap")  mystudies <- c(mystudies, paste0("data_",dr,"_sigma_NA$study %>% unique") %>% parse(text = .) %>% eval)
+  # print(mystudies)
+  condition_names <- conditions_all[map_lgl(conditions_all,. %>% str_detect(mystudies) %>% any)]
+  
+  drug_name <- c(apap = "Paracetamol", bic = "Bicarbonate", met = "Methacetin")
+  
+  return(tibble(drug = dr, drug_name = drug_name[dr], conditions_all = condition_names))
+}) %>% do.call(rbind,.)
+
+
+conditions_df <- left_join(condition_split, study_df) %>% 
+  rename(Study = V1,
+         Group = V4,
+         drug_identifier = drug,
+         Drug = drug_name,
+         condition = conditions_all) %>% 
+  mutate(`Data set` = paste(Study, Group))
+
+obs_df <- map(drugs, function(dr) {
+  mystudies <- paste0("data_",dr,"$study %>% unique") %>% parse(text = .) %>% eval
+  myobservables <- paste0("observables_",dr) %>% parse(text = .) %>% eval %>% names()
+  
+  return(expand.grid(mystudies, myobservables, stringsAsFactors = F) %>% set_names(c("Study", "Observable")))
+}) %>% do.call(rbind,.)
+
+```
+
+```{r checkout hypotheses}
+checkout_hypothesis(apapbicmet.frame,  1, "abm")
+checkout_hypothesis(prior.frame, 4, "pr")
+```
+
+```{r}
+myplot <- plotCombined(prior.frame,4,1) %>% attributes() 
+
+myplot$data$prediction %>% 
+  ggplot(aes(x = time, y = value, color = condition)) + 
+  geom_line() +
+  facet_wrap("name", scale = "free", nrow = 3)+
+  
+  geom_point(data = myplot$data$data, size = 0.5)+ 
+  geom_errorbar(data = myplot$data$data, aes(ymin = value - sigma, ymax = value + sigma))+
+  theme_dMod()+
+  
+  
+  # scale_color_dMod(guide = F) +
+  scale_color_hue(guide = F)+
+  # guide_colorbar()
+  
+  ggtitle("") +
+  ylab("Concentration [a.u.]") +
+  xlab("Time [min]")+
+  geom_blank()
+
+ggsave("~/Promotion/Writing/Conferences/2018 05 LiSym Mannheim midterm evaluation/pics/Limax_all.png", width = 4, height = 6)
+```
+
+
+
+## apap-plots
+```{r}
+
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  
+  filter(drug_identifier == "apap") %>% 
+  
+  filter(name %in% names(observables_apap))
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+myplot <- abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 0.5) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  geom_blank()
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/apap.png", width = 10, height = 6)
+
+
+
+```
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  
+  filter(drug_identifier == "apap") %>% 
+  
+  filter(name %in% names(observables_apap))
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+myplot <- abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 0.5) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  geom_blank() + 
+  coord_cartesian(ylim = c(0,20))
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/apap_zoom.png", width = 10, height = 6)
+
+```
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  
+  filter(drug_identifier == "apap") %>% 
+  
+  filter(Study %>% str_detect("Albert")) %>% 
+  
+  filter(name %in% names(observables_apap))
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+myplot <- abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 0.5) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/apap_only_Albert.png", width = 10, height = 6)
+
+```
+
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "apap") %>% 
+  filter(Study %>% str_detect("Rawlins")) %>% 
+  filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% names(observables_apap))
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+myplot <- abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/apap_only_Rawlins.png", width = 10, height = 6)
+
+```
+
+
+## Bic-plots
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "bic") %>% 
+  # filter(Study %>% str_detect("Rawlins")) %>% 
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% names(observables_bic))
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+myplot <- abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/bic.png", width = 10, height = 6)
+
+```
+
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "bic") %>% 
+  filter(Study %>% str_detect("(Fuller)|(Leij)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% "cum_rec_co2c13")
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+myplot <- abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+  
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/bic_cum_rec.png", width = 10, height = 6)
+
+```
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "bic") %>% 
+  filter(Study %>% str_detect("(Bars)|(Irv)|(Moh)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% "DOB")
+
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+myplot <- abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/bic_DOB.png", width = 10, height = 6)
+
+```
+
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "bic") %>% 
+  filter(Study %>% str_detect("(Mei)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% "P_CO2F")
+
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+myplot <- abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,20)) +
+  geom_blank() 
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/bic_P_CO2F.png", width = 10, height = 6)
+
+```
+
+
+
+
+## Met-plots
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "met") %>% 
+  filter(! Study %>% str_detect("(2013)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% names(observables_met)) %>% 
+  {.}
+
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+  
+myplot <- abmprd(seq(0,24,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  coord_cartesian(ylim = c(0,50)) +
+  geom_blank() 
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/met.png", width = 10, height = 6)
+
+```
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "met") %>% 
+  filter(! Study %>% str_detect("(2013)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  # filter(name %in% names(observables_met)) %>% 
+  filter(name%in%"cum_rec_metc13") %>% 
+  {.}
+
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+
+myplot <- abmprd(seq(0,10,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+# mutate(value = value * 0.1) %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  coord_cartesian(ylim = c(0,60)) +
+  geom_blank() 
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/met_cum_rec_metc13.png", width = 10, height = 6)
+
+```
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "met") %>% 
+  filter(! Study %>% str_detect("(2013)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  # filter(name %in% names(observables_met)) %>% 
+  filter(name%in%"mom_rec_metc13") %>% 
+  {.}
+
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+  
+
+myplot <- abmprd(seq(0,10,length.out = 200), prbest_parvec, deriv = F) %>% 
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+# mutate(value = value * 0.1) %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  coord_cartesian(ylim = c(0,60)) +
+  geom_blank() 
+
+ggsave(plot = myplot, filename  = "~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/prior4/met_mom_rec_metc13.png", width = 10, height = 6)
+
+```
+
+
+
+# profiles
+
+```{r}
+myplot <- prprofiles %>% plotProfile() + coord_cartesian(ylim = c(-.2,4))
+
+prior.frame$profiles[[4]] %>% 
+  filter(!str_detect(whichPar, "offset")) %>% 
+  list() %>% 
+  plotProfile() + 
+  coord_cartesian(ylim = c(-.2,4))
+
+ggsave(filename  = "~/Promotion/Writing/Conferences/2018 05 LiSym Mannheim midterm evaluation/pics/Limaxprofiles.png", width = 6, height = 5)
+```
+
+
+
+
+# Bodyweight specific
+
+```{r}
+
+prp <- (trafo_apapbicmet %>%   define("x~y", x= "BW", y=paste0(mytrafo[[i]]["BW"], "+BW")) %>% P() ) + 
+  (trafo_apapbicmet_sigma_NA %>% define("x~y", x= "BW", y=paste0(mytrafo[[i]]["BW"], "+BW")) %>%   P() )
+```
+
+
+
+
+```{r}
+prepare_drug <- . %>% left_join(conditions_df) %>% 
+  filter(drug_identifier == "apap") %>% 
+  filter(! Study %>% str_detect("(2013)")) %>%
+  # filter(`Data set` %>% str_detect("D10")) %>% 
+  filter(name %in% names(observables_apap)) %>% 
+  {.}
+
+
+mydata <- abmdata %>% 
+  as.data.frame() %>% 
+  mutate(condition = as.character(condition)) %>% 
+  prepare_drug %>% 
+  mutate(ub = value + sigma, lb = value - sigma)
+
+
+mypars <- prbest_parvec
+bw <- mypars["BW"] <- c(-20)
+
+  
+myplot <-
+  (abmg*abmx*prp)(seq(0,24,length.out = 200), mypars, deriv = F) %>% #.[[1]] %>% head(10)
+  
+  wide2long() %>% 
+  
+  prepare_drug %>% 
+  
+  mutate(lb = value + value * 0.1 + time * 0.05,
+         ub = value- value * 0.1 - time * 0.05) %>% 
+
+  ggplot(aes(time,value, color = `Data set`)) +
+  geom_line() + 
+  facet_wrap("name", scales = "free") +
+  theme_dMod() + 
+  scale_color_dMod() +
+  guides(linetype = F
+         # , color = F
+         )  +
+  geom_ribbon(aes(ymin = lb, ymax = ub, fill = `Data set`), alpha = 0.2)+
+
+  geom_point(data = mydata, size = 1) +
+  geom_errorbar(aes(ymin = lb, ymax = ub), data = mydata) +
+  # coord_cartesian(ylim = c(0,50)) +
+  geom_blank() 
+
+
+myplot
+ggsave(plot = myplot, filename  = paste0("~/Promotion/Writing/Presentations/2018 04 03 Peter Jansen LiSyM/Limax/BW/apap-", bw,".png"), width = 10, height = 6)
+
+```
+

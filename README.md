@@ -11,6 +11,8 @@ A HTML model report is provided in the model directory as
 ./model/limax_pkpd_*.html
 ```
 
+Reference output of the model is provided for `R` and `python` in `model/results`-
+
 ## Data sets for fitting
 The latest datasets are in the `data` folder, named in line with the model.
 
@@ -129,6 +131,7 @@ CYP1A2MET_Km_met  # [mM] Km value for methacetin
 * `Krumbiegel1985, AC-03`
 * `Holtmeier2006, NaN`
 * `Lalazar2008, NaN`
+* `Vranova2013, Control`
 
 
 ## [D] LiMAx (limax)
