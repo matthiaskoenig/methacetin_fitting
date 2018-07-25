@@ -1,0 +1,345 @@
+---
+title: "Fitting model 42"
+output: 
+  html_document:
+    toc: TRUE
+---
+
+
+Load all important libraries
+```{r setup, message=FALSE, warning=FALSE, eval=TRUE, echo=FALSE}
+knitr::opts_chunk$set(eval = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(fig.height = 10)
+knitr::opts_chunk$set(fig.width = 15)
+# library(stringr) # Um bequem mit strings zu arbeiten
+# library(tidyverse) # Viele Funktionen, u.a. für data.frames und ggplot2 für schöne plots
+# library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
+library(conveniencefunctions)
+
+```
+
+
+# Read model
+```{r read_model, dependson="setup"}
+source("../../model/limax_pkpd_v42.R")
+pars_raw <- c(x0, p) 
+pars_in_dxdtdmod <- c(getSymbols(dxdt_dmod), names(dxdt_dmod))
+```
+
+
+# Data - read and preprocess
+Read data, insert the default values for the parameters supplied in the data sheet. 
+
+* Taheri rausschmeißen zum Fitten: Wird weiter unten getan
+
+```{r, message=FALSE}
+# Read data
+data_full <-
+  read_csv("../../data/limax_pkpd_v42_data.csv") %>%
+  select(-model) %>% 
+  rename(name = observer) %>% 
+  rename(n = subjects) %>% 
+  unique() #noch matthias sagen, dass lalazar2008 doppelte einträge hat
+
+# For those studies where some data points have no sigma, infer it from the other sigmas of the same study
+fitErrorModel_factors <- c("study", "group", "name", "BW", "PODOSE_apap", "IVDOSE_apap", 
+"PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", 
+"IVDOSE_metc13", "ti_metc13")
+some_na <-
+  data_full %>% 
+  group_by(study, group, name) %>% 
+  mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
+  filter(sna>0 & sna != nna) %>% 
+  select(-sna, -nna) %>% 
+  as.data.frame() %>% 
+  fitErrorModel(factors = fitErrorModel_factors, plotting = F, blather = F) 
+
+none_or_all_na <- data_full %>% 
+  group_by(study, group, name) %>% 
+  mutate(nna = n(), sna = sum(is.na(sigma))) %>% 
+  filter(sna==0 | sna == nna) %>% 
+  select(-sna, -nna) %>% 
+  as.data.frame()
+
+data_full <- rbind(some_na, none_or_all_na) %>% 
+  select(-n)
+```
+
+# Set up the model
+
+```{r setup model independently of the individual setups}
+# Parameters to fit by Matthias
+free_pars_apap <- c("Ka_apap", "APAPD_HLM_CL", "APAPD_Km_apap")
+free_pars_bic <- c("Ka_co2c13", "KLU_EXCO2", "CO2FIX_HLM_CL", "KBO_FIXCO2", "KBO_RELCO2", "KBO_MAXCO2")
+free_pars_met <- c("Ka_metc13", "CYP1A2MET_CL", "CYP1A2MET_Km_met")
+
+free_pars <- c(free_pars_apap, free_pars_bic, free_pars_met)
+
+# Observables
+observables_apap <- y_dmod[c("Mve_apap")] %>% set_names(c("Mve_apap"))
+
+recovery_bic <- paste(y_dmod["Exhalation_co2c13"], "/ 60 * Mr_co2c13 / Ri_co2c13 * 100")
+P_CO2F <- paste0(y_dmod["P_CO2Fc13"], "-", str_replace(y_dmod["P_CO2Fc13"], "Alu_co2c13", "0")) # Alu_co2c13 is the only dynamic variable which goes into the equation and it's initial value is fixed to zero.
+observables_bic <- c(cum_rec_co2c13 = recovery_bic, y_dmod[c("DOB")], P_CO2F = P_CO2F)
+
+recovery_met <- paste(y_dmod["Exhalation_co2c13"], "/ init_PODOSE_metc13 * Mr_metc13 * 100" )
+cum_met <- paste( "Abreath_co2c13/ init_PODOSE_metc13 * Mr_metc13 * 100")
+observables_met <- c(recovery_met, cum_met) %>% set_names(c("mom_rec_metc13", "cum_rec_metc13"))
+
+# Error models
+errors_bic_sigma_NA <- paste0("sqrt(s0_", names(observables_bic), "^2 + srel_", names(observables_bic), "^2 * ", names(observables_bic), "^2 )") %>% set_names(names(observables_bic))
+errors_bic_sigma_NA["cum_rec_co2c13"] <- 1 #hierfür gibts eh keine daten und ich weiß nicht, ob ich es einfach weglassen kann
+
+errors_met_sigma_NA <- paste0("sqrt(s0_", names(observables_met), "^2 + srel_", names(observables_met), "^2 * ", names(observables_met), "^2)") %>% set_names(names(observables_met))
+errors_met_sigma_NA["mom_rec_metc13"] <- 1 #hierfür gibts eh keine daten mit sigma=NA
+
+
+```
+
+```{r x g and e apapbicmet}
+myodemodel <- odemodel(dxdt_dmod, fixed = setdiff(pars_in_dxdtdmod, c(free_pars, "Aar_apap")), modelname = "x", compile = F) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
+x <- Xs(myodemodel)
+
+g <- Y(c(observables_apap, observables_bic, observables_met), x, attach.input = F, modelname = "g", compile = F)
+
+e_sigma_NA <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g)#, modelname = "e", compile = F) #cant cope with NaNs passed to it, if compiled
+```
+
+```{r data and p apapbicmet}
+# Remove certain studies from the data which goes into fitting
+data_for_fitting <- data_full %>% 
+  filter(!str_detect(simulation, "limax")) %>% 
+  filter(!str_detect(study, "Mohr2018")) %>% 
+  filter(!(str_detect(study, "Albert")&str_detect(group, "capsule")))
+
+# Split the data in datasets with and without sigma
+data <- data_for_fitting  %>% filter(!is.na(sigma)) %>% select(-simulation)
+data_sigma_NA <- data_for_fitting  %>% filter(is.na(sigma)) %>% select(-simulation)
+
+# Get all parameters that in some way replace pars_raw (parameters supplied by the SBML file) or are additional parameters that we need to fit
+# This could be e.g. Study specific pars such as IVDOSE* or pars that are fitted
+supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
+outer_pars <- sort(unique(c(free_pars, supplied_pars)))
+
+pars_errors <- c(errors_bic_sigma_NA, errors_met_sigma_NA) %>% 
+  getSymbols %>% 
+  str_subset("^s") %>% 
+  are_names_of(1)
+outer_pars_sigma_NA <- sort(unique(c(outer_pars, names(pars_errors))))
+
+# Define the parameter trafos which in turn define the different conditions
+trafo <-
+  c(pars_raw) %>% 
+  sort_by_name() %>% 
+  replace(names(.) %in% outer_pars, outer_pars) %>% 
+  
+  branch(data %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  
+  insert("name ~ value", value = unlist(mget(supplied_pars)), name = supplied_pars) %>% # insert parameters supplied by the data
+
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+  
+  insert("x~exp(X)", x = .currentSymbols, X = toupper(.currentSymbols)) %>% 
+  {.}
+
+
+
+
+trafo_sigma_NA <-
+  c(pars_raw, pars_errors) %>% 
+  sort_by_name() %>% 
+  replace(names(.) %in% outer_pars_sigma_NA, outer_pars_sigma_NA) %>%
+  
+  branch(data_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  insert("name ~ value", value = unlist(mget(supplied_pars)), name = supplied_pars) %>%
+
+  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
+  
+  insert("x~exp(X)", x = .currentSymbols, X = toupper(.currentSymbols)) %>% 
+  
+  insert("x~-11", x = str_subset(.currentSymbols, "^S0"), conditionMatch = "Meineke1993") %>% # Fix the error parameters to a value
+  insert("x~0", x = str_subset(.currentSymbols, "^S0"), conditionMatch = "(Barstow)") %>% 
+  insert("x~-3", x = str_subset(.currentSymbols, "^SREL"), conditionMatch = "(Barstow)|(Meineke)") %>% 
+  
+  insert("x~0", x = str_subset(.currentSymbols, "S((0)|(REL))_((DOB)|(P_CO2F))")) %>% 
+  insert("x~x_Krumbiegel", x = str_subset(.currentSymbols, "S((0)|(REL))")) %>% 
+  {.}
+
+
+p <- P(trafo, modelname = "p", compile = F)
+pars <- getParameters(p) %>% are_names_of(0)
+
+p_sigma_NA <- P(trafo_sigma_NA, modelname = "p_sig", compile = F)
+pars_sigma_NA <- getParameters(p_sigma_NA) %>% are_names_of(0)
+
+compile(g,x, p, p_sigma_NA, cores = 3, output = "gxp")
+remove_c_and_o()
+```
+
+```{r}
+# save.image("workspace.rda")
+load("workspace.rda")
+loadDLL(g,x,p,p_sigma_NA)
+```
+
+
+# dMod.frame
+```{r initialize dMod_frame}
+myframe <- dMod.frame(
+  hypothesis = "prior_sigma =",
+  x = x,
+  g = g,
+  p = p,
+  data = data,
+  e = NULL,
+  x_sig = x,
+  g_sig = g,
+  p_sig = list(p_sigma_NA),
+  e_sig = list(e_sigma_NA),
+  data_sig = list(as.datalist(data_sigma_NA)), 
+  fixed = list(c("S0_CUM_REC_METC13_Krumbiegel", "SREL_CUM_REC_METC13_Krumbiegel"))
+)
+
+
+pars_41 <- read_csv("../Fit_model_41/pars.csv") %>% # get the mu from the old fit
+  {structure(.$parvalue, names= .$parname)} %>% 
+  log %>% 
+  {vec <- .;names(vec) <- toupper(names(vec));vec} %>% 
+  as.parvec()
+
+
+myframe <- myframe %>% 
+  rowwise() %>% 
+  appendObj() %>% 
+  mutate(prd_sig = list(g_sig * x_sig * p_sig), 
+         obj_data_sig = list(normL2(data_sig, prd_sig, e_sig)),
+         obj = list(obj_data+ obj_data_sig),
+         pars = list(pars_41), 
+         times = list(seq(min(rbind(as.data.frame(data),as.data.frame(data_sig))[["time"]]), 
+                          max(rbind(as.data.frame(data),as.data.frame(data_sig))[["time"]]) * 1.1, 
+                          length.out = 200))) %>% 
+  mutate(prd_data = list(prd),
+         prd = list(prd_data+prd_sig), 
+         data_data = list(data),
+         data = list(data_data + data_sig),
+         description = "Weight the data of Krumbiegel more to improve late prediction")
+
+prior_sigmas <- c(0.1,0.5) 
+prior_mu <- pars_41
+
+myframe <- map(1:length(prior_sigmas), function(i)
+  myframe %>% 
+    mutate(hypothesis = paste0(hypothesis, " ", prior_sigmas[i])) %>% 
+    mutate(constr = list(constraintL2(prior_mu, sigma = prior_sigmas[i]))) %>% 
+    mutate(obj = list(obj + constr))
+  ) %>%
+  bind_rows()
+
+
+krumbiegel_weightings <- c(1:3)
+fixed <- map(krumbiegel_weightings, function(i) {
+  c("S0_CUM_REC_METC13_Krumbiegel" = -2 - i, "SREL_CUM_REC_METC13_Krumbiegel" = -3 - i)
+})
+
+myframe <- map(krumbiegel_weightings, function(i) {
+  myframe$fixed <- fixed[i]
+  myframe$hypothesis <- paste0(myframe$hypothesis, ", weighting ", i)
+  return(myframe)
+}) %>%
+  bind_rows()
+
+
+
+```
+
+
+
+
+# Fitting
+
+```{r}
+fit_42_job <- runbg({
+    ncores <- detectFreeCores()
+    assign("ncores", ncores, pos = .GlobalEnv)
+
+   myframe %>%
+    ungroup %>%
+    mutate(fits = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+      assign("fit_fixed", fixed[[i]], pos = .GlobalEnv)
+      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+      mstrust(objfun = fit_obj, center = fit_pars, fixed = fit_fixed, studyname = fit_studyname, sd = 3,
+             blather = F, cores = ncores, fits = 20*ncores) })) %>%
+    rowwise
+}, machine = c(paste0("ruprecht1", 1:2), "fermi"), input = "myframe", filename = "2018_07_25_18_13_fit_42_job"
+  # , recover = T
+)
+# fit_42_job$check()
+# fit_42 <- fit_42_job$get() %>% uniteFits %>% appendParframes() 
+# saveRDS(fit_42, file = "fit_42.rds")
+# fit_42 <- readDMod.frame("fit_42.rds")
+# fit_42_job$purge()
+```
+
+```{r}
+plotCombined(fit_42,2,1, str_detect(condition, "Krumbiegel"))
+plotCombined(fit_42,2,1, str_detect(name, "met"))
+
+plotPars(fit_42, 2,nsteps = 2)
+
+fit_42$pars
+```
+
+
+# Plotting
+
+```{r plotting helpers}
+observables <- myframe$g[[1]] %>% getEquations() %>%.[[1]] %>%  names
+
+observables_apap <- "Mve_apap"
+observables_bic <- c("cum_rec_co2c13", "DOB","P_CO2F")
+observables_met <- c("mom_rec_metc13", "cum_rec_metc13")
+
+conditions <- myframe$obj[[1]] %>% getConditions()
+data <- (myframe$data[[1]] + myframe$data_sig[[1]]) %>% as.data.frame()
+
+cond_apap <- data %>% filter(name%in%"Mve_apap") %>% .[["condition"]] %>% unique %>% as.character()
+cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[["condition"]] %>% unique %>% as.character()
+cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
+
+nhyp <- nrow(myframe)
+```
+
+```{r plot predictions}
+pdf(file = "plots_krumbiegel_weighted_more_strongly.pdf", width = 16, height = 9)
+nhyp <- nrow(myframe)
+
+map(1:nhyp, function(i) {
+  plotCombined(myframe, i, 1, condition %in% cond_apap & name %in% observables_apap)
+})
+
+map(1:nhyp, function(i) {
+  plotCombined(myframe, i, 1, condition %in% cond_bic & name %in% observables_bic)
+})
+
+map(1:nhyp, function(i) {
+  plotCombined(myframe, i, 1, condition %in% cond_met & name %in% observables_met)
+})
+
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
