@@ -38,7 +38,7 @@ Read data, insert the default values for the parameters supplied in the data she
 ```{r, message=FALSE}
 # Read data
 data_full <-
-  read_csv("../../data/limax_pkpd_v42_data.csv") %>%
+  read_tsv("../../data/limax_pkpd_v42_data.csv") %>%
   select(-model) %>% 
   rename(name = observer) %>% 
   rename(n = subjects) %>% 
@@ -107,6 +107,8 @@ g <- Y(c(observables_apap, observables_bic, observables_met), x, attach.input = 
 
 e_sigma_NA <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g)#, modelname = "e", compile = F) #cant cope with NaNs passed to it, if compiled
 ```
+
+
 
 ```{r data and p apapbicmet}
 # Remove certain studies from the data which goes into fitting
@@ -181,8 +183,7 @@ remove_c_and_o()
 
 ```{r}
 # save.image("workspace.rda")
-load("workspace.rda")
-loadDLL(g,x,p,p_sigma_NA)
+load("workspace.rda"); loadDLL(g,x,p,p_sigma_NA)
 ```
 
 
@@ -261,37 +262,47 @@ myframe <- map(krumbiegel_weightings, function(i) {
 # Fitting
 
 ```{r}
-fit_42_job <- runbg({
-    ncores <- detectFreeCores()
-    assign("ncores", ncores, pos = .GlobalEnv)
-
-   myframe %>%
-    ungroup %>%
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_fixed", fixed[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, fixed = fit_fixed, studyname = fit_studyname, sd = 3,
-             blather = F, cores = ncores, fits = 20*ncores) })) %>%
-    rowwise
-}, machine = c(paste0("ruprecht1", 1:2), "fermi"), input = "myframe", filename = "2018_07_25_18_13_fit_42_job"
-  # , recover = T
-)
+# fit_42_job <- runbg({
+#     ncores <- detectFreeCores()
+#     assign("ncores", ncores, pos = .GlobalEnv)
+# 
+#    myframe %>%
+#     ungroup %>%
+#     mutate(fits = map(seq_along(x), function(i) {
+#       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+#       assign("fit_fixed", fixed[[i]], pos = .GlobalEnv)
+#       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#       mstrust(objfun = fit_obj, center = fit_pars, fixed = fit_fixed, studyname = fit_studyname, sd = 3,
+#              blather = F, cores = ncores, fits = 10*ncores) })) %>%
+#     rowwise
+# }, machine = c(paste0("ruprecht", 1:2), "fermi"), input = "myframe", filename = "2018_07_25_18_13_fit_42_job"
+#   , recover = T
+# )
 # fit_42_job$check()
-# fit_42 <- fit_42_job$get() %>% uniteFits %>% appendParframes() 
+# fit_42 <- fit_42_job$get() %>% uniteFits %>% appendParframes()
 # saveRDS(fit_42, file = "fit_42.rds")
-# fit_42 <- readDMod.frame("fit_42.rds")
+myframe <- readDMod.frame("fit_42.rds")
 # fit_42_job$purge()
+
+
 ```
 
 ```{r}
-plotCombined(fit_42,2,1, str_detect(condition, "Krumbiegel"))
-plotCombined(fit_42,2,1, str_detect(name, "met"))
+myframe %>% select(hypothesis)
+```
 
-plotPars(fit_42, 2,nsteps = 2)
 
-fit_42$pars
+```{r}
+
+plotValues(myframe, 6)
+
+plotCombined(myframe,5,1, str_detect(condition, "Krumbiegel"))
+plotCombined(myframe,5,1, str_detect(name, "met"))
+
+plotPars(myframe, 5,nsteps = 2)
+
+myframe$pars
 ```
 
 
@@ -305,37 +316,83 @@ observables_bic <- c("cum_rec_co2c13", "DOB","P_CO2F")
 observables_met <- c("mom_rec_metc13", "cum_rec_metc13")
 
 conditions <- myframe$obj[[1]] %>% getConditions()
-data <- (myframe$data[[1]] + myframe$data_sig[[1]]) %>% as.data.frame()
+data <- myframe$data[[1]] %>% as.data.frame()
 
 cond_apap <- data %>% filter(name%in%"Mve_apap") %>% .[["condition"]] %>% unique %>% as.character()
 cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[["condition"]] %>% unique %>% as.character()
 cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
 
-nhyp <- nrow(myframe)
+which_hypotheses <- c(1:6)
 ```
 
 ```{r plot predictions}
-pdf(file = "plots_krumbiegel_weighted_more_strongly.pdf", width = 16, height = 9)
-nhyp <- nrow(myframe)
-
-map(1:nhyp, function(i) {
+# Group conditions by observables
+pdf(file = "plots.pdf", width = 16, height = 9)
+map(which_hypotheses, function(i) {
   plotCombined(myframe, i, 1, condition %in% cond_apap & name %in% observables_apap)
 })
 
-map(1:nhyp, function(i) {
+map(which_hypotheses, function(i) {
   plotCombined(myframe, i, 1, condition %in% cond_bic & name %in% observables_bic)
 })
 
-map(1:nhyp, function(i) {
+map(which_hypotheses, function(i) {
   plotCombined(myframe, i, 1, condition %in% cond_met & name %in% observables_met)
 })
-
 dev.off()
 ```
 
 
 
+```{r}
+# Plot conditions individually
+pdf(file = "plots_individual.pdf", width = 16, height = 9)
+map(which_hypotheses[5:6], function(i) {
+  cat(i, "\n")
+  map(conditions, function(cond) {
+    cat(cond, "\n")
+    myobs <- case_when(cond%in%cond_apap ~ list(observables_apap),
+                       cond%in%cond_bic  ~ list(observables_bic),
+                       cond%in%cond_met  ~ list(observables_met)) %>% unlist
+    assign("cond", cond, pos = .GlobalEnv)
+    assign("myobs", myobs, pos = .GlobalEnv)
+    
+    plotCombined(myframe, i, 1, eval(parse(text = deparse(substitute(condition %in% cond & name %in% myobs))))
+                 )
+  })
+})
+dev.off()
+```
 
+# Write parameters
+The dMod.frame "fit_42.rds" gives rise to the plots.pdf and plots_individual.pdf.
+There, it is clear that Krumbiegel-weighting = 3 (hypothesis 5 and 6) yield the best results.
+Furthermore, comparing the parameters of hypothesis 5 and 6 (stronger and weaker prior) it is seen that the pars of hypothesis 5 are more well defined (which makes sense, since they are regularized).
+I would therefore opt to write out the parameters of hypothesis 5.
+```{r}
+# myframe <- readDMod.frame("fit_42.rds")
+
+# compare parameters of best fit
+myframe %>% plotPars(5, nsteps = 1)
+myframe %>% plotPars(6, nsteps = 1)
+
+
+# Write parameters to pars.csv
+pars_hyp5 <- myframe %>% 
+  .[5,] %>% 
+  rowwise() %>% 
+  mutate(pars = list(as.parvec(parframes))) %>% 
+  .[["pars"]] %>% 
+  .[[1]] 
+
+# uncapitalize_parnames and transform to linear scale
+inner_parameters <- myframe[5,"x"][[1]][[1]] %>% getParameters() %>% sort
+indices <- toupper(inner_parameters) %in% names(pars_hyp5) 
+uncapitalized_names <- inner_parameters[indices] %>% sort
+pars_hyp5 <- pars_hyp5 %>% sort_by_name() %>% setNames(uncapitalized_names) %>% exp
+
+tibble(parname = names(pars_hyp5), parvalue = pars_hyp5) %>% write_csv("pars.csv")
+```
 
 
 
