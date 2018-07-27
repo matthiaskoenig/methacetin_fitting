@@ -252,12 +252,7 @@ myframe <- map(krumbiegel_weightings, function(i) {
 }) %>%
   bind_rows()
 
-
-
 ```
-
-
-
 
 # Fitting
 
@@ -282,6 +277,7 @@ myframe <- map(krumbiegel_weightings, function(i) {
 # fit_42_job$check()
 # fit_42 <- fit_42_job$get() %>% uniteFits %>% appendParframes()
 # saveRDS(fit_42, file = "fit_42.rds")
+
 myframe <- readDMod.frame("fit_42.rds")
 # fit_42_job$purge()
 
