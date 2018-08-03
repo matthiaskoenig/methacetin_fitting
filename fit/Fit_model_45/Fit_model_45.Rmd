@@ -20,79 +20,79 @@ knitr::opts_chunk$set(fig.width = 15)
 library(conveniencefunctions)
 
 # r modifications of plotting functions}
-stepDetect <- dMod:::stepDetect
-plotPars.parframe <- dMod:::plotPars.parframe
-getSteps <- function(myparframe, stepInd = 1, tol = 1) {
-  steps <- steps0 <- stepDetect(myparframe$value, tol)
-  steps0 <- c(steps0, nrow(myparframe))
-
-  if(!is.null(stepInd)){
-    nsteps <- length(stepInd)
-    steps <- stepInd
-  } else {
-    steps <- steps[order(c(diff(steps), nrow(myparframe)-max(steps)), decreasing = T)][1:nsteps]
-    steps <- unique(sort(c(1, steps))) #include the first step no matter what
-    if(length(steps0) <= nsteps) 
-      nsteps <- length(steps0)
-  }
-  
-  steps <- c(steps, nrow(myparframe))
-  steps_indices <- which(steps0%in%steps)
-  
-  step_members <- lapply(1:nsteps, function(i) {
-    steps0[steps_indices[i]]:(steps0[steps_indices[i]+1]-1)
-  }) 
-  step_members <- do.call(c,step_members)
-  
-  myparframe[step_members,]
-}
-
-
-plotPars2 <- function(dMod.frame = model, hypothesis = 1:2,  ..., nsteps = 3, tol = 1, stepInd = NULL ) {
-
-  if (!missing(...)) {dots <- substitute(...)
-  } else {
-    dots <- T
-  }
-
-  if(is.character(hypothesis)) hypothesis <- which(dMod.frame$hypothesis == hypothesis)
-
-  if(length(hypothesis)==1) {
-    myparframe <- dMod.frame[["parframes"]][[hypothesis]]
-    myparframe <- getSteps(myparframe, nsteps = nsteps, tol = tol, stepInd = stepInd)
-
-    plotPars.parframe(myparframe, ..., tol = tol) +
-      ggtitle(label = paste0(dMod.frame[["hypothesis"]][[hypothesis]], "\n",
-                             "best value = ", round(dMod.frame[["parframes"]][[hypothesis]][1,"value", drop = T],1), "\n",
-                             paste0(paste(names(dots), "=", dots )[-1], collapse = "\n")) )
-  } else {
-    mydata <- do.call(rbind,lapply(hypothesis, function(hyp) {
-      pars <- dMod.frame[["parframes"]][[hyp]]
-      pars <- cbind(index = 1:nrow(pars), pars[order(pars$value),!(names(pars) == "index")])
-      if(!is.null(stepInd)){
-        steps <- stepInd
-      } else {
-        steps <- getStepIndices(pars, nsteps, tol)
-      }
-      pars <- getSteps(pars, tol = tol, stepInd = steps)
-      cbind(hypothesis = hyp, step = factor(findInterval(pars$index, steps), labels = steps), pars)
-    }))
-    mydata$hypothesis <- as.factor(mydata$hypothesis)
-
-    myindices <- with(mydata, eval(dots))
-    mydata <- mydata[myindices,]
-
-    mydata2 <- wide2long.data.frame(mydata[-c(4,5,6)], keep = 1:3)
-    mydata2$hyp_step <- paste(mydata2$hypothesis, mydata2$step, sep = "_")
-
-    ggplot2::ggplot(mydata2, aes(x = name, y = value, color = hyp_step)) +
-      geom_boxplot(outlier.alpha = 0) +     # annotate("text", x = jumps + 1, y = y.jumps, label = jumps, hjust = 0, color = "red", size = 3) +
-      xlab("parameter") + ylab("value") + theme_dMod() +
-      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
-
-  }
-
-}
+# stepDetect <- dMod:::stepDetect
+# plotPars.parframe <- dMod:::plotPars.parframe
+# getSteps <- function(myparframe, stepInd = 1, tol = 1) {
+#   steps <- steps0 <- stepDetect(myparframe$value, tol)
+#   steps0 <- c(steps0, nrow(myparframe))
+# 
+#   if(!is.null(stepInd)){
+#     nsteps <- length(stepInd)
+#     steps <- stepInd
+#   } else {
+#     steps <- steps[order(c(diff(steps), nrow(myparframe)-max(steps)), decreasing = T)][1:nsteps]
+#     steps <- unique(sort(c(1, steps))) #include the first step no matter what
+#     if(length(steps0) <= nsteps) 
+#       nsteps <- length(steps0)
+#   }
+#   
+#   steps <- c(steps, nrow(myparframe))
+#   steps_indices <- which(steps0%in%steps)
+#   
+#   step_members <- lapply(1:nsteps, function(i) {
+#     steps0[steps_indices[i]]:(steps0[steps_indices[i]+1]-1)
+#   }) 
+#   step_members <- do.call(c,step_members)
+#   
+#   myparframe[step_members,]
+# }
+# 
+# 
+# plotPars2 <- function(dMod.frame = model, hypothesis = 1:2,  ..., nsteps = 3, tol = 1, stepInd = NULL ) {
+# 
+#   if (!missing(...)) {dots <- substitute(...)
+#   } else {
+#     dots <- T
+#   }
+# 
+#   if(is.character(hypothesis)) hypothesis <- which(dMod.frame$hypothesis == hypothesis)
+# 
+#   if(length(hypothesis)==1) {
+#     myparframe <- dMod.frame[["parframes"]][[hypothesis]]
+#     myparframe <- getSteps(myparframe, nsteps = nsteps, tol = tol, stepInd = stepInd)
+# 
+#     plotPars.parframe(myparframe, ..., tol = tol) +
+#       ggtitle(label = paste0(dMod.frame[["hypothesis"]][[hypothesis]], "\n",
+#                              "best value = ", round(dMod.frame[["parframes"]][[hypothesis]][1,"value", drop = T],1), "\n",
+#                              paste0(paste(names(dots), "=", dots )[-1], collapse = "\n")) )
+#   } else {
+#     mydata <- do.call(rbind,lapply(hypothesis, function(hyp) {
+#       pars <- dMod.frame[["parframes"]][[hyp]]
+#       pars <- cbind(index = 1:nrow(pars), pars[order(pars$value),!(names(pars) == "index")])
+#       if(!is.null(stepInd)){
+#         steps <- stepInd
+#       } else {
+#         steps <- getStepIndices(pars, nsteps, tol)
+#       }
+#       pars <- getSteps(pars, tol = tol, stepInd = steps)
+#       cbind(hypothesis = hyp, step = factor(findInterval(pars$index, steps), labels = steps), pars)
+#     }))
+#     mydata$hypothesis <- as.factor(mydata$hypothesis)
+# 
+#     myindices <- with(mydata, eval(dots))
+#     mydata <- mydata[myindices,]
+# 
+#     mydata2 <- wide2long.data.frame(mydata[-c(4,5,6)], keep = 1:3)
+#     mydata2$hyp_step <- paste(mydata2$hypothesis, mydata2$step, sep = "_")
+# 
+#     ggplot2::ggplot(mydata2, aes(x = name, y = value, color = hyp_step)) +
+#       geom_boxplot(outlier.alpha = 0) +     # annotate("text", x = jumps + 1, y = y.jumps, label = jumps, hjust = 0, color = "red", size = 3) +
+#       xlab("parameter") + ylab("value") + theme_dMod() +
+#       theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+# 
+#   }
+# 
+# }
 ```
 
 
@@ -372,12 +372,12 @@ fit_45_job <- runbg({
 )
 # fit_45_job$check()
 # fit_45 <- fit_45_job$get()
-# fit_45 <- fit_45 %>% uniteFits %>% appendParframes
+# fit_45 %>% str1
+# fit_45 <- fit_45[-2] %>% uniteFits %>% appendParframes
 # saveRDS(fit_45, file = "fit_45.rds")
-# model <- readdMod.frame("fit_45.rds")
+model <- readDMod.frame("fit_45.rds")
 # fit_45_job$purge()
 ```
-
 
 ```{r}
 parframes_summary(model)
@@ -385,40 +385,40 @@ parframes_summary(model)
 
 
 ```{r}
-pdf("plot_values1.pdf")
-plotValues(model, 1, value < 13000)
+# pdf("waterfalls.pdf")
+plotValues(model, 1, value < 20000)
 plotValues(model, 1, value < 14000)
-plotPars(model, 1, index < 100, tol = 1, nsteps = 20)
+plotPars(model, 1, tol = 1, nsteps = 3)
 
-model$parframes[[2]]
+
 plotValues(model, 2, value < 18800)
-plotValues(model, 2, converged == F & value <20000)
-plotPars(model, 2, index < 100, nsteps = 5, tol = 20)
+plotValues(model, 2, value < 12200)
+plotPars(model, 2, value < 12200, nsteps = 3, tol = 1)
+# dev.off()
 
-plotValues(model, 3, value < 45600)
-plotPars(model, 3, index < 100, tol = 20)
-dev.off()
+
 ```
 
 
 ```{r}
-plotCombined(model, 1, 2, !str_detect(name, "apap"), !condition%in%cond_apap, aesthetics = list(color = "study"))
+plotCombined(model, 2, 1, !str_detect(name, "ap"), !condition%in%cond_apap, aesthetics = list(color = "study"))
 ```
 
 ```{r force prediction through point}
-force_data <- datalist("Fuller2000_C13_76.7_0_0_0_0_0.79_10_0_0_10" = data.frame(name = "cum_rec_co2c13",
-                                  time = 7,
-                                  value = 85,
-                                  sigma = 0.01,
-                                  stringsAsFactors = F))
+force_data <- datalist("Fuller2000_C13_76.7_0_0_0_0_0.79_10_0_0_10" = 
+                         data.frame(name = "cum_rec_co2c13",
+                                    time = 7,
+                                    value = 85,
+                                    sigma = 0.01,
+                                    stringsAsFactors = F))
 
-mymodel <- model[3,] %>% 
+mymodel <- model[2,] %>% 
   rowwise() %>% 
   mutate(data_force = list(force_data),
          obj_force = list(normL2(data_force, prd)),
-         obj = list(obj + obj_force),
-         pars = list(as.parvec(parframes,2))) %>% 
-  mutate(fit = list(trust(obj, pars, 1,10, fixed = c(fixed))))
+         obj = list(obj + obj_force), 
+         pars = list(as.parvec(parframes,1))) %>% 
+  mutate(fit = list(trust(obj, pars, 1,10)))
 
 with(mymodel %>% unlist(F), {
   pred <- prd(times, fit$argument, deriv = F)
@@ -427,10 +427,74 @@ with(mymodel %>% unlist(F), {
 ```
 
 ```{r}
+as.pinner <- as.parvec.tbl_df <- function(x,hypothesis = 1, index = 1) {
+  pouter <- dMod:::as.parvec.parframe(x[["parframes"]][[hypothesis]], index = index)
+  x[["p"]][[hypothesis]](pouter)
+}
 
+as.parvec.tbl_df <- function(x,hypothesis = 1, index = 1) {
+  dMod:::as.parvec.parframe(x[["parframes"]][[hypothesis]], index = index)
+}
+model %>% as.parvec(1,1) %>% .[names(.) != "KBO_FIX_CO2"]
 ```
 
+# Profile
+```{r, dependson=setup}
+model <- readDMod.frame("fit_45.rds")
 
+profile_45_job <- runbg({   ncores <- detectFreeCores()
+    assign("ncores", ncores, pos = .GlobalEnv)
+
+   model %>%
+    ungroup %>%
+    mutate(profiles = map(seq_along(x), function(i) {
+      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+      
+      steps <- 1
+      if (i == 1)
+        steps <- c(1, 67, 314, 727)
+      if (i == 2)
+        steps <- c(1, 143, 200, 655, 841)
+
+      lapply(steps, function(step) {
+        mypars <- parframes[[i]] %>% as.parvec(step)
+        fixed <- mypars["KBO_FIX_CO2"]
+        mypars <- mypars[names(mypars) != "KBO_FIX_CO2"]
+        
+        assign("fit_pars", mypars, pos = .GlobalEnv)
+        assign("fit_fixed", fixed, pos = .GlobalEnv)
+        
+        prof_0 <- profile(obj = fit_obj, 
+                pars = fit_pars, 
+                whichPar = names(fit_pars),
+                fixed = fit_fixed, 
+                cores = ncores)
+        prof_1 <- profile(obj = fit_obj, 
+                pars = c(fit_pars, fit_fixed), 
+                whichPar = names(fit_fixed),
+                cores = ncores)
+        
+        return(list(prof_0, prof_1))
+      }) %>%
+        setNames(as.character(steps)) %>% 
+        list
+
+       })) %>%
+      rowwise
+}, machine = c(paste0("knecht", 5)), input = "model", filename = "2018_08_03_20_57_profile_45_job"
+  # , recover = T
+)
+# profile_45_job$check()
+# profile_45 <- profile_45_job$get()
+# profile_45 <- profile_45 %>% uniteFits %>% appendParframes
+# saveRDS(profile_45, file = "profile_45.rds")
+# model <- readdMod.frame("profile_45.rds")
+# profile_45_job$purge()
+```
+
+```{r}
+
+```
 
 
 
@@ -455,18 +519,18 @@ cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .
 
 ```{r plot predictions}
 # Group conditions by observables
-which_hypotheses <- c(1:3)
-pdf(file = "plots2pdf", width = 16, height = 9)
+which_hypotheses <- c(1:2)
+pdf(file = "plots.pdf", width = 16, height = 9)
 map(which_hypotheses, function(i) {
-  plotCombined(model, i, 3, condition %in% cond_apap & name %in% observables_apap)
+  plotCombined(model, i, 1, condition %in% cond_apap & name %in% observables_apap)
 })
 
 map(which_hypotheses, function(i) {
-  plotCombined(model, i, 3, condition %in% cond_bic & name %in% observables_bic)
+  plotCombined(model, i, 1, condition %in% cond_bic & name %in% observables_bic)
 })
 
 map(which_hypotheses, function(i) {
-  plotCombined(model, i, 3, condition %in% cond_met & name %in% observables_met)
+  plotCombined(model, i, 1, condition %in% cond_met & name %in% observables_met)
 })
 dev.off()
 ```
