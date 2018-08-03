@@ -19,6 +19,80 @@ knitr::opts_chunk$set(fig.width = 15)
 # library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
 library(conveniencefunctions)
 
+# r modifications of plotting functions}
+stepDetect <- dMod:::stepDetect
+plotPars.parframe <- dMod:::plotPars.parframe
+getSteps <- function(myparframe, stepInd = 1, tol = 1) {
+  steps <- steps0 <- stepDetect(myparframe$value, tol)
+  steps0 <- c(steps0, nrow(myparframe))
+
+  if(!is.null(stepInd)){
+    nsteps <- length(stepInd)
+    steps <- stepInd
+  } else {
+    steps <- steps[order(c(diff(steps), nrow(myparframe)-max(steps)), decreasing = T)][1:nsteps]
+    steps <- unique(sort(c(1, steps))) #include the first step no matter what
+    if(length(steps0) <= nsteps) 
+      nsteps <- length(steps0)
+  }
+  
+  steps <- c(steps, nrow(myparframe))
+  steps_indices <- which(steps0%in%steps)
+  
+  step_members <- lapply(1:nsteps, function(i) {
+    steps0[steps_indices[i]]:(steps0[steps_indices[i]+1]-1)
+  }) 
+  step_members <- do.call(c,step_members)
+  
+  myparframe[step_members,]
+}
+
+
+plotPars2 <- function(dMod.frame = model, hypothesis = 1:2,  ..., nsteps = 3, tol = 1, stepInd = NULL ) {
+
+  if (!missing(...)) {dots <- substitute(...)
+  } else {
+    dots <- T
+  }
+
+  if(is.character(hypothesis)) hypothesis <- which(dMod.frame$hypothesis == hypothesis)
+
+  if(length(hypothesis)==1) {
+    myparframe <- dMod.frame[["parframes"]][[hypothesis]]
+    myparframe <- getSteps(myparframe, nsteps = nsteps, tol = tol, stepInd = stepInd)
+
+    plotPars.parframe(myparframe, ..., tol = tol) +
+      ggtitle(label = paste0(dMod.frame[["hypothesis"]][[hypothesis]], "\n",
+                             "best value = ", round(dMod.frame[["parframes"]][[hypothesis]][1,"value", drop = T],1), "\n",
+                             paste0(paste(names(dots), "=", dots )[-1], collapse = "\n")) )
+  } else {
+    mydata <- do.call(rbind,lapply(hypothesis, function(hyp) {
+      pars <- dMod.frame[["parframes"]][[hyp]]
+      pars <- cbind(index = 1:nrow(pars), pars[order(pars$value),!(names(pars) == "index")])
+      if(!is.null(stepInd)){
+        steps <- stepInd
+      } else {
+        steps <- getStepIndices(pars, nsteps, tol)
+      }
+      pars <- getSteps(pars, tol = tol, stepInd = steps)
+      cbind(hypothesis = hyp, step = factor(findInterval(pars$index, steps), labels = steps), pars)
+    }))
+    mydata$hypothesis <- as.factor(mydata$hypothesis)
+
+    myindices <- with(mydata, eval(dots))
+    mydata <- mydata[myindices,]
+
+    mydata2 <- wide2long.data.frame(mydata[-c(4,5,6)], keep = 1:3)
+    mydata2$hyp_step <- paste(mydata2$hypothesis, mydata2$step, sep = "_")
+
+    ggplot2::ggplot(mydata2, aes(x = name, y = value, color = hyp_step)) +
+      geom_boxplot(outlier.alpha = 0) +     # annotate("text", x = jumps + 1, y = y.jumps, label = jumps, hjust = 0, color = "red", size = 3) +
+      xlab("parameter") + ylab("value") + theme_dMod() +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+  }
+
+}
 ```
 
 
@@ -185,7 +259,7 @@ load("workspace.rda"); loadDLL(g,x,p,p_sigma_NA)
 # dMod.frame
 ```{r initialize dMod_frame}
 model <- dMod.frame(
-  hypothesis = "prior_sigma =",
+  hypothesis = "",
   x = x,
   g = g,
   p = p,
@@ -195,8 +269,8 @@ model <- dMod.frame(
   g_sig = g,
   p_sig = list(p_sigma_NA),
   e_sig = list(e_sigma_NA),
-  data_sig = list(as.datalist(data_sigma_NA)), 
-  fixed = list(c("S0_CUM_REC_METC13_Krumbiegel", "SREL_CUM_REC_METC13_Krumbiegel"))
+  data_sig = list(as.datalist(data_sigma_NA))#, 
+  # fixed = list(c("S0_CUM_REC_METC13_Krumbiegel" = -6, "SREL_CUM_REC_METC13_Krumbiegel"))
 )
 
 
@@ -214,21 +288,7 @@ model <- model %>%
          prd = list(prd_data+prd_sig), 
          data_data = list(data),
          data = list(data_data + data_sig),
-         description = "Weight the data of Krumbiegel more to improve late prediction")
-
-
-
-krumbiegel_weightings <- c(1:3)
-fixed <- map(krumbiegel_weightings, function(i) {
-  c("S0_CUM_REC_METC13_Krumbiegel" = -2 - i, "SREL_CUM_REC_METC13_Krumbiegel" = -3 - i)
-})
-
-model <- map(krumbiegel_weightings, function(i) {
-  model$fixed <- fixed[i]
-  model$hypothesis <- paste0(model$hypothesis, ", weighting ", i)
-  return(model)
-}) %>%
-  bind_rows()
+         description = "Also fit error pars of Krumbiegel")
 
 ```
 
@@ -243,16 +303,17 @@ hypothesis = 1
 test_dMod.frame <- function(model, hypothesis = 1, ...){
   print(plotCombined(model,hypothesis))
   print(with(unlist(model[hypothesis,], F), {
-    obj(times, pars = pars, fixed = fixed)
+    obj(times, pars = pars)
   }))
 }
-
 test_dMod.frame(model)
+# model$pars[[1]] %>% `[<-`(., 1:length(.), 8) %>%  print_r.named_vector()
 ```
 
 # Fitting
 ```{r}
-fit_44_job <- runbg({
+# model <-  readDMod.frame("model0.rds")
+fit_44_job_3 <- runbg({
     ncores <- detectFreeCores()
     assign("ncores", ncores, pos = .GlobalEnv)
 
@@ -261,37 +322,118 @@ fit_44_job <- runbg({
     mutate(fits = map(seq_along(x), function(i) {
       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
       assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_fixed", fixed[[i]], pos = .GlobalEnv)
+      assign("fit_fixed", NULL, pos = .GlobalEnv)
+      # assign("fit_fixed", fixed[[i]], pos = .GlobalEnv)
       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, fixed = fit_fixed, studyname = fit_studyname, sd = 3,
-             blather = F, cores = ncores, fits = 20*ncores) })) %>%
-    rowwise
-}, machine = c(paste0("knecht",  3:6), paste0("ruprecht", 1:2), "fermi"), input = "model", filename = "2018_08_02_18_08_fit_44_job"
-  , recover = T1
+      mstrust(objfun = fit_obj, 
+              center = fit_pars, 
+              fixed = fit_fixed, 
+              studyname = fit_studyname, 
+              sd = 3,
+              blather = F, 
+              cores = ncores, 
+              fits = 30*ncores,
+              iterlim = 200,
+              parlower = c(
+                APAPD_HLM_CL                  	=	-5	, # 1
+                APAPD_KM_APAP                 	=	-5	, # 2
+                KA_APAP                       	=	-5	, # 3
+                KA_CO2C13                     	=	-5	, # 4
+                KA_METC13                     	=	-5	, # 5
+                KBO_FIX_CO2                   	=	-5	, # 6
+                KBO_REL_CO2                   	=	-5	, # 7
+                KLI_FIX_CO2                   	=	-5	, # 8
+                KLI_REL_CO2                   	=	-5	, # 9
+                KLU_EX_CO2                    	=	-5	, # 10
+                KLU_EXKM_CO2                  	=	-5	, # 11
+                S0_CUM_REC_METC13_Krumbiegel  	=	-7	, # 12
+                SREL_CUM_REC_METC13_Krumbiegel	=	-7	  # 13 
+              ),
+              parupper = c(
+                APAPD_HLM_CL                  	=	8	, # 1
+                APAPD_KM_APAP                 	=	8	, # 2
+                KA_APAP                       	=	8	, # 3
+                KA_CO2C13                     	=	8	, # 4
+                KA_METC13                     	=	8	, # 5
+                KBO_FIX_CO2                   	=	8	, # 6
+                KBO_REL_CO2                   	=	8	, # 7
+                KLI_FIX_CO2                   	=	8	, # 8
+                KLI_REL_CO2                   	=	8	, # 9
+                KLU_EX_CO2                    	=	8	, # 10
+                KLU_EXKM_CO2                  	=	8	, # 11
+                S0_CUM_REC_METC13_Krumbiegel  	=	0	, # 12
+                SREL_CUM_REC_METC13_Krumbiegel	=	0	  # 13 
+              )
+              
+      )
+    })) %>%
+     rowwise
+}, machine = c(paste0("knecht",  c(5)), "fermi"), input = "model", filename = "2018_08_02_18_08_fit_44_job_3"
+  , recover = T
 )
-# fit_44_job$check()
-# fit_44 <- fit_44_job$get() %>% uniteFits %>% appendParframes()
-# saveRDS(fit_44, file = "fit_44.rds")
-# model <- readDMod.frame("fit_44.rds")
-# fit_44_job$purge()
+# fit_44_job_3$check()
+# fit_44_3 <- fit_44_job_3$get()
+# save(.runbgOutput, file = "runbgOutput.rda")
+# fit_44_3 <- fit_44_3[-5] %>% uniteFits %>% appendParframes()
+# saveRDS(fit_44_3, file = "fit_44_3.rds")
+# fit_44 <- readRDS("fit_44.rds")
+# saveRDS(uniteFits(list(fit_44, fit_44_2), "parframes"), "fit_44_combined.rds")
+# model <- readDMod.frame("fit_44_combined.rds")
 ```
 
 ```{r}
-model %>% select(hypothesis)
+parframes_summary(model)
 ```
 
 
 ```{r}
+pdf("plot_values1.pdf")
+plotValues(model, 1, value < 13000)
+plotValues(model, 1, value < 14000)
+plotPars(model, 1, index < 100, tol = 1, nsteps = 20)
 
-plotValues(model, 6)
+model$parframes[[2]]
+plotValues(model, 2, value < 18800)
+plotValues(model, 2, converged == F & value <20000)
+plotPars(model, 2, index < 100, nsteps = 5, tol = 20)
 
-plotCombined(model,5,1, str_detect(condition, "Krumbiegel"))
-plotCombined(model,5,1, str_detect(name, "met"))
-
-plotPars(model, 5,nsteps = 2)
-
-model$pars
+plotValues(model, 3, value < 45600)
+plotPars(model, 3, index < 100, tol = 20)
+dev.off()
 ```
+
+
+```{r}
+plotCombined(model, 1, 2, !str_detect(name, "apap"), !condition%in%cond_apap, aesthetics = list(color = "study"))
+```
+
+```{r force prediction through point}
+force_data <- datalist("Fuller2000_C13_76.7_0_0_0_0_0.79_10_0_0_10" = data.frame(name = "cum_rec_co2c13",
+                                  time = 7,
+                                  value = 85,
+                                  sigma = 0.01,
+                                  stringsAsFactors = F))
+
+mymodel <- model[3,] %>% 
+  rowwise() %>% 
+  mutate(data_force = list(force_data),
+         obj_force = list(normL2(data_force, prd)),
+         obj = list(obj + obj_force),
+         pars = list(as.parvec(parframes,2))) %>% 
+  mutate(fit = list(trust(obj, pars, 1,10, fixed = c(fixed))))
+
+with(mymodel %>% unlist(F), {
+  pred <- prd(times, fit$argument, deriv = F)
+  plotCombined(pred, data,!str_detect(name, "apap"), !condition%in%cond_apap, aesthetics = list(color = "study"))
+})
+```
+
+```{r}
+
+```
+
+
+
 
 
 # Plotting
@@ -310,27 +452,26 @@ cond_apap <- data %>% filter(name%in%"Mve_apap") %>% .[["condition"]] %>% unique
 cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[["condition"]] %>% unique %>% as.character()
 cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
 
-which_hypotheses <- c(1:6)
+
 ```
 
 ```{r plot predictions}
 # Group conditions by observables
-pdf(file = "plots.pdf", width = 16, height = 9)
+which_hypotheses <- c(1:3)
+pdf(file = "plots2pdf", width = 16, height = 9)
 map(which_hypotheses, function(i) {
-  plotCombined(model, i, 1, condition %in% cond_apap & name %in% observables_apap)
+  plotCombined(model, i, 3, condition %in% cond_apap & name %in% observables_apap)
 })
 
 map(which_hypotheses, function(i) {
-  plotCombined(model, i, 1, condition %in% cond_bic & name %in% observables_bic)
+  plotCombined(model, i, 3, condition %in% cond_bic & name %in% observables_bic)
 })
 
 map(which_hypotheses, function(i) {
-  plotCombined(model, i, 1, condition %in% cond_met & name %in% observables_met)
+  plotCombined(model, i, 3, condition %in% cond_met & name %in% observables_met)
 })
 dev.off()
 ```
-
-
 
 ```{r}
 # Plot conditions individually
