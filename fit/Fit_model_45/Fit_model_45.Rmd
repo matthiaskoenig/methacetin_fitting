@@ -368,14 +368,14 @@ fit_45_job <- runbg({
               ) })) %>%
     rowwise
 }, machine = c(paste0("knecht", 5), paste0("ruprecht",1:2), "fermi"), input = "model", filename = "2018_08_03_15_36_fit_45_job"
-  # , recover = T
+  , recover = T
 )
 # fit_45_job$check()
 # fit_45 <- fit_45_job$get()
 # fit_45 %>% str1
 # fit_45 <- fit_45[-2] %>% uniteFits %>% appendParframes
 # saveRDS(fit_45, file = "fit_45.rds")
-model <- readDMod.frame("fit_45.rds")
+# model <- readDMod.frame("fit_45.rds")
 # fit_45_job$purge()
 ```
 
@@ -395,8 +395,6 @@ plotValues(model, 2, value < 18800)
 plotValues(model, 2, value < 12200)
 plotPars(model, 2, value < 12200, nsteps = 3, tol = 1)
 # dev.off()
-
-
 ```
 
 
@@ -440,8 +438,8 @@ model %>% as.parvec(1,1) %>% .[names(.) != "KBO_FIX_CO2"]
 
 # Profile
 ```{r, dependson=setup}
-model <- readDMod.frame("fit_45.rds")
-
+# model <- readDMod.frame("fit_45.rds")
+# 
 profile_45_job <- runbg({   ncores <- detectFreeCores()
     assign("ncores", ncores, pos = .GlobalEnv)
 
@@ -449,7 +447,7 @@ profile_45_job <- runbg({   ncores <- detectFreeCores()
     ungroup %>%
     mutate(profiles = map(seq_along(x), function(i) {
       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      
+
       steps <- 1
       if (i == 1)
         steps <- c(1, 67, 314, 727)
@@ -460,43 +458,39 @@ profile_45_job <- runbg({   ncores <- detectFreeCores()
         mypars <- parframes[[i]] %>% as.parvec(step)
         fixed <- mypars["KBO_FIX_CO2"]
         mypars <- mypars[names(mypars) != "KBO_FIX_CO2"]
-        
+
         assign("fit_pars", mypars, pos = .GlobalEnv)
         assign("fit_fixed", fixed, pos = .GlobalEnv)
-        
-        prof_0 <- profile(obj = fit_obj, 
-                pars = fit_pars, 
+
+        prof_0 <- profile(obj = fit_obj,
+                pars = fit_pars,
                 whichPar = names(fit_pars),
-                fixed = fit_fixed, 
+                fixed = fit_fixed,
                 cores = ncores)
-        prof_1 <- profile(obj = fit_obj, 
-                pars = c(fit_pars, fit_fixed), 
+        prof_1 <- profile(obj = fit_obj,
+                pars = c(fit_pars, fit_fixed),
                 whichPar = names(fit_fixed),
                 cores = ncores)
-        
+
         return(list(prof_0, prof_1))
       }) %>%
-        setNames(as.character(steps)) %>% 
+        setNames(as.character(steps)) %>%
         list
 
        })) %>%
       rowwise
 }, machine = c(paste0("knecht", 5)), input = "model", filename = "2018_08_03_20_57_profile_45_job"
-  # , recover = T
+  , recover = T
 )
 # profile_45_job$check()
 # profile_45 <- profile_45_job$get()
-# profile_45 <- profile_45 %>% uniteFits %>% appendParframes
+# profile_45 <- profile_45$knecht5 
+# profile_45 <- profile_45 %>% 
+#   mutate(profiles = unlist(profiles, recursive = F) %>% map(bind_rows) %>% list)
 # saveRDS(profile_45, file = "profile_45.rds")
-# model <- readdMod.frame("profile_45.rds")
+model <- readDMod.frame("profile_45.rds")
 # profile_45_job$purge()
 ```
-
-```{r}
-
-```
-
-
 
 # Plotting
 
@@ -535,10 +529,11 @@ map(which_hypotheses, function(i) {
 dev.off()
 ```
 
-```{r}
+```{r plot conditions individually}
 # Plot conditions individually
 pdf(file = "plots_individual.pdf", width = 16, height = 9)
-map(which_hypotheses[5:6], function(i) {
+which_hypotheses <- c(1:2)
+map(which_hypotheses, function(i) {
   cat(i, "\n")
   map(conditions, function(cond) {
     cat(cond, "\n")
@@ -555,6 +550,57 @@ map(which_hypotheses[5:6], function(i) {
 dev.off()
 ```
 
+```{r plot waterfalls}
+pdf("waterfalls.pdf")
+which_hypotheses <- c(1:2)
+mysummary <- parframes_summary(model)
+map(which_hypotheses, function(i) {
+  cat(i, "\n")
+  plotValues(model, i, value < mysummary[[i]]$values["1st Qu."]) %>% print
+  plotValues(model, i, value < mysummary[[i]]$values["Median"]) %>% print
+  plotValues(model, i, value < mysummary[[i]]$values["3rd Qu."]) %>% print
+  plotValues(model, i) %>% print
+  plotPars(model, i, tol = 1, nsteps = 3) %>% print
+  return(NULL)
+})
+dev.off()
+```
+
+```{r plot Profiles}
+pdf("profiles.pdf")
+which_hypotheses <- c(1:2)
+mysummary <- parframes_summary(model)
+map(which_hypotheses, function(i) {
+  profplot <- model$profiles[[i]] %>% 
+    plotProfile() +
+    coord_cartesian(ylim = c(-1,4))
+  print(profplot)
+  NULL
+})
+dev.off()
+```
+
+```{r plot Profile paths}
+pdf("profile paths.pdf")
+which_hypotheses <- c(1:2)
+mysummary <- parframes_summary(model)
+map(which_hypotheses, function(wh) {
+  myproflist <- model$profiles[[wh]]
+  map(myproflist, function(prof_step) {
+    which_pars <- prof_step[["whichPar"]] %>% unique() %>% str_subset_not("KBO_FIX_CO2")
+    map(which_pars, function(wp) {
+      myplot <- plotPaths(list(prof_step), whichPar = wp, relative = F) + ggtitle(paste0("x-axis: ", wp))
+      print(myplot)
+      NULL
+    })
+  })
+  NULL
+})
+dev.off()
+```
+
+
+
 # Write parameters
 The dMod.frame "fit_44.rds" gives rise to the plots.pdf and plots_individual.pdf.
 There, it is clear that Krumbiegel-weighting = 3 (hypothesis 5 and 6) yield the best results.
@@ -563,25 +609,25 @@ I would therefore opt to write out the parameters of hypothesis 5.
 ```{r}
 
 # compare parameters of best fit
-model %>% plotPars(5, nsteps = 1)
-model %>% plotPars(6, nsteps = 1)
+model %>% plotPars(1, nsteps = 1)
+model %>% plotPars(2, nsteps = 1)
 
 
 # Write parameters to pars.csv
-pars_hyp5 <- model %>% 
-  .[5,] %>% 
+pars_hyp1 <- model %>% 
+  .[1,] %>% 
   rowwise() %>% 
   mutate(pars = list(as.parvec(parframes))) %>% 
   .[["pars"]] %>% 
   .[[1]] 
 
 # uncapitalize_parnames and transform to linear scale
-inner_parameters <- model[5,"x"][[1]][[1]] %>% getParameters() %>% sort
-indices <- toupper(inner_parameters) %in% names(pars_hyp5) 
+inner_parameters <- model[1,"x"][[1]][[1]] %>% getParameters() %>% sort
+indices <- toupper(inner_parameters) %in% names(pars_hyp1) 
 uncapitalized_names <- inner_parameters[indices] %>% sort
-pars_hyp5 <- pars_hyp5 %>% sort_by_name() %>% setNames(uncapitalized_names) %>% exp
+pars_hyp1 <- pars_hyp1 %>% sort_by_name() %>% setNames(uncapitalized_names) %>% exp
 
-tibble(parname = names(pars_hyp5), parvalue = pars_hyp5) %>% write_csv("pars.csv")
+tibble(parname = names(pars_hyp1), parvalue = pars_hyp1) %>% write_csv("pars.csv")
 ```
 
 
