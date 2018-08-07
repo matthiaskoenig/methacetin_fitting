@@ -387,7 +387,8 @@ model <- readDMod.frame("fit_47.rds")
 ```
 
 
-```{r play around with tolerances}
+```{r}
+# play around with tolerances
 checkout_hypothesis(model,1, "a")
 
 
@@ -404,6 +405,7 @@ map(seq_along(res1), function(i) res1[[i]]-res2[[i]]) %>% map(. %>%.[!is.na(.)&!
 ```
 
 ```{r rebuild dmod.frame with finer integration tolerances}
+
 model <- readDMod.frame("fit_47.rds")
 
 
@@ -466,14 +468,16 @@ runbg({
       mstrust(objfun = fit_obj, center = fit_pars, fixed = fit_fixed, studyname = fit_studyname, sd = 3,
              blather = F, cores = ncores, fits = 10*ncores) })) %>%
     rowwise}, machine = c("knecht1","knecht2","fermi")[grp], input = c("model", "groups", "grp", "parf_inds", "parf_ind"),  filename = paste0("2018_08_07_00_13_fit_47_fine_job", grp)
-  # , recover = T
+  , recover = T
 )
     })
 # map(fit_47_fine_job, . %>% {.$check()})
 # fit_47_fine <- map(fit_47_fine_job,. %>% {.$get()})
 # save(.runbgOutput, file = "runbgOutput.rda")
-# saveRDS(fit_47_fine, file = "fit_47_fine.rds")
-# fit_47_fine <- readDMod.frame("fit_47_fine.rds")
+fit_47_fine <- fit_47_fine %>% map(1)  %>% uniteFits() %>% appendParframes()
+
+saveRDS(fit_47_fine, file = "fit_47_fine.rds")
+model <- readDMod.frame("fit_47_fine.rds")
 # map(fit_47_fine_job,. %>% {.$purge()})
 
 
@@ -500,6 +504,39 @@ parframes_summary(model)
 
 # Plotting
 
+
+```{r}
+model <- readDMod.frame("fit_47_fine.rds")
+
+
+controls(model$x[[1]], name = "optionsSens") <- list(method = "lsodes", atol = 1e-12, rtol = 1e-10)
+controls(model$x_sig[[1]], name = "optionsSens") <- list(method = "lsodes", atol = 1e-12, rtol = 1e-10)
+
+controls(model$x[[1]], name = "optionsOde") <- list(method = "lsoda", atol = 1e-12, rtol = 1e-10)
+controls(model$x_sig[[1]], name = "optionsOde") <- list(method = "lsoda", atol = 1e-12, rtol = 1e-10)
+
+model <-
+  model %>% 
+  mutate(data = list(data_data)) %>% 
+  rowwise() %>% 
+  appendObj() %>% 
+  mutate(prd_sig = list(g_sig * x_sig * p_sig), 
+         obj_data_sig = list(normL2(data_sig, prd_sig, e_sig)),
+         pars = list(union(getParameters(p), getParameters(p_sig)) %>% are_names_of(rnorm)),
+         obj = list(obj_data+ obj_data_sig),
+         times = list(seq(min(rbind(as.data.frame(data),as.data.frame(data_sig))[["time"]]), 
+                          max(rbind(as.data.frame(data),as.data.frame(data_sig))[["time"]]) * 1.1, 
+                          length.out = 200))) %>% 
+  mutate(prd_data = list(prd),
+         prd = list(prd_data+prd_sig), 
+         data_data = list(data),
+         data = list(data_data + data_sig),
+         description = "Model v47_fine_integration")
+
+```
+
+
+
 ```{r plotting helpers}
 observables <- model$g[[1]] %>% getEquations() %>%.[[1]] %>%  names
 
@@ -514,32 +551,35 @@ cond_apap <- data %>% filter(name%in%"Mve_apap") %>% .[["condition"]] %>% unique
 cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[["condition"]] %>% unique %>% as.character()
 cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
 
-which_hypotheses <- c(1)
 
-modelversion <- 47
+modelversion <- paste0(47, "_fine_integration")
+which_hypotheses <- c(1)
+step <- 1
+model$parframes[[1]][step]
 ```
+
+
 
 ```{r plot predictions}
 # Group conditions by observables
-
-pdf(file = paste0("plots_",modelversion,".pdf"), width = 16, height = 9)
+pdf(file = paste0("plots_",modelversion,"_step_", step, ".pdf"), width = 16, height = 9)
 map(which_hypotheses, function(i) {
-  plotCombined(model, i, 1, condition %in% cond_apap & name %in% observables_apap)
+  plotCombined(model, i, step, condition %in% cond_apap & name %in% observables_apap)
 })
 
 map(which_hypotheses, function(i) {
-  plotCombined(model, i, 1, condition %in% cond_bic & name %in% observables_bic)
+  plotCombined(model, i, step, condition %in% cond_bic & name %in% observables_bic)
 })
 
 map(which_hypotheses, function(i) {
-  plotCombined(model, i, 1, condition %in% cond_met & name %in% observables_met)
+  plotCombined(model, i, step, condition %in% cond_met & name %in% observables_met)
 })
 dev.off()
 ```
 
 ```{r plot conditions individually}
 # Plot conditions individually
-pdf(file = paste0("plots_individual_",modelversion,".pdf"), width = 16, height = 9)
+pdf(file = paste0("plots_individual_",modelversion, "_step_", step, ".pdf"), width = 16, height = 9)
 
 map(which_hypotheses, function(i) {
   cat(i, "\n")
@@ -551,7 +591,7 @@ map(which_hypotheses, function(i) {
     assign("cond", cond, pos = .GlobalEnv)
     assign("myobs", myobs, pos = .GlobalEnv)
     
-    plotCombined(model, i, 1, eval(parse(text = deparse(substitute(condition %in% cond & name %in% myobs))))
+    plotCombined(model, i, step, eval(parse(text = deparse(substitute(condition %in% cond & name %in% myobs))))
                  )
   })
 })
