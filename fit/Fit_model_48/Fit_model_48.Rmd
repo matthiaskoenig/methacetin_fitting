@@ -211,7 +211,7 @@ insert("name ~ value", value = unlist(mget(supplied_pars)), name = supplied_pars
   define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
   
   insert("x~exp(x)", x = .currentSymbols) %>% 
-  insert("x~y+r_x", x = c("KBO_FIX_CO2", "KBO_REL_CO2"), y = c("KLI_FIX_CO2", "KLI_REL_CO2")) %>% 
+  insert("x~y+r_x", y = c("KBO_FIX_CO2", "KBO_REL_CO2"), x = c("KLI_FIX_CO2", "KLI_REL_CO2")) %>% 
   {.}
 
 
@@ -253,7 +253,7 @@ remove_c_and_o()
 
 
 ```{r}
-# save.image("workspace.rda")
+save.image("workspace.rda")
 load("workspace.rda"); loadDLL(x)
 ```
 
@@ -296,7 +296,7 @@ controls(model$x_sig[[1]], name = "optionsOde") <- list(method = "lsoda", atol =
 
 data_weight_irving <-   data
 indices <- with(data_weight_irving, {
-  str_detect(study, "Irving") & near(time, 0.01666667, tol = 0.00001)
+  str_detect(study, "Irving") & time < 0.1 & time > 0
 }) 
 data_weight_irving$sigma[indices] <- 0.001
 
@@ -323,8 +323,8 @@ model <- model %>%
 ```
 
 ```{r}
-# saveRDS(model, "model0.rds")
-model <-  readDMod.frame("model0.rds")
+saveRDS(model, "model1.rds")
+model <-  readDMod.frame("model1.rds")
 ```
 
 ```{r test model, eval=FALSE}
@@ -410,47 +410,26 @@ fit_48_job <- runbg({
 )
 # fit_48_job$check()
 fit_48 <- fit_48_job$get()
-# fit_48 %>% str1
-fit_48 <-  fit_48[-4] %>% uniteFits %>%  appendParframes
+fit_48 %>% str1
+fit_48 <-  .runbgOutput %>% uniteFits %>%  appendParframes
 saveRDS(fit_48, file = "fit_48.rds")
 model <- readDMod.frame("fit_48.rds")
 # fit_48_job$purge()
+
 ```
-
-
-
-
-```{r}
-model$parframes[[1]] %>% 
-  mutate(index = 1:length(index)) %>% 
-  write_csv("all_fits.csv")
- 
-  
-```
-
-```{r}
-clustering <- model$parframes[[1]] %>% 
-  mutate(index = 1:length(index)) %>% 
-  filter(index < 170) %>% 
-   select(-(1:4)) %>% 
-  kmeans(2)
-
-
-clustering$betweenss
-```
-
-
-```{r}
-model$parframes[[1]] %>% 
-  mutate(index = 1:length(index)) %>% 
-  filter(index < 170) %>% 
-   select(-(1:4)) %>% 
-  cor()
-```
-
 
 ```{r}
 parframes_summary(model)
+```
+
+
+```{r}
+model$parframes[[1]]
+```
+
+
+```{r}
+plotPars(model$parframes[[1]], 1, value < 9700)
 ```
 
 
@@ -487,6 +466,9 @@ pinner <- model$p[[hypothesis]](pars)[[1]][free_pars]
 tibble(parname = names(pars), parvalue = pars) %>% write_csv("pars.csv")
 ```
 
+```{r}
+model$times <- list(seq(0,26, length.out = 2000), seq(0,26, length.out = 2000))
+```
 
 ```{r plot predictions}
 # Group conditions by observables
@@ -580,4 +562,32 @@ dev.off()
 
 
 
+
+```{r}
+model$parframes[[1]] %>% 
+  mutate(index = 1:length(index)) %>% 
+  write_csv("all_fits.csv")
+ 
+  
+```
+
+```{r}
+clustering <- model$parframes[[1]] %>% 
+  mutate(index = 1:length(index)) %>% 
+  filter(index < 170) %>% 
+   select(-(1:4)) %>% 
+  kmeans(2)
+
+
+clustering$betweenss
+```
+
+
+```{r}
+model$parframes[[1]] %>% 
+  mutate(index = 1:length(index)) %>% 
+  filter(index < 170) %>% 
+   select(-(1:4)) %>% 
+  cor()
+```
 
