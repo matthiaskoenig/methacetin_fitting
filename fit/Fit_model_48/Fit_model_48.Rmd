@@ -253,11 +253,9 @@ remove_c_and_o()
 
 
 ```{r}
-# save.image("workspace.rda")
-load("workspace.rda"); loadDLL(x)
+save.image("workspace2.rda")
+load("workspace2.rda"); loadDLL(x)
 ```
-
-
 
 
 # dMod.frame
@@ -316,8 +314,8 @@ model <- model %>%
 ```
 
 ```{r}
-saveRDS(model, "model1.rds")
-model <-  readDMod.frame("model1.rds")
+saveRDS(model, "model2.rds")
+model <-  readDMod.frame("model2.rds")
 ```
 
 ```{r test model, eval=FALSE}
@@ -336,32 +334,40 @@ plotCombined(model,2,1,name%in%"DOB", str_detect(condition, "Irv|Bar"), time < 0
 model$pars[[1]] %>% `[<-`(., 1:length(.), 10) %>%  print_r.named_vector()
 ```
 
-
-
-
 # Fitting
-```{r}
-fit_48_job_new_parameterization <- runbg({
-    ncores <- detectFreeCores()
-    assign("ncores", ncores, pos = .GlobalEnv)
 
-   model %>%
-    ungroup %>%
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_fixed", NULL, pos = .GlobalEnv)
+```{r}
+groups <- list(1:3)
+fit_48_2_job <- map(unique(groups), function(grp) {
+  assign("grp", grp, pos = .GlobalEnv)  
+  grp <<- grp
+    runbg({
       
-      # assign("fit_fixed", fixed[[i]], pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, 
+      ncores <- detectFreeCores()
+      assign("ncores", ncores, pos = .GlobalEnv)
+      
+      nfits <- case_when(grp == 1 ~ 25*ncores,
+                         grp == 2 ~ 35*ncores,
+                         grp == 3 ~ 50*ncores)
+      assign("nfits", nfits, pos = .GlobalEnv)
+      
+      out <- model %>%
+        ungroup %>%
+        mutate(fits = map(seq_along(x), function(i) {
+          assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+          assign("fit_pars", pars[[i]], pos = .GlobalEnv)
+          assign("fit_fixed", NULL, pos = .GlobalEnv)
+          # assign("fit_fixed", fixed[[i]], pos = .GlobalEnv)
+          assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+          
+          mstrust(objfun = fit_obj, 
               center = 0*fit_pars, 
               fixed = fit_fixed, 
               studyname = fit_studyname, 
               sd = 4,
               blather = F, 
               cores = ncores, 
-              fits = 20*ncores,
+              fits = nfits,
               iterlim = 200,
               parlower = c(
                 APAPD_HLM_CL 	=	0.7	, # 1
@@ -396,25 +402,22 @@ fit_48_job_new_parameterization <- runbg({
                 Kp_co2c13    	=	10	  # 14 
               )
       ) })) %>%
-    rowwise
-}, machine = c(paste0("ruprecht", 1:2), "fermi"), input = "model", filename = "2018_08_08_17_36_fit_48_job_new_parameterization"
-  , recover = T
-)
-# fit_48_job_new_parameterization$check()
-# fit_48 <- fit_48_job_new_parameterization$get()
-# fit_48 %>% str1
-# fit_48$fermi$fits[[1]]
-# fit_48 <-  fit_48 %>% .[[1]] %>%  mutate(parframes = list(as.parframe(fits)))
-# saveRDS(fit_48, file = "fit_48.rds")
-# model <- readDMod.frame("fit_48.rds")
-# fit_48_job_new_parameterization$purge()
-```
+        rowwise
+      
+      }, machine = c("ruprecht1","ruprecht2","fermi")[grp], input = c("model", "groups", "grp"),  filename = "2018_08_08_16_36_fit_48_2_job"
+      , recover = T
+    )
+})
+# map(fit_48_2_job,. %>% .$check())
 
-
-
-
-```{r}
-model$parframes[[1]][1:3]
+# fit_48_2_job[[1]]
+# fit_48_2 <- map(fit_48_2_job[1],. %>% {.$get()})
+# saveRDS(fit_48_2, file = "fit_48_2_distributed.rds")
+# load("2018_08_08_16_36_fit_48_2_job_3_result.RData")
+# fit_48_2 <- .runbgOutput %>% appendParframes()
+# saveRDS(fit_48_2, "fit_48_2.rds")
+model <- readDMod.frame("fit_48_2.rds")
+# map(fit_48_2_job,. %>% .$purge())
 ```
 
 
@@ -423,14 +426,7 @@ parframes_summary(model)
 ```
 
 
-```{r}
-model$parframes[[1]]
-```
 
-
-```{r}
-plotPars(model$parframes[[1]], 1, value < 9700)
-```
 
 
 # Plotting
@@ -450,28 +446,57 @@ cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[[
 cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
 
 
-modelversion <- paste0(48, "_fine_integration")
-which_hypotheses <- c(1:2)
-step <- 1
+modelversion <- paste0(48, "_better_parameterization")
+which_hypotheses <- c(1)
+step <- 65
 
 ```
+
+
+```{r}
+checkout_hypothesis(model,1)
+i <- 1
+newparf <- map(1:nrow(parframes), function(i) {
+  pars <- parframes %>% as.parvec(i)
+  pinner <- p(pars)[[1]][free_pars]
+  myp <- pinner %>% unclass() %>% t %>% log
+  parframes[i] %>% as.data.frame() %>% .[1:4] %>% cbind(myp) %>% 
+    `attr<-`("metanames", attr(parframes, "metanames")) %>% 
+    `attr<-`("parameters", colnames(myp)) %>% 
+    `attr<-`("class", class(parframes))
+}) %>% do.call(rbind,.)
+
+```
+
+```{r}
+newparf %>% plotValues(1, value < 10000)
+newparf %>% plotPars(10, value<12000)
+
+newparf %>% as.data.frame() %>% 
+  filter(value < 12000) %>% 
+  ggplot(aes(KLI_REL_CO2, KLI_FIX_CO2, color = value)) + geom_point()
+```
+
+
+```{r}
+plotCombined(model, 1,65, study %>% str_detect("Bars|Irv"), name %in% "DOB") +
+  facet_wrap(c("name", "study"))
+```
+
+
 
 ### Write parameters
 ```{r}
 # Write parameters to pars.csv
 free_pars <- c("Kp_co2c13", "KBO_MAX_CO2", "KBO_REL_CO2", "KBO_FIX_CO2", "KLI_MAX_CO2", "KLI_REL_CO2", "KLI_FIX_CO2", "KLU_EX_CO2", "KLU_EXKM_CO2", "Ka_co2c13", "Ka_metc13", "APAPD_HLM_CL", "APAPD_Km_apap", "Ka_apap")
-hypothesis <- 1:2
-i <- 1
+hypothesis <- 1
+
 map(hypothesis, function(i) {
   pars <- model$parframes[[i]] %>% as.parvec
   pinner <- model$p[[i]](pars)[[1]][free_pars]
-  tibble(parname = names(pars), parvalue = pars) %>% write_csv(paste0("pars",i,".csv"))
+  tibble(parname = names(pinner), parvalue = pinner) %>% write_csv(paste0("pars",i,"_step_", step, ".csv"))
 })
 
-```
-
-```{r}
-model$times <- list(seq(0,26, length.out = 2000), seq(0,26, length.out = 2000))
 ```
 
 ```{r plot predictions}
@@ -505,8 +530,7 @@ map(which_hypotheses, function(i) {
     assign("cond", cond, pos = .GlobalEnv)
     assign("myobs", myobs, pos = .GlobalEnv)
     
-    plotCombined(model, i, step, eval(parse(text = deparse(substitute(condition %in% cond & name %in% myobs))))
-                 )
+    plotCombined(model, i, step, eval(parse(text = deparse(substitute(condition %in% cond & name %in% myobs)))))
   })
 })
 dev.off()
@@ -528,6 +552,17 @@ map(which_hypotheses, function(i) {
 })
 dev.off()
 ```
+
+
+
+
+
+
+
+
+
+
+
 
 ```{r plot Profiles}
 pdf(paste0("profiles_",modelversion,".pdf"))
