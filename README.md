@@ -86,6 +86,7 @@ KBO_MAXCO2      # CO2 pool size [mg]"),
 ### study, group
 * `Mohr2018, NaN`
 * `Irving1983, NaN`
+* `Roecker2001, NaN`
 * `Barstow1990, NaN`
 * `Meineke1993, D12.5_T1`
 * `Meineke1993, D25.0_T1`
