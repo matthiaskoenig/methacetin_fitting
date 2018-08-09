@@ -637,9 +637,18 @@ checkout_hypothesis(model,1)
 ```{r}
 pars <- parframes %>% as.parvec()
 
-pars["Ka_metc13"] <- 1
 
-plotCombined(prd(times,pars, deriv = F), data, condition %in% cond_met, str_detect(name, "met"))
+pdf("plots Ka_metc13-pdf", width = 20, height = 9)
+walk(c(-5,-3,-1,1,3,5), function(i) {
+  pars <- parframes %>% as.parvec()
+  pars["Ka_metc13"] <- i
+  assign("pars", pars, pos = .GlobalEnv)
+  p <- plotCombined(prd(times,pars, deriv = F), data, condition %in% cond_met, str_detect(name, "met")) + 
+    ggtitle(label = paste("Ka_metc13 = ", i)) 
+  
+    print(p)
+})
+dev.off()
 
 ```
 
