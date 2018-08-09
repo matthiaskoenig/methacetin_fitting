@@ -152,17 +152,17 @@ data_full <- data_full %>%
 ```
 
 ```{r}
-data_full %>% select(1:7) %>%
-  filter(str_detect(study, "^Ro")) %>%
-  mutate(sigma = 10 + value * 0.001) %>%
-  # mutate(value = log(value), sigma = )
-  as.data.frame() %>% as.datalist() %>%
-  plotData(
-    # transform = "log10(value)"
-    ) +
-# coord_cartesian(ylim = c(000,500)) +
-  coord_cartesian(ylim = c(1000,10000))+
-geom_blank()
+# data_full %>% select(1:7) %>%
+#   filter(str_detect(study, "^Ro")) %>%
+#   mutate(sigma = 10 + value * 0.001) %>%
+#   # mutate(value = log(value), sigma = )
+#   as.data.frame() %>% as.datalist() %>%
+#   plotData(
+#     # transform = "log10(value)"
+#     ) +
+# # coord_cartesian(ylim = c(000,500)) +
+#   coord_cartesian(ylim = c(1000,10000))+
+# geom_blank()
 ```
 
 ```{r try to fit a transient function to Roecker}
@@ -386,7 +386,7 @@ model <- model %>%
 ```
 
 ```{r}
-saveRDS(model, "model0.rds")
+# saveRDS(model, "model0.rds")
 model <-  readDMod.frame("model0.rds")
 ```
 
@@ -404,14 +404,18 @@ print(with(unlist(model[1,], F), {
     obj(times, pars = pars, conditions = c(cond_apap, cond_bic))
   }))
 plotCombined(model,1,1,name%in%"DOB", str_detect(condition, "Irv|Bar|Roe"), time < 0.1)
-model$pars[[1]] %>% `[<-`(., 1:length(.), 10) %>%  print_r.named_vector()
+model$pars[[1]] %>% `[<-`(., 1:length(.), 20) %>% sort_by_name() %>%  print_r.named_vector()
 ```
+
+```{r}
+model %>% ungroup %>% mutate(fit_conditions = map(seq_along(x), function(i) {c(cond_apap[[i]], cond_bic[[i]])})) %>% .$fit_conditions
+```
+
+
 
 # Fitting
 
 ```{r}
-insert_runbg("fit_49", "fit", "model")
-
 fit_49_job <- runbg({
     ncores <- detectFreeCores()
     assign("ncores", ncores, pos = .GlobalEnv)
@@ -420,18 +424,71 @@ fit_49_job <- runbg({
     ungroup %>%
     mutate(fits = map(seq_along(x), function(i) {
       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      assign("fit_pars", pars[[i]], pos = .GlobalEnv)
-      assign("fit_fixed", NULL, pos = .GlobalEnv)
-      # assign("fit_fixed", fixed[[i]], pos = .GlobalEnv)
+      
+      fit_fixed <- c(Ka_metc13 = 6.0966305)
+      assign("fit_fixed", fit_fixed, pos = .GlobalEnv)
+      
+      fit_pars <- pars[[i]] * 0
+      fit_pars <- fit_pars[names(fit_pars)!= "Ka_metc13"]
+      assign("fit_pars", fit_pars, pos = .GlobalEnv)
+      
+      
+      fit_conditions = c(cond_apap[[i]], cond_bic[[i]])
+      assign("fit_conditions", fit_conditions, pos = .GlobalEnv)
       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, center = fit_pars, fixed = fit_fixed, studyname = fit_studyname, sd = 3,
-             blather = F, cores = ncores, fits = 10*ncores) })) %>%
+      mstrust(objfun = fit_obj, 
+              
+              center = fit_pars, 
+              fixed = fit_fixed, 
+              conditions = fit_conditions,
+              
+              studyname = fit_studyname, 
+              sd = 3,
+              blather = F, 
+              cores = ncores, 
+              fits = 15*ncores,
+              iterlim = 200,
+              
+              parlower = c(
+                APAPD_HLM_CL 	=	0.7	, # 1
+                APAPD_Km_apap	=	-1.1	, # 2
+                Ka_apap      	=	0.8	, # 3
+                Ka_co2c13    	=	-20	, # 4
+                # Ka_metc13    	=	-20	, # 5
+                KBO_FIX_CO2  	=	-25	, # 6
+                KBO_MAX_CO2  	=	-20	, # 7
+                KBO_REL_CO2  	=	-25	, # 8
+                KLI_MAX_CO2  	=	-20	, # 9
+                KLU_EX_CO2   	=	-20	, # 10
+                KLU_EXKM_CO2 	=	-20	, # 11
+                Kp_co2c13    	=	-20	, # 12
+                r_KLI_FIX_CO2	=	-20	, # 13
+                r_KLI_REL_CO2	=	-20	  # 14 
+              ), 
+              parupper = c(
+                APAPD_HLM_CL 	=	0.9	, # 1
+                APAPD_Km_apap	=	-1	, # 2
+                Ka_apap      	=	1	, # 3
+                Ka_co2c13    	=	20	, # 4
+                # Ka_metc13    	=	20	, # 5
+                KBO_FIX_CO2  	=	20	, # 6
+                KBO_MAX_CO2  	=	20	, # 7
+                KBO_REL_CO2  	=	20	, # 8
+                KLI_MAX_CO2  	=	20	, # 9
+                KLU_EX_CO2   	=	20	, # 10
+                KLU_EXKM_CO2 	=	20	, # 11
+                Kp_co2c13    	=	20	, # 12
+                r_KLI_FIX_CO2	=	40	, # 13
+                r_KLI_REL_CO2	=	40	  # 14 
+              )) 
+      })
+      ) %>%
     rowwise
-     send_runbg_mail("fit_49_job")
+    
 
      out
 
-}, machine = c(paste0("knecht", 1)), input = "model", filename = "2018_08_09_13_05_fit_49_job"
+}, machine = c(paste0("knecht", c(1,2,4))), input = "model", filename = "2018_08_09_13_05_fit_49_job"
   # , recover = T
 )
 # fit_49_job$check()
