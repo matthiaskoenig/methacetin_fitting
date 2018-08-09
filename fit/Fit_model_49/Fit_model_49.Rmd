@@ -277,6 +277,9 @@ insert("name ~ value", value = unlist(mget(supplied_pars)), name = supplied_pars
   
   insert("x~exp(x)", x = .currentSymbols) %>% 
   insert("x~y+r_x", y = c("KBO_FIX_CO2", "KBO_REL_CO2"), x = c("KLI_FIX_CO2", "KLI_REL_CO2")) %>% 
+
+  insert("y~(0.1287739 + 0.9990048*x)", x = "KLU_EXKM_CO2", y = "KLU_EX_CO2") %>% 
+
   {.}
 
 
@@ -294,6 +297,8 @@ trafo_sigma_NA <-
   insert("x~exp(x)", x = .currentSymbols) %>% 
   insert("x~y+r_x", y = c("KBO_FIX_CO2", "KBO_REL_CO2"), x = c("KLI_FIX_CO2", "KLI_REL_CO2")) %>% 
   
+  insert("y~(0.1287739 + 0.9990048*x)", x = "KLU_EXKM_CO2", y = "KLU_EX_CO2") %>% 
+
   # Fix some parameters, error bars were estimated by eye 
   insert("x~-11", x = str_subset(.currentSymbols, "^s0"), conditionMatch = "Meineke1993") %>% # Fix the error parameters to a value
   insert("x~0", x = str_subset(.currentSymbols, "^s0"), conditionMatch = "(Barstow)") %>% 
@@ -327,9 +332,16 @@ remove_c_and_o()
 
 
 ```{r}
-save.image("workspace.rda")
-load("workspace.rda"); loadDLL(x)
+# save.image("workspace.rda")
+# load("workspace.rda"); loadDLL(x)
 ```
+
+```{r}
+# new parameter transformation
+# save.image("workspace1.rda")
+load("workspace1.rda"); loadDLL(x)
+```
+
 
 
 # dMod.frame
@@ -385,7 +397,7 @@ model <- model %>%
 ```
 
 ```{r}
-# saveRDS(model, "model0.rds")
+saveRDS(model, "model0.rds")
 model <-  readDMod.frame("model0.rds")
 ```
 
@@ -407,290 +419,19 @@ model$pars[[1]] %>% `[<-`(., 1:length(.), 20) %>% sort_by_name() %>%  print_r.na
 ```
 
 ```{r}
-model %>% ungroup %>% mutate(fit_conditions = map(seq_along(x), function(i) {c(cond_apap[[i]], cond_bic[[i]])})) %>% .$fit_conditions
+old_model <- readDMod.frame("fit_49_2.rds")
+myparf <- old_model$parframes[[1]]
+
+myparf %>% as.parvec %>% print_r.named_vector()
 ```
-
-
-
-# Fitting
 
 ```{r}
-fit_49_job <- runbg({
-    ncores <- detectFreeCores()
-    assign("ncores", ncores, pos = .GlobalEnv)
-
-   out <- model %>%
-    ungroup %>%
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      
-      fit_fixed <- c(Ka_metc13 = 6.0966305)
-      assign("fit_fixed", fit_fixed, pos = .GlobalEnv)
-      
-      fit_pars <- pars[[i]] * 0
-      fit_pars <- fit_pars[names(fit_pars)!= "Ka_metc13"]
-      assign("fit_pars", fit_pars, pos = .GlobalEnv)
-      
-      
-      fit_conditions = c(cond_apap[[i]], cond_bic[[i]])
-      assign("fit_conditions", fit_conditions, pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, 
-              
-              center = fit_pars, 
-              fixed = fit_fixed, 
-              conditions = fit_conditions,
-              
-              studyname = fit_studyname, 
-              sd = 3,
-              blather = F, 
-              cores = ncores, 
-              fits = 15*ncores,
-              iterlim = 200,
-              
-              parlower = c(
-                APAPD_HLM_CL 	=	0.7	, # 1
-                APAPD_Km_apap	=	-1.1	, # 2
-                Ka_apap      	=	0.8	, # 3
-                Ka_co2c13    	=	-20	, # 4
-                # Ka_metc13    	=	-20	, # 5
-                KBO_FIX_CO2  	=	-25	, # 6
-                KBO_MAX_CO2  	=	-20	, # 7
-                KBO_REL_CO2  	=	-25	, # 8
-                KLI_MAX_CO2  	=	-20	, # 9
-                KLU_EX_CO2   	=	-20	, # 10
-                KLU_EXKM_CO2 	=	-20	, # 11
-                Kp_co2c13    	=	-20	, # 12
-                r_KLI_FIX_CO2	=	-20	, # 13
-                r_KLI_REL_CO2	=	-20	  # 14 
-              ), 
-              parupper = c(
-                APAPD_HLM_CL 	=	0.9	, # 1
-                APAPD_Km_apap	=	-1	, # 2
-                Ka_apap      	=	1	, # 3
-                Ka_co2c13    	=	20	, # 4
-                # Ka_metc13    	=	20	, # 5
-                KBO_FIX_CO2  	=	20	, # 6
-                KBO_MAX_CO2  	=	20	, # 7
-                KBO_REL_CO2  	=	20	, # 8
-                KLI_MAX_CO2  	=	20	, # 9
-                KLU_EX_CO2   	=	20	, # 10
-                KLU_EXKM_CO2 	=	20	, # 11
-                Kp_co2c13    	=	20	, # 12
-                r_KLI_FIX_CO2	=	40	, # 13
-                r_KLI_REL_CO2	=	40	  # 14 
-              )) 
-      })
-      ) %>%
-    rowwise
-    
-
-     out
-
-}, machine = c(paste0("knecht", c(1,2,4))), input = "model", filename = "2018_08_09_13_05_fit_49_job"
-  , recover = T
-)
-# fit_49_job$check()
-# fit_49 <- fit_49_job$get()
-# fit_49 %>% str1
-# fit_49 <- fit_49 %>% uniteFits %>% appendParframes
-# saveRDS(fit_49, file = "fit_49.rds")
-model <- readDMod.frame("fit_49.rds")
-# fit_49_job$purge()
+fit_pars <-     model$pars[[1]] * 0 + 8
+fit_pars[!names(fit_pars)%in%names(fit_fixed)]
 ```
-```{r}
-
-append_fixed <- function(myparf, fixed) {
-  myattributes <- attributes(myparf)
-  myattributes[["parameters"]] <- c(myattributes[["parameters"]], names(fixed))
-  myattributes[["names"]] <- c(myattributes[["names"]], names(fixed))
-  fixed <- unclass(fixed)
-  myparf <- cbind(myparf,t(fixed))
-  attributes(myparf) <- myattributes
-  
-  return(myparf)
-}
-
-fixed <- c(Ka_metc13 = 6.0966305)
-model$parframes[[1]] <- append_fixed(model$parframes[[1]], fixed)
-```
-
-
-```{r}
-fit_49_2_job <- runbg({
-    ncores <- detectFreeCores()
-    assign("ncores", ncores, pos = .GlobalEnv)
-
-   out <- model %>%
-    ungroup %>%
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      
-      fit_fixed <- c(Ka_metc13 = 6.0966305)
-      assign("fit_fixed", fit_fixed, pos = .GlobalEnv)
-      
-      fit_pars <- parframes[[i]]
-      # fit_pars <- fit_pars[names(fit_pars)!= "Ka_metc13"]
-      assign("fit_pars", fit_pars, pos = .GlobalEnv)
-      
-      
-      fit_conditions = c(cond_apap[[i]], cond_bic[[i]])
-      assign("fit_conditions", fit_conditions, pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      mstrust(objfun = fit_obj, 
-              
-              center = fit_pars, 
-              fixed = fit_fixed, 
-              conditions = fit_conditions,
-              
-              studyname = fit_studyname, 
-              sd = 3,
-              blather = F, 
-              cores = ncores, 
-              fits = 15*ncores,
-              iterlim = 100
-              ,
-              parlower = c(
-                APAPD_HLM_CL 	=	0.7	, # 1
-                APAPD_Km_apap	=	-1.1	, # 2
-                Ka_apap      	=	0.8	, # 3
-                Ka_co2c13    	=	-20	, # 4
-                # Ka_metc13    	=	-20	, # 5
-                KBO_FIX_CO2  	=	-25	, # 6
-                KBO_MAX_CO2  	=	-20	, # 7
-                KBO_REL_CO2  	=	-25	, # 8
-                KLI_MAX_CO2  	=	-20	, # 9
-                KLU_EX_CO2   	=	-20	, # 10
-                KLU_EXKM_CO2 	=	-20	, # 11
-                Kp_co2c13    	=	-20	, # 12
-                r_KLI_FIX_CO2	=	0	, # 13
-                r_KLI_REL_CO2	=	0	  # 14 
-              ), 
-              parupper = c(
-                APAPD_HLM_CL 	=	0.9	, # 1
-                APAPD_Km_apap	=	-1	, # 2
-                Ka_apap      	=	1	, # 3
-                Ka_co2c13    	=	20	, # 4
-                # Ka_metc13    	=	20	, # 5
-                KBO_FIX_CO2  	=	20	, # 6
-                KBO_MAX_CO2  	=	20	, # 7
-                KBO_REL_CO2  	=	20	, # 8
-                KLI_MAX_CO2  	=	20	, # 9
-                KLU_EX_CO2   	=	20	, # 10
-                KLU_EXKM_CO2 	=	20	, # 11
-                Kp_co2c13    	=	20	, # 12
-                r_KLI_FIX_CO2	=	40	, # 13
-                r_KLI_REL_CO2	=	40	  # 14 
-              )
-              ) 
-      })
-      ) %>%
-    rowwise
-    
-
-     out
-
-}, machine = c(paste0("knecht", c(2))), input = "model", filename = "2018_08_09_13_05_fit_49_2_job"
-  , recover = T
-)
-# fit_49_2_job$check()
-# fit_49_2 <- fit_49_2_job$get()
-# fit_49_2 %>% str1
-# fit_49_2 <- fit_49_2[[1]] %>% appendParframes
-# saveRDS(fit_49_2, file = "fit_49_2.rds")
-model <- readDMod.frame("fit_49_2.rds")
-# fit_49_2_job$purge()
-```
-
-
-
-
-```{r}
-
-append_fixed <- function(myparf, fixed) {
-  myattributes <- attributes(myparf)
-  myattributes[["parameters"]] <- c(myattributes[["parameters"]], names(fixed))
-  myattributes[["names"]] <- c(myattributes[["names"]], names(fixed))
-  fixed <- unclass(fixed)
-  myparf <- cbind(myparf,t(fixed))
-  attributes(myparf) <- myattributes
-  
-  return(myparf)
-}
-
-fixed <- c(Ka_metc13 = 6.0966305)
-model$parframes[[1]] <- append_fixed(model$parframes[[1]], fixed)
-```
-
-
 
 
 # Fit Ka_metc13
-
-Even though there is quite some spread, consider the first 300 Fits to be the same step, since all parameters are well confined except for the max'es and the KLU which have a linear relationship.
-```{r}
-parframes_summary(model)
-```
-
-```{r}
-model$parframes[[1]][300:325]
-```
-
-```{r}
-plotPars(model$parframes[[1]],50, value < 80000)# + geom_point(aes(shape = factor(value)) )
-```
-
-```{r}
-checkout_hypothesis(model,1)
-i <- 1
-newparf <- map(1:nrow(parframes), function(i) {
-  pars <- parframes %>% as.parvec(i)
-  pinner <- p(pars)[[1]][free_pars]
-  myp <- pinner %>% unclass() %>% t %>% log
-  parframes[i] %>% as.data.frame() %>% .[1:4] %>% cbind(myp) %>% 
-    `attr<-`("metanames", attr(parframes, "metanames")) %>% 
-    `attr<-`("parameters", colnames(myp)) %>% 
-    `attr<-`("class", class(parframes))
-}) %>% do.call(rbind,.)
-
-```
-
-```{r}
-newparf %>% plotValues(1)
-newparf %>% plotValues(1, value<186485)
-
-newparf %>% as.data.frame() %>% 
-  filter(value < 80000) %>% 
-  ggplot(aes(KLI_MAX_CO2, KBO_MAX_CO2, color = value)) + 
-  # geom_point() +
-  geom_density2d()
-# ggplotly()
-
-newparf %>% as.data.frame() %>% 
-  filter(value < 80000) %>%
-  ggplot(aes(KLU_EX_CO2, KLU_EXKM_CO2, color = value)) + 
-  geom_density2d()
-
-
-mylm <- newparf %>% as.data.frame() %>% 
-  filter(value < 80000) %>% 
-  lm(KLU_EX_CO2~KLU_EXKM_CO2, data = .)
-mylm$coefficients
-```
-
-
-```{r}
-newfixed <- model$parframes[[1]] %>% 
-  as.data.frame() %>% 
-  filter(value < 80000) %>% 
-  select(-(1:4)) %>% 
-  select(-c(6,9,11,12)) %>% 
-  kmeans(1) %>% 
-  .$centers %>% 
-  .[1,]
-```
-
-
 
 ```{r}
 fit_49_3_job <- runbg({
@@ -702,24 +443,28 @@ fit_49_3_job <- runbg({
     mutate(fits = map(seq_along(x), function(i) {
       assign("fit_obj", obj[[i]], pos = .GlobalEnv)
       
-      fit_fixed <- c(Ka_metc13 = 6.0966305)
+      fit_fixed <- c(
+          APAPD_HLM_CL 	=	0.79238980400461	, # 1
+          APAPD_Km_apap	=	-1.05654353983166	, # 2
+          Ka_apap      	=	0.905171392533925	, # 3
+          Ka_co2c13    	=	1.77004566984127	, # 4
+          KBO_FIX_CO2  	=	0.944164839699419	, # 5
+          KBO_REL_CO2  	=	-2.6331453439378	, # 7
+          r_KLI_FIX_CO2	=	1.06745666296743	, # 8
+          r_KLI_REL_CO2	=	1.26796144594285	, # 10
+          Kp_co2c13    	=	0.389162416370634	 ,
+          Ka_metc13     = 6.0966305)
       assign("fit_fixed", fit_fixed, pos = .GlobalEnv)
       
-      fit_pars <- parframes[[i]]
-      # fit_pars <- fit_pars[names(fit_pars)!= "Ka_metc13"]
+      fit_pars <- pars[[i]] * 0 + 8
+      fit_pars <- fit_pars[!names(fit_pars)%in%names(fit_fixed)]
       assign("fit_pars", fit_pars, pos = .GlobalEnv)
-      
       
       fit_conditions = c(cond_apap[[i]], cond_bic[[i]])
       assign("fit_conditions", fit_conditions, pos = .GlobalEnv)
       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
       
-      mclappy(1:nrow(parframes[[i]]), function(j) {
-        pars <- parframes[[i]] %>% as.parvec(j)
-        fixed
-        
-      })
-      
+
       mstrust(objfun = fit_obj, 
               
               center = fit_pars, 
@@ -730,61 +475,173 @@ fit_49_3_job <- runbg({
               sd = 3,
               blather = F, 
               cores = ncores, 
-              fits = 15*ncores,
-              iterlim = 100,
+              fits = 10*ncores,
+              iterlim = 80,
               
               parlower = c(
-                APAPD_HLM_CL 	=	0.7	, # 1
-                APAPD_Km_apap	=	-1.1	, # 2
-                Ka_apap      	=	0.8	, # 3
-                Ka_co2c13    	=	-20	, # 4
-                # Ka_metc13    	=	-20	, # 5
-                KBO_FIX_CO2  	=	-25	, # 6
                 KBO_MAX_CO2  	=	-20	, # 7
-                KBO_REL_CO2  	=	-25	, # 8
                 KLI_MAX_CO2  	=	-20	, # 9
-                KLU_EX_CO2   	=	-20	, # 10
-                KLU_EXKM_CO2 	=	-20	, # 11
-                Kp_co2c13    	=	-20	, # 12
-                r_KLI_FIX_CO2	=	0	, # 13
-                r_KLI_REL_CO2	=	0	  # 14 
+                KLU_EXKM_CO2 	=	-20	 # 11
               ), 
               parupper = c(
-                APAPD_HLM_CL 	=	0.9	, # 1
-                APAPD_Km_apap	=	-1	, # 2
-                Ka_apap      	=	1	, # 3
-                Ka_co2c13    	=	20	, # 4
-                # Ka_metc13    	=	20	, # 5
-                KBO_FIX_CO2  	=	20	, # 6
                 KBO_MAX_CO2  	=	20	, # 7
-                KBO_REL_CO2  	=	20	, # 8
                 KLI_MAX_CO2  	=	20	, # 9
-                KLU_EX_CO2   	=	20	, # 10
-                KLU_EXKM_CO2 	=	20	, # 11
-                Kp_co2c13    	=	20	, # 12
-                r_KLI_FIX_CO2	=	40	, # 13
-                r_KLI_REL_CO2	=	40	  # 14 
+                KLU_EXKM_CO2 	=	20	 # 11
               )) 
       })
       ) %>%
     rowwise
     
-
      out
 
-}, machine = c(paste0("knecht", c(2))), input = "model", filename = "2018_08_09_13_05_fit_49_3_job"
+}, machine = c(paste0("knecht", c(1,2))), input = "model", filename = "2018_08_09_13_05_fit_49_3_job"
   , recover = T
 )
 # fit_49_3_job$check()
-# fit_49_3 <- fit_49_3_job$get()
+fit_49_3 <- fit_49_3_job$get()
 # fit_49_3 %>% str1
-# fit_49_3 <- fit_49_3[[1]] %>% appendParframes
+# fit_49_3 <- fit_49_3 %>% uniteFits() %>% appendParframes
 # saveRDS(fit_49_3, file = "fit_49_3.rds")
 model <- readDMod.frame("fit_49_3.rds")
 # fit_49_3_job$purge()
 ```
 
 
+
+```{r}
+fixed <- c(
+          APAPD_HLM_CL 	=	0.79238980400461	, # 1
+          APAPD_Km_apap	=	-1.05654353983166	, # 2
+          Ka_apap      	=	0.905171392533925	, # 3
+          Ka_co2c13    	=	1.77004566984127	, # 4
+          KBO_FIX_CO2  	=	0.944164839699419	, # 5
+          KBO_REL_CO2  	=	-2.6331453439378	, # 7
+          r_KLI_FIX_CO2	=	1.06745666296743	, # 8
+          r_KLI_REL_CO2	=	1.26796144594285	, # 10
+          Kp_co2c13    	=	0.389162416370634	 ,
+          Ka_metc13     = 6.0966305)
+
+append_fixed <- function(myparf, fixed) {
+  myattributes <- attributes(myparf)
+  myattributes[["parameters"]] <- c(myattributes[["parameters"]], names(fixed))
+  myattributes[["names"]] <- c(myattributes[["names"]], names(fixed))
+  fixed <- unclass(fixed)
+  myparf <- cbind(myparf,t(fixed))
+  attributes(myparf) <- myattributes
+  
+  return(myparf)
+}
+
+model$parframes[[1]] <- append_fixed(model$parframes[[1]], fixed)
+```
+
+
+```{r}
+mypars <- model$parframes[[1]] %>% as.parvec(1)
+mypars %>% print_r.named_vector()
+```
+
+```{r}
+# # Finally, Fit Ka_metc13
+# model <- model %>%
+#   ungroup %>%
+#   mutate(fits = map(seq_along(x), function(i) {
+#     assign("fit_obj", obj[[i]], pos = .GlobalEnv)
+#     
+#     fit_fixed <- c(
+#       KBO_MAX_CO2  	=	20	, # 1
+#       KLI_MAX_CO2  	=	20	, # 2
+#       KLU_EXKM_CO2 	=	8.81900658613953	, # 3
+#       APAPD_HLM_CL 	=	0.79238980400461	, # 4
+#       APAPD_Km_apap	=	-1.05654353983166	, # 5
+#       Ka_apap      	=	0.905171392533925	, # 6
+#       Ka_co2c13    	=	1.77004566984127	, # 7
+#       KBO_FIX_CO2  	=	0.944164839699419	, # 8
+#       KBO_REL_CO2  	=	-2.6331453439378	, # 9
+#       r_KLI_FIX_CO2	=	1.06745666296743	, # 10
+#       r_KLI_REL_CO2	=	1.26796144594285	, # 11
+#       Kp_co2c13    	=	0.389162416370634	 # 12
+#     )
+#     assign("fit_fixed", fit_fixed, pos = .GlobalEnv)
+#     
+#     fit_pars <- pars[[i]] * 0
+#     fit_pars <- fit_pars[!names(fit_pars)%in%names(fit_fixed)]
+#     assign("fit_pars", fit_pars, pos = .GlobalEnv)
+#     
+#     fit_conditions = c(cond_met[[i]])
+#     assign("fit_conditions", fit_conditions, pos = .GlobalEnv)
+#     assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
+#     
+#     
+#     mstrust(objfun = fit_obj, 
+#             
+#             center = fit_pars, 
+#             fixed = fit_fixed, 
+#             conditions = fit_conditions,
+#             
+#             studyname = "Fit_Ka_metc13", 
+#             samplefun = "runif",
+#             min = -15,
+#             max = 15,
+#             blather = F, 
+#             cores = 3, 
+#             fits = 18,
+#             iterlim = 80,
+#             
+#             parlower = c(
+#               Ka_metc13  	=	-20	), 
+#             parupper = c(
+#               Ka_metc13 = 20)) 
+#   })
+#   ) %>%
+#   rowwise
+# model <- model %>% appendParframes() 
+# saveRDS(model, "fit_49_4.rds")
+model <- readDMod.frame("fit_49_4.rds")
+
+fixed <- fixed <- c(
+      KBO_MAX_CO2  	=	20	, # 1
+      KLI_MAX_CO2  	=	20	, # 2
+      KLU_EXKM_CO2 	=	8.81900658613953	, # 3
+      APAPD_HLM_CL 	=	0.79238980400461	, # 4
+      APAPD_Km_apap	=	-1.05654353983166	, # 5
+      Ka_apap      	=	0.905171392533925	, # 6
+      Ka_co2c13    	=	1.77004566984127	, # 7
+      KBO_FIX_CO2  	=	0.944164839699419	, # 8
+      KBO_REL_CO2  	=	-2.6331453439378	, # 9
+      r_KLI_FIX_CO2	=	1.06745666296743	, # 10
+      r_KLI_REL_CO2	=	1.26796144594285	, # 11
+      Kp_co2c13    	=	0.389162416370634	 # 12
+    )
+
+append_fixed <- function(myparf, fixed) {
+  myattributes <- attributes(myparf)
+  myattributes[["parameters"]] <- c(myattributes[["parameters"]], names(fixed))
+  myattributes[["names"]] <- c(myattributes[["names"]], names(fixed))
+  fixed <- unclass(fixed)
+  myparf <- cbind(myparf,t(fixed))
+  attributes(myparf) <- myattributes
+  
+  return(myparf)
+}
+
+model$parframes[[1]] <- append_fixed(model$parframes[[1]], fixed)
+```
+
+
+
+```{r}
+checkout_hypothesis(model,1)
+```
+
+```{r}
+pars <- parframes %>% as.parvec()
+
+pars["Ka_metc13"] <- 1
+
+plotCombined(prd(times,pars, deriv = F), data, condition %in% cond_met, str_detect(name, "met"))
+
+```
 
 
 
@@ -806,25 +663,12 @@ cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[[
 cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
 
 
-modelversion <- paste0(49, "Ka_metc13_not_yet_fitted_boundary_for_r_KLI")
+modelversion <- paste0(49, "Ka_metc13 fitted")
 which_hypotheses <- c(1)
 step <- 1
 
 ```
 
-
-
-```{r}
-plotPars(model$parframes[[1]],20, value < 75905)# + geom_point(aes(shape = factor(value)) )
-```
-
-
-
-
-```{r}
-plotCombined(model, 1,1, study %>% str_detect("Bars|Irv|Roe"), name %in% "DOB") +
-  facet_wrap(c("name", "study"))
-```
 
 
 
@@ -842,19 +686,21 @@ walk(hypothesis, function(i) {
 
 ```
 
+
+
 ```{r plot predictions}
 # Group conditions by observables
 pdf(file = paste0("plots_",modelversion,"_step_", step, ".pdf"), width = 16, height = 9)
 walk(which_hypotheses, function(i) {
-  plotCombined(model, i, step, condition %in% cond_apap & name %in% observables_apap)
+  plotCombined(model, i, step, condition %in% cond_apap & name %in% observables_apap) %>% print
 })
 
 walk(which_hypotheses, function(i) {
-  plotCombined(model, i, step, condition %in% cond_bic & name %in% observables_bic)
+  plotCombined(model, i, step, condition %in% cond_bic & name %in% observables_bic)%>% print
 })
 
 walk(which_hypotheses, function(i) {
-  plotCombined(model, i, step, condition %in% cond_met & name %in% observables_met)
+  plotCombined(model, i, step, condition %in% cond_met & name %in% observables_met)%>% print
 })
 dev.off()
 ```
