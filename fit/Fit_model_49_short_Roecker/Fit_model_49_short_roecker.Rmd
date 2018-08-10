@@ -231,18 +231,17 @@ cum_met <- paste( "Abreath_co2c13/ init_PODOSE_metc13 * Mr_metc13 * 100")
 observables_met <- c(recovery_met, cum_met) %>% set_names(c("mom_rec_metc13", "cum_rec_metc13"))
 
 # Error models
-errors_bic_sigma_NA <- paste0("sqrt(s0_", names(observables_bic), "^2 + srel_", names(observables_bic), "^2 * ", names(observables_bic), "^2 )") %>% set_names(names(observables_bic))
-errors_bic_sigma_NA["cum_rec_co2c13"] <- 1 #hierfür gibts eh keine daten und ich weiß nicht, ob ich es einfach weglassen kann
+errors_bic_sig <- paste0("sqrt(s0_", names(observables_bic), "^2 + srel_", names(observables_bic), "^2 * ", names(observables_bic), "^2 )") %>% set_names(names(observables_bic))
+errors_bic_sig["cum_rec_co2c13"] <- 1 #hierfür gibts eh keine daten und ich weiß nicht, ob ich es einfach weglassen kann
 
-errors_met_sigma_NA <- paste0("sqrt(s0_", names(observables_met), "^2 + srel_", names(observables_met), "^2 * ", names(observables_met), "^2)") %>% set_names(names(observables_met))
-errors_met_sigma_NA["mom_rec_metc13"] <- 1 #hierfür gibts eh keine daten mit sigma=NA
+errors_met_sig <- paste0("sqrt(s0_", names(observables_met), "^2 + srel_", names(observables_met), "^2 * ", names(observables_met), "^2)") %>% set_names(names(observables_met))
+errors_met_sig["mom_rec_metc13"] <- 1 #hierfür gibts eh keine daten mit sigma=NA
 ```
 
 ```{r x g and e apapbicmet}
 myodemodel <- odemodel(dxdt_dmod, fixed = setdiff(pars_in_dxdtdmod, c(free_pars, "Aar_apap")), modelname = "x", compile = F) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
 x <- Xs(myodemodel)
 g <- Y(c(observables_bic, observables_met), x, attach.input = F, modelname = "g", compile = F)
-e_sigma_NA <- Y(c(errors_bic_sigma_NA, errors_met_sigma_NA), g)#, modelname = "e", compile = F) #cant cope with NaNs passed to it, if compiled
 
 compile(g,x, cores = 3, output = "gx")
 ```
@@ -256,18 +255,18 @@ data_for_fitting <- data_full %>%
 
 # Split the data in datasets with and without sigma
 data <- data_for_fitting  %>% filter(!is.na(sigma)) %>% select(-simulation)
-data_sigma_NA <- data_for_fitting  %>% filter(is.na(sigma)) %>% select(-simulation)
+data_sig <- data_for_fitting  %>% filter(is.na(sigma)) %>% select(-simulation)
 
 # Get all parameters that in some way replace pars_raw (parameters supplied by the SBML file) or are additional parameters that we need to fit
 # This could be e.g. Study specific pars such as IVDOSE* or pars that are fitted
 supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data))]
 outer_pars <- sort(unique(c(free_pars, supplied_pars)))
 
-pars_errors <- c(errors_bic_sigma_NA, errors_met_sigma_NA) %>% 
+pars_errors <- c(errors_bic_sig, errors_met_sig) %>% 
   getSymbols %>% 
   str_subset("^s") %>% 
   are_names_of(1)
-outer_pars_sigma_NA <- sort(unique(c(outer_pars, names(pars_errors))))
+outer_pars_sig <- sort(unique(c(outer_pars, names(pars_errors))))
 
 # Define the parameter trafos which in turn define the different conditions
 trafo <-
@@ -288,12 +287,12 @@ insert("name ~ value", value = unlist(mget(supplied_pars)), name = supplied_pars
 
 
 
-trafo_sigma_NA <-
+trafo_sig <-
   c(pars_raw, pars_errors) %>% 
   sort_by_name() %>% 
-  replace(names(.) %in% outer_pars_sigma_NA, outer_pars_sigma_NA) %>%
+  replace(names(.) %in% outer_pars_sig, outer_pars_sig) %>%
   
-  branch(data_sigma_NA %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
+  branch(data_sig %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
   insert("name ~ value", value = unlist(mget(supplied_pars)), name = supplied_pars) %>%
 
   define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
@@ -324,11 +323,13 @@ trafo_sigma_NA <-
 p <- P(trafo, modelname = "p", compile = F)
 pars <- getParameters(p) %>% are_names_of(0)
 
-p_sigma_NA <- P(trafo_sigma_NA, modelname = "p_sig", compile = F)
-pars_sigma_NA <- getParameters(p_sigma_NA) %>% are_names_of(0)
+p_sig <- P(trafo_sig, modelname = "p_sig", compile = F)
+pars_sig <- getParameters(p_sig) %>% are_names_of(0)
 
 
-compile(p, p_sigma_NA, cores = 3, output = "p")
+e_sig <- map(getConditions(p_sig), function(cn) {Y(c(errors_bic_sig, errors_met_sig), g, condition = cn)}) %>% Reduce("+", .)
+
+compile(p, p_sig, cores = 3, output = "p")
 remove_c_and_o()
 ```
 
@@ -338,43 +339,17 @@ remove_c_and_o()
 # load("workspace.rda"); loadDLL(x)
 ```
 
-
 # dMod.frame
-```{r initialize dMod_frame}
-model <- dMod.frame(
-  hypothesis = "Model v49",
-  x = x,
-  g = g,
-  p = p,
-  data = data,
-  e = NULL,
-  x_sig = x,
-  g_sig = g,
-  p_sig = list(p_sigma_NA),
-  e_sig = list(e_sigma_NA),
-  data_sig = list(as.datalist(data_sigma_NA))
-)
 
-model <- model %>% 
-  rowwise() %>% 
-  appendObj() %>% 
-  mutate(prd_sig = list(g_sig * x_sig * p_sig), 
-         obj_data_sig = list(normL2(data_sig, prd_sig, e_sig)),
-         pars = list(union(getParameters(p), getParameters(p_sig)) %>% are_names_of(rnorm)),
-         obj = list(obj_data+ obj_data_sig),
-         times = list(c(
-           seq(0,1,length.out = 500),
-           seq(min(rbind(as.data.frame(data),as.data.frame(data_sig))[["time"]]), 
-                          max(rbind(as.data.frame(data),as.data.frame(data_sig))[["time"]]) * 1.1, 
-                          length.out = 200)
-           ))
-         ) %>% 
-  mutate(prd_data = list(prd),
-         prd = list(prd_data+prd_sig), 
-         data_data = list(data),
-         data = list(data_data + data_sig),
-         description = "Model v49")
+```{r}
+old_pars <- readRDS("fit_short_roecker.rds")$parframes[[1]] %>% as.parvec() %>% unclass %>% c(Ka_metc13  = 6.0966305)
 
+obj_L2 <- constraintL2(mu = 0 * old_pars, sigma = 10)
+
+model <- dMod.frame("1", g, x, (p+p_sig), (as.datalist(data) + as.datalist(data_sig)), e_sig, obj_L2 = list(obj_L2)) %>% 
+  appendObj(obj = list(obj_data + obj_L2),
+            times = list(c(seq(0,1,length.out = 200), seq(1,12,length.out = 200))),
+            pars = list(old_pars))
 
 # Iterative fitting: select only bic and apap first
 studies_bic <-  data_full %>% filter(simulation %in% c("bicarbonate"))  %>% .[["study"]] %>% unique
@@ -386,6 +361,7 @@ cond_met <- map(all_cond, . %>% str_subset(studies_met)) %>% do.call(c,.)
 model <- model %>% 
   mutate(cond_bic = list(cond_bic),
          cond_met = list(cond_met))
+
 ```
 
 ```{r}
@@ -393,7 +369,7 @@ model <- model %>%
 # model <-  readDMod.frame("model0.rds")
 ```
 
-```{r test model, eval=FALSE}
+```{r test model}
 # hypothesis = 1
 # test_dMod.frame <- function(model, hypothesis = 1, ...){
 #   print(plotCombined(model,hypothesis))
@@ -406,13 +382,17 @@ remove(list = paste0("cond_", c("apap", "bic", "met")))
 print(with(unlist(model[1,], F), {
     obj(times, pars = pars)
   }))
-plotCombined(model,1,1,name%in%"DOB", str_detect(condition, "Irv|Bar|Roe"), time < 0.1)
+print(with(unlist(model[1,], F), {
+    plotCombined(prd(times, pars = pars), data, name == "DOB", condition %in% cond_bic, transform = "log(value)")
+  }))
+
+plotCombined(model, 1,1, name == "DOB", condition %in% cond_bic)
 model$pars[[1]] %>% `[<-`(., 1:length(.), -20) %>% sort_by_name() %>% .[-2] %>%   print_r.named_vector()
 ```
 
 # Fit 
 ```{r}
-fit_short_roecker_job <- runbg({
+fit_2_job <- runbg({
     ncores <- detectFreeCores()
     assign("ncores", ncores, pos = .GlobalEnv)
 
@@ -435,7 +415,6 @@ fit_short_roecker_job <- runbg({
       assign("fit_conditions", fit_conditions, pos = .GlobalEnv)
       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
       
-
       mstrust(objfun = fit_obj, 
               
               center = fit_pars, 
@@ -446,7 +425,7 @@ fit_short_roecker_job <- runbg({
               sd = 4,
               blather = F, 
               cores = ncores, 
-              fits = 20*ncores,
+              fits = 50*ncores,
               iterlim = 200,
               
               parlower = c(
@@ -480,33 +459,62 @@ fit_short_roecker_job <- runbg({
     
      out
 
-}, machine = c(paste0("knecht", c(1,2,4))), input = "model", filename = "2018_09_09_13_05_fit_short_roecker_job"
+}, machine = c(paste0("knecht", c(1,2,4,5))), input = "model", filename = "2018_08_10_18_05_fit_2_job"
   , recover = T
 )
-# while(!fit_short_roecker_job$check())
-#   Sys.sleep(10)
-# beepr::beep(8)
+while(!fit_2_job$check())
+  Sys.sleep(60*5)
+beepr::beep(8)
 
-# fit_short_roecker_job$check()
-# fit_short_roecker <- fit_short_roecker_job$get()
-# # fit_short_roecker %>% str1
-# fit_short_roecker <- fit_short_roecker %>% uniteFits() %>% appendParframes
-# saveRDS(fit_short_roecker, file = "fit_short_roecker.rds")
-model <- readDMod.frame("fit_short_roecker.rds")
-# fit_short_roecker_job$purge()
+# fit_2_job$check()
+fit_2 <- fit_2_job$get()
+# # fit_2 %>% str1
+fit_2 <- fit_2 %>% uniteFits() %>% appendParframes
+saveRDS(fit_2, file = "fit_2.rds")
+model <- readDMod.frame("fit_2.rds")
+# fit_2_job$purge()
 
-append_fixed <- function(myparf, fixed) {
-  myattributes <- attributes(myparf)
-  myattributes[["parameters"]] <- c(myattributes[["parameters"]], names(fixed))
-  myattributes[["names"]] <- c(myattributes[["names"]], names(fixed))
-  fixed <- unclass(fixed)
-  myparf <- cbind(myparf,t(fixed))
-  attributes(myparf) <- myattributes
-  
-  return(myparf)
-}
+```
 
-model$parframes[[1]] <- append_fixed(model$parframes[[1]], model$fixed[[1]])
+```{r}
+# append_fixed <- function(myparf, fixed) {
+#   myattributes <- attributes(myparf)
+#   myattributes[["parameters"]] <- c(myattributes[["parameters"]], names(fixed))
+#   myattributes[["names"]] <- c(myattributes[["names"]], names(fixed))
+#   fixed <- unclass(fixed)
+#   myparf <- cbind(myparf,t(fixed))
+#   attributes(myparf) <- myattributes
+#   
+#   return(myparf)
+# }
+# p_parframe <- function(p, myparframe, parameters, condition) {
+#   old_attr <- attributes(myparframe)
+#   parframe_reduced <- as.data.frame(myparframe)
+#   parframe_reduced <- parframe_reduced[!names(parframe_reduced)%in%old_attr$metanames]
+#   newpars <- apply(parframe_reduced, 1, function(i) {
+#     pinner <- p(i, deriv = F, condition = condition)[[1]]
+#     pinner[parameters]
+#   }) %>% 
+#     t
+#   
+#   df <- as.data.frame(myparframe)
+#   new_parframe <- cbind(df[old_attr$metanames], newpars)
+#   
+#   new_attr <- old_attr
+#   new_attr[["parameters"]] <- parameters
+#   new_attr[["names"]] <- names(new_parframe)
+#   
+#   attributes(new_parframe) <- new_attr
+#   
+#   return(new_parframe)
+# }
+# 
+# reindex <- function(myparframe) {
+#   myparframe$index <- 1:nrow(myparframe)
+#   myparframe
+# }
+# 
+# model$parframes[[1]] <- append_fixed(model$parframes[[1]], model$fixed[[1]])
 ```
 
 ## explore fits
@@ -515,48 +523,31 @@ model %>% parframes_summary()
 model$parframes
 ```
 
-
 ```{r}
 myparframe <- model$parframes[[1]]
 ```
 
 ```{r}
-myparframe %>% plotPars(tol = 5, value < quantile(value, 0.1))
+quantiles <- c("10" = 0.1, "25" = 0.25, "50" = 0.5, "100" = 1)
+
+walk(seq_along(quantiles), function(i) {
+  png(paste0("paramter scatter plots", names(quantiles)[i] ,"percentile.png"), width = 20, height = 20, units = "cm", res = 150)
+  myparframe %>% 
+    as.data.frame() %>% 
+    filter(value < quantile(value, quantiles[i])) %>%# .$value %>% max
+    select(-(1:4)) %>% 
+    pairs() %>% 
+    print
+  dev.off()
+})
+
 ```
 
 ```{r}
-parameters <- c(free_pars, "Ka_apap", "APAPD_HLM_CL", "APAPD_Km_apap")
-p <- model$p[[1]]
-condition = 1
-p_parframe <- function(p,myparframe, parameters, condition) {
-  old_attr <- attributes(myparframe)
-  parframe_reduced <- as.data.frame(myparframe)
-  parframe_reduced <- parframe_reduced[!names(parframe_reduced)%in%old_attr$metanames]
-  newpars <- apply(parframe_reduced, 1, function(i) {
-    pinner <- p(i, deriv = F, condition = condition)[[1]]
-    pinner[parameters]
-  }) %>% 
-    t
-  
-  df <- as.data.frame(myparframe)
-  new_parframe <- cbind(df[old_attr$metanames], newpars)
-  
-  new_attr <- old_attr
-  new_attr[["parameters"]] <- parameters
-  new_attr[["names"]] <- names(new_parframe)
-  
-  attributes(new_parframe) <- new_attr
-  
-  return(new_parframe)
-}
+myparframe %>% plotPars(tol = 5, value < quantile(value, 0.01))
+```
 
-reindex <- function(myparframe) {
-  myparframe$index <- 1:nrow(myparframe)
-  myparframe
-}
-
-p_log <- P(parameters %>% setNames(.,.) %>% insert("x~log(x)", x = .currentSymbols))
-
+```{r}
 newparf <- p_parframe(model$p[[1]], myparframe, parameters, 1)
 newparf <- p_parframe(p_log, newparf, parameters, 1)
 ```
@@ -571,7 +562,6 @@ newparf %>%
   select(-(11:14)) %>% 
   pairs
 ```
-
 
 ```{r}
 lq <- 0.0
@@ -598,38 +588,6 @@ myparframe %>%
 
 ```
 
-```{r}
-# p_KLU <- getParameters(model$p[[1]]) %>% setNames(.,.) %>% `[<-`("KLU_EX_CO2", "KLU_EX_CO2_int + KLU_EX_CO2_slope * KLU_EXKM_CO2") %>% P(modelname = "p_KLU", compile = T)
-# KLU_mu = c(KLU_EX_CO2_int = 0.668, KLU_EX_CO2_slope = 0.919508)
-# obj_KLU <- constraintL2(mu = KLU_mu, sigma = c(KLU_EX_CO2_int = 0.03, KLU_EX_CO2_slope = 0.005))
-# ```
-# 
-# ```{r}
-# model$p[[1]] <- (model$p[[1]] * p_KLU)
-# model$p_sig[[1]] <- (model$p_sig[[1]] * p_KLU)
-# model$obj_KLU <- list(obj_KLU)
-# model$parframes[[1]] <- append_fixed(model$parframes[[1]], KLU_mu)
-# 
-# model <- model %>% 
-#   rowwise() %>% 
-#   appendObj() %>% 
-#   mutate(prd_sig = list(g_sig * x_sig * p_sig), 
-#          obj_data_sig = list(normL2(data_sig, prd_sig, e_sig)),
-#          pars = list(union(getParameters(p), getParameters(p_sig)) %>% are_names_of(rnorm)),
-#          obj = list(obj_data+ obj_data_sig + obj_KLU),
-#          times = list(c(
-#            seq(0,1,length.out = 500),
-#            seq(min(rbind(as.data.frame(data),as.data.frame(data_sig))[["time"]]), 
-#                           max(rbind(as.data.frame(data),as.data.frame(data_sig))[["time"]]) * 1.1, 
-#                           length.out = 200)
-#            ))
-#          ) %>% 
-#   mutate(prd_data = list(prd),
-#          prd = list(prd_data+prd_sig), 
-#          data_data = list(data),
-#          data = list(data_data + data_sig),
-#          description = "Model v49")
-```
 
 
 ```{r}
@@ -638,101 +596,19 @@ plotPars(newparf[c(1,50,100,150,280,450)])+
 ggsave("parameters 1 50 100 150 280 450.pdf") 
 ```
 
-## Fit Ka_metc13
+## Look at data again
+```{r}
+wup <- obj_condition_wise(model$obj_data[[1]], model$pars[[1]])
+wup %>% as.data.frame()
+```
+
 
 ```{r}
-fit_short_roecker_job <- runbg({
-    ncores <- detectFreeCores()
-    assign("ncores", ncores, pos = .GlobalEnv)
+obs_sig<- data_sig$name %>% unique()
+cond_sig <- data_sig %>% as.datalist() %>% names
 
-   out <- model %>%
-    ungroup %>%
-    mutate(fits = map(seq_along(x), function(i) {
-      assign("fit_obj", obj[[i]], pos = .GlobalEnv)
-      
-      fit_fixed <- fixed[[i]]
-      assign("fit_fixed", fit_fixed, pos = .GlobalEnv)
-      
-      fit_pars <- pars[[i]] * 0 
-      fit_pars <- fit_pars[!names(fit_pars)%in%names(fit_fixed)]
-      assign("fit_pars", fit_pars, pos = .GlobalEnv)
-      
-      fit_conditions = c(cond_bic[[i]])
-      assign("fit_conditions", fit_conditions, pos = .GlobalEnv)
-      assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      
-
-      mstrust(objfun = fit_obj, 
-              
-              center = fit_pars, 
-              fixed = fit_fixed, 
-              conditions = fit_conditions,
-              
-              studyname = fit_studyname, 
-              sd = 4,
-              blather = F, 
-              cores = ncores, 
-              fits = 20*ncores,
-              iterlim = 200,
-              
-              parlower = c(
-                Ka_co2c13    	=	-20	, # 1
-                KBO_FIX_CO2  	=	-20	, # 2
-                KBO_MAX_CO2  	=	-20	, # 3
-                KBO_REL_CO2  	=	-20	, # 4
-                KLI_MAX_CO2  	=	-20	, # 5
-                KLU_EX_CO2   	=	-20	, # 6
-                KLU_EXKM_CO2 	=	-20	, # 7
-                Kp_co2c13    	=	-20	, # 8
-                r_KLI_FIX_CO2	=	0	, # 9
-                r_KLI_REL_CO2	=	0	  # 10 
-              ), 
-              parupper = c(
-                Ka_co2c13    	=	20	, # 1
-                KBO_FIX_CO2  	=	20	, # 2
-                KBO_MAX_CO2  	=	20	, # 3
-                KBO_REL_CO2  	=	20	, # 4
-                KLI_MAX_CO2  	=	20	, # 5
-                KLU_EX_CO2   	=	20	, # 6
-                KLU_EXKM_CO2 	=	20	, # 7
-                Kp_co2c13    	=	20	, # 8
-                r_KLI_FIX_CO2	=	30	, # 9
-                r_KLI_REL_CO2	=	30	  # 10 
-              )
-              ) 
-      })
-      ) %>%
-    rowwise
-    
-     out
-
-}, machine = c(paste0("knecht", c(1,2,4))), input = "model", filename = "2018_09_09_13_05_fit_short_roecker_job"
-  , recover = T
-)
-# while(!fit_short_roecker_job$check())
-#   Sys.sleep(10)
-# beepr::beep(8)
-
-# fit_short_roecker_job$check()
-# fit_short_roecker <- fit_short_roecker_job$get()
-# # fit_short_roecker %>% str1
-# fit_short_roecker <- fit_short_roecker %>% uniteFits() %>% appendParframes
-# saveRDS(fit_short_roecker, file = "fit_short_roecker.rds")
-model <- readDMod.frame("fit_short_roecker.rds")
-# fit_short_roecker_job$purge()
-
-append_fixed <- function(myparf, fixed) {
-  myattributes <- attributes(myparf)
-  myattributes[["parameters"]] <- c(myattributes[["parameters"]], names(fixed))
-  myattributes[["names"]] <- c(myattributes[["names"]], names(fixed))
-  fixed <- unclass(fixed)
-  myparf <- cbind(myparf,t(fixed))
-  attributes(myparf) <- myattributes
-  
-  return(myparf)
-}
-
-model$parframes[[1]] <- append_fixed(model$parframes[[1]], model$fixed[[1]])
+data_full %>% 
+  filter(name == obs_sig[1]) %>% 
 ```
 
 
@@ -753,7 +629,7 @@ cond_bic <- data %>% filter(name%in%c("cum_rec_co2c13", "DOB","P_CO2F")) %>% .[[
 cond_met <- data %>% filter(name%in%c("mom_rec_metc13", "cum_rec_metc13")) %>% .[["condition"]] %>% unique %>% as.character()
 
 
-modelversion <- paste0(49, "Short Roecker")
+modelversion <- paste0(49, "Fit_2")
 which_hypotheses <- c(1)
 step <- 280
 
@@ -789,10 +665,16 @@ mysummary <- parframes_summary(model)
 walk(which_hypotheses, function(i) {
   assign("i", i, .GlobalEnv) 
   cat(i, "\n")
-  plotValues(model, i, value < mysummary[[i]]$values["1st Qu."], tol = tol) %>% print
-  plotValues(model, i, value < mysummary[[i]]$values["Median"], tol = tol) %>% print
-  plotValues(model, i, value < mysummary[[i]]$values["3rd Qu."], tol = tol) %>% print
-  plotValues(model, i) %>% print
+  plotValues(model, i, value < quantile(value, 0.1), tol = tol) %>% print
+  plotValues(model, i, value > quantile(value, 0.1)& value < quantile(value, 0.25), tol = tol) %>% print
+  plotValues(model, i, value < quantile(value, 0.25), tol = tol) %>% print
+  plotValues(model, i, value > quantile(value, 0.25)& value < quantile(value, 0.5), tol = tol) %>% print
+  plotValues(model, i, value < quantile(value, 0.5), tol = tol) %>% print
+  plotValues(model, i, value > quantile(value, 0.5)& value < quantile(value, 0.75), tol = tol) %>% print
+  plotValues(model, i, value > quantile(value, 0.75), tol = tol) %>% print
+  plotValues(model, i, value < quantile(value, 0.75)& value < quantile(value, 1), tol = tol) %>% print
+  plotValues(model, i, value < quantile(value, 1), tol = tol) %>% print
+
   plotPars(model, i, tol = tol, nsteps = 3) %>% print
   return(NULL)
 })
@@ -856,12 +738,14 @@ dev.off()
 
 * plotCombined.tbl_df: transform argument not passed correctly?
 * insert_runbg distribute
-* insert_runbg wait_for_runbg below check
+* insert_runbg proper wait_for_runbg below job$check()
 * insert_runbg fixed
 * insert_runbg parupper, parlower
 * append_fixed_to_parframe.tbl_df
-
-
+* test_dMod.frame
+* obj_condition_wise
+* rescale_conditions
+    * Goal that all conditions contribute roughly the same
 
 
 
