@@ -1,4 +1,4 @@
-%>% ---
+---
 title: "Fitting model 49"
 output: 
   html_document:
@@ -19,84 +19,14 @@ knitr::opts_chunk$set(fig.width = 15)
 # library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird zu z=" a %>% f %>% g
 library(conveniencefunctions)
 
-# r modifications of plotting functions}
-# stepDetect <- dMod:::stepDetect
-# plotPars.parframe <- dMod:::plotPars.parframe
-# getSteps <- function(myparframe, stepInd = 1, tol = 1) {
-#   steps <- steps0 <- stepDetect(myparframe$value, tol)
-#   steps0 <- c(steps0, nrow(myparframe))
-# 
-#   if(!is.null(stepInd)){
-#     nsteps <- length(stepInd)
-#     steps <- stepInd
-#   } else {
-#     steps <- steps[order(c(diff(steps), nrow(myparframe)-max(steps)), decreasing = T)][1:nsteps]
-#     steps <- unique(sort(c(1, steps))) #include the first step no matter what
-#     if(length(steps0) <= nsteps) 
-#       nsteps <- length(steps0)
-#   }
-#   
-#   steps <- c(steps, nrow(myparframe))
-#   steps_indices <- which(steps0%in%steps)
-#   
-#   step_members <- lapply(1:nsteps, function(i) {
-#     steps0[steps_indices[i]]:(steps0[steps_indices[i]+1]-1)
-#   }) 
-#   step_members <- do.call(c,step_members)
-#   
-#   myparframe[step_members,]
-# }
-# 
-# 
-# plotPars2 <- function(dMod.frame = model, hypothesis = 1:2,  ..., nsteps = 3, tol = 1, stepInd = NULL ) {
-# 
-#   if (!missing(...)) {dots <- substitute(...)
-#   } else {
-#     dots <- T
-#   }
-# 
-#   if(is.character(hypothesis)) hypothesis <- which(dMod.frame$hypothesis == hypothesis)
-# 
-#   if(length(hypothesis)==1) {
-#     myparframe <- dMod.frame[["parframes"]][[hypothesis]]
-#     myparframe <- getSteps(myparframe, nsteps = nsteps, tol = tol, stepInd = stepInd)
-# 
-#     plotPars.parframe(myparframe, ..., tol = tol) +
-#       ggtitle(label = paste0(dMod.frame[["hypothesis"]][[hypothesis]], "\n",
-#                              "best value = ", round(dMod.frame[["parframes"]][[hypothesis]][1,"value", drop = T],1), "\n",
-#                              paste0(paste(names(dots), "=", dots )[-1], collapse = "\n")) )
-#   } else {
-#     mydata <- do.call(rbind,lapply(hypothesis, function(hyp) {
-#       pars <- dMod.frame[["parframes"]][[hyp]]
-#       pars <- cbind(index = 1:nrow(pars), pars[order(pars$value),!(names(pars) == "index")])
-#       if(!is.null(stepInd)){
-#         steps <- stepInd
-#       } else {
-#         steps <- getStepIndices(pars, nsteps, tol)
-#       }
-#       pars <- getSteps(pars, tol = tol, stepInd = steps)
-#       cbind(hypothesis = hyp, step = factor(findInterval(pars$index, steps), labels = steps), pars)
-#     }))
-#     mydata$hypothesis <- as.factor(mydata$hypothesis)
-# 
-#     myindices <- with(mydata, eval(dots))
-#     mydata <- mydata[myindices,]
-# 
-#     mydata2 <- wide2long.data.frame(mydata[-c(4,5,6)], keep = 1:3)
-#     mydata2$hyp_step <- paste(mydata2$hypothesis, mydata2$step, sep = "_")
-# 
-#     ggplot2::ggplot(mydata2, aes(x = name, y = value, color = hyp_step)) +
-#       geom_boxplot(outlier.alpha = 0) +     # annotate("text", x = jumps + 1, y = y.jumps, label = jumps, hjust = 0, color = "red", size = 3) +
-#       xlab("parameter") + ylab("value") + theme_dMod() +
-#       theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
-# 
-#   }
-# 
-# }
+
 ```
 
 
 # Read model
+
+Ich hab mich entschieden, das Apap-Modul nicht mehr mitzufitten. Deswegen lege ich hier jetzt schon die Parameter ür Apap fest, die bei vorherigen Fits rauskamen.
+
 ```{r read_model, dependson="setup"}
 source("../../model/limax_pkpd_v49.R")
 pars_raw <- c(x0, p) 
@@ -110,9 +40,15 @@ pars_raw["APAPD_Km_apap"] <- 0.347655392999114
 
 
 # Data - read and preprocess
-Read data, insert the default values for the parameters supplied in the data sheet. 
+Die Daten lassen sich aus Fehlersicht in drei Teile aufteilen:
+1. Eine Studie hat die Fehler zu allen Datenpunkten
+2. Manche Fehler fehlen
+3. alle Fehler fehlen.
 
-* Taheri rausschmeißen zum Fitten: Wird weiter unten getan
+Für Punkt 2 gibt es die Möglichkeit, die Parameter für das Fehlermodell aus den anderen gegebenen Fehlern zu schätzen. Ein übliches Fehlermodell ist, dass der Fehler aus absoluten und relativen Fehlern besteht:
+$sigma^2 = s0^2 + srel^2*value, $
+wobei s0 und srel die Parameter des Fehlermodells sind.
+Bei Fall 3, kann man eigentlich die Fehlerparameter nur gemeinsam mit den Parametern des Modells mitschätzen. Da das ja nicht so gut geklappt hat, hab ich dann entshcieden, die Parameter von Hand festzulegen, was bestimmt nicht besonders klug war, hat im ersten Moment aber ganz gute Ergebnisse geliefert.
 
 ```{r, message=FALSE}
 # Read data
@@ -158,65 +94,17 @@ data_full <- data_full %>%
 
 ```
 
-```{r}
-# data_full %>% select(1:7) %>%
-#   filter(str_detect(study, "^Ro|Irv")) %>%
-#   mutate(sigma = 10 + value * 0.001) %>%
-#   # mutate(value = log(value), sigma = )
-#   as.data.frame() %>% as.datalist() %>%
-#   plotData(
-#     transform = "log10(value)"
-#     ) +
-# # coord_cartesian(ylim = c(000,500)) +
-#   # coord_cartesian(ylim = c(1000,10000))+
-# geom_blank()
-```
-
-```{r try to fit a transient function to Roecker}
-# didn't work out
-
-# transient_1 <- c("Asus*(1-exp(-time/tau1)) + Atrans*(1-exp(-time/tau1))*exp(-time/tau2)")
-# transient_2 <- insert(transient_1, "x~x_2", x = .currentSymbols)
-# 
-# transientfun <- paste0(transient_1, " + ", transient_2)
-# 
-# xt <- Xt()
-# mypars <- getSymbols(transientfun)[!"time" == getSymbols(transientfun)]
-# gtrans <- Y(c(DOB = transientfun, t1 = transient_1, t2 = transient_2), parameters = mypars)
-# etrans <- Y(c(DOB = "s0 + srel * DOB", "t1" = 0, "t2" = 0), gtrans)
-# 
-# data_roecker <- data_full %>% select(1:7) %>%
-#   filter(str_detect(study, "^Ro")) %>%
-#   filter(time > 0) %>% 
-#   # mutate(sigma = 5 + value * 0.001) %>%
-#   # mutate(value = log(value), sigma = )
-#   as.data.frame() %>% as.datalist()
-# 
-# ptrans <- getParameters(gtrans,etrans) %>% 
-#   setNames(.,.) %>% 
-#   branch(data_roecker %>% covariates) %>% 
-#   insert("x~exp(x)", x = .currentSymbols) %>% 
-#   P
-# 
-# obj_roecker <- normL2(data_roecker, (gtrans*xt*ptrans), etrans)
-# 
-# 
-# model <- dMod.frame(1, gtrans, xt, ptrans, data_roecker, etrans) %>% appendObj(time = list(seq(0,0.5, length.out = 2000)))
-# 
-# 
-# 
-# 
-# fixed = c(s0 = 5, srel= 0.001)
-# pars <- model$pars[[1]] %>% .[!names(.) %in% names(fixed)] %>% `*`(0)
-# 
-# model <- model %>% mutate(fits = list(mstrust(obj, pars, fits = 20, cores = 4, fixed = fixed))) %>% appendParframes()
-
-```
-
-
-
 # Set up the model
 
+Modell lesen und kompilieren. die dmod-Sicht eines Modells ist, dass das Modell im wesentlichen aus drei teilen besteht,
+1. das dynamische modell x(p)
+2. die Beobachtungsfunktion g(x, p)
+3. Parametertransformationen
+    Parametertransformationen nehmen in dMod eine besonders wichtige Stellung ein, da diese oft die conditions festlegen.
+    1.) Im Endeffekt haben wir ja den Fall, dass viele Parameter für uns schon festgelegt sind, wie z.B. Dosen, und andere Parameter wiederum wollen wir schätzen.
+    Daher ist die Parametertrafo p eine Funktion der Parameter, die wir schätzen wollen: p=p(free_pars), ihr Ergebnis ist aber eine Liste aller Parameter, die das dynamische Modell und die Observationsfunktion benötigt.
+    2.) Es hat sich gezeigt, dass es z.B. vorteilhaft ist, Parameter, die immer positiv sind, zu logtransformieren. Deswegen ist die zweite Rolle der Parametertrafo, neben der, conditions festzulegen, die Parameter, mit denen man am besten optimiert, umzurechenen in Parameter, die sinnvoll für das Modell sind.
+      Oft schreiben andere dMod-User: pinner = p(pouter), hier also klar die unterscheidung zwischen "inneren parametern", die das Modell sieht und äußeren Parametern, die der optimierer sieht.
 ```{r setup model independently of the individual setups}
 free_pars <- c("Kp_co2c13", "KBO_MAX_CO2", "KBO_REL_CO2", "KBO_FIX_CO2", "KLI_MAX_CO2", "KLI_REL_CO2", "KLI_FIX_CO2", "KLU_EX_CO2", "KLU_EXKM_CO2", "Ka_co2c13", "Ka_metc13")
 
@@ -238,6 +126,7 @@ errors_met_sig <- paste0("sqrt(s0_", names(observables_met), "^2 + srel_", names
 errors_met_sig["mom_rec_metc13"] <- 1 #hierfür gibts eh keine daten mit sigma=NA
 ```
 
+Hier wird das Modell nach den Parametern abgeleitet und dann in C compiliert. Ableitungen sind für die Optimierung wichtig und die bekommen man am besten durch sensitivitätsgleichungen, da finite Differenzen zu numerischen Problemen führen können.
 ```{r x g and e apapbicmet}
 myodemodel <- odemodel(dxdt_dmod, fixed = setdiff(pars_in_dxdtdmod, c(free_pars, "Aar_apap")), modelname = "x", compile = F) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
 x <- Xs(myodemodel)
@@ -267,6 +156,15 @@ pars_errors <- c(errors_bic_sig, errors_met_sig) %>%
   str_subset("^s") %>% 
   are_names_of(1)
 outer_pars_sig <- sort(unique(c(outer_pars, names(pars_errors))))
+
+```
+
+
+Die Trafos werden, wie alle anderen Funktionen auch erstmal symbolisch definiert.
+Hilfreich sind hier die Funktionen branch und insert, mit denen man solche Trafos schön bauen kann.
+Zur Log-Trafo: in der vorletzten Zeile steht "  insert("x~exp(x)", x = .currentSymbols) %>% ". Das bedeutet, dass man die logarithmierten parameter wieder exponenzieren muss, damit lineare Parameter rauskommen. Die Art, eine Logtrafo zu definieren, ist also, die Umkehrfunktion zu definieren.
+Die Zeile darunter arbeitet also schon auf den Logarithmierten parametern und drückt aus, dass die KLI-Parameter vielfache von den KBO-Parametern sind. Die neuen äußeren Parameter sind aber jetzt die r_* Parameter, für die man einfacher den constraint angeben kann, dass r>0 sein soll, als wenn man dem optmierer sagen muss dass KLI>KBO ist.
+```{r}
 
 # Define the parameter trafos which in turn define the different conditions
 trafo <-
@@ -318,8 +216,9 @@ trafo_sig <-
 
 ```
 
+Wieder kompilieren etc.
+Für das Fehlermodell gebe ich nun dezidiert die conditions an, für die diese gilt, damit die Objective function später weiß, dass sie bei diesen conditions die Fehler aus dem Fehlermodell e_sig ziehen soll.
 ```{r}
-
 p <- P(trafo, modelname = "p", compile = F)
 pars <- getParameters(p) %>% are_names_of(0)
 
@@ -340,11 +239,20 @@ remove_c_and_o()
 ```
 
 # dMod.frame
+Das Aufsetzen des Modells haben wir im Wesentlichen hinter uns gebracht, ab jetzt geht es los mit Standardrechnungen: Objective function aus Modell und Daten erstellen, Fitten, etc.
+Dafür gibt es den dmod.frame, im wesentlichen eine Tabelle, angelehnt and das Konzept des data.frames, wo jede Zeile eine Observierung der Variablen (Spalten) ist. Im dMod.frame ist jede Zeile eine Hypothese, die da wären, z.B. mit/ohne manche Datensätze, andere Paramter zu schätzen, anderes zugrundeliegendes dynamisches Modell, andere priorstärken, etc.
+Das dMod.frame hier hat eine Hypothese, als ich verschiende Priorstärken oder Gewichtungen getestet habe, hatten die dMod.frames mehrere Zeilen.
 
+Jede Zeile stellt ein komplettes Modell dar, inklusive Daten und Fehlern. Um die jeweiligen Parametertrafos zu bauen, mit und ohne Fehlermodell, habe ich den Datensatz aufgeteilt. Den führe ich nun wieder zusammen, mit dem "+"-Operator, der für datalists die Daten wieder zusammenführt. Gleiches gilt für die Paramtertrafos, die die jeweligen conditions beinhalten. x und g sind generisch, wesewegen man hier nichts zusammenführen muss.
+
+Außerdem schreibe ich noch den besten Fit und einen leichten prior auf die Paramter rein. der leichte Prior hatte das Ziel, diese Nichtidentifizierbarkeiten aufzulösen, aber letztendlich war er zu schwach.
+
+Mit der Funktion appenObj konstruiere ich dann die objective function und ein paar andere Objekte, wie z.B. die prediction function "prd(times, pars)", mit denen man letztendlich die Modellvorhersagen macht. prd ist eine Hintereinanderausführung von g(x(p(times, pars))), die gleichzeitig noch die Ableitungen richtig mit der Kettenregel forpflanzt. Wie obj und pars wird prd dem dMod.frame als neue Spalte hinzugefügt.
+
+Außerdem füge ich noch die Spalten cond_bic und cond_met hinzu, damit ich leichter die objective function nur für diese conditions auswerten kann
 ```{r}
-old_pars <- readRDS("fit_short_roecker.rds")$parframes[[1]] %>% as.parvec() %>% unclass %>% c(Ka_metc13  = 6.0966305)
-
-obj_L2 <- constraintL2(mu = 0 * old_pars, sigma = 10)
+old_pars <- readRDS("fit_short_roecker.rds")$parframes[[1]] %>% as.parvec() %>% unclass %>% c(Ka_metc13  = 6.0966305) #Alte Parameter
+obj_L2 <- constraintL2(mu = 0 * old_pars, sigma = 10) #Prior
 
 model <- dMod.frame("1", g, x, (p+p_sig), (as.datalist(data) + as.datalist(data_sig)), e_sig, obj_L2 = list(obj_L2)) %>% 
   appendObj(obj = list(obj_data + obj_L2),
@@ -369,6 +277,8 @@ model <- model %>%
 # model <-  readDMod.frame("model0.rds")
 ```
 
+Immer gut, ein paar kleine Tests zu machen, bevor man Fits losschickt :)
+Im wesentlichen: Plotten, ob es alles dabei ist und die objective function auswerten, um zu sehen, dass nicht nur Käse rauskommt.
 ```{r test model}
 # hypothesis = 1
 # test_dMod.frame <- function(model, hypothesis = 1, ...){
@@ -391,6 +301,17 @@ model$pars[[1]] %>% `[<-`(., 1:length(.), -20) %>% sort_by_name() %>% .[-2] %>% 
 ```
 
 # Fit 
+Hier passieren jetzt mehrere Dinge:
+1. Wird das ganze in runbg() gepackt, womit man den innenstehenden Code auf nem anderen Computer laufen lassen kann
+2. Steht innendrin ein vielleicht bisschen unübersichtlicher Code fürs Fitten:
+    Mit dem Pipe-Operator %>% kann man Ergebnisse von voher einfach weiterbenutzen, ohne sie zwischenspeichern zu müssen.
+    "mutate" fügt dem dMod.frame eine neue Spalte hinzu.
+    Zunächst lege ich also eine neue Spalte "fixed" an, die die in diesem Fit festgesetzen Parameter beinhalten wird und dann eine große Funktion für die fits-Spalte, die neu angelegt wird. Der Grund, warum ich das mit dem "map" (ein for loop, man kann in R auch lapply schreiben) ansatz gelöst habe, ist, dass es das einfacher macht, wenn der dMod.frame mehrere Zeilen hat.
+    Dummerweise hat der Optimierer Probleme, Objekte zu finden, die nicht im Global-Environment stehen, das ist noch nicht ganz fehlerfrei implementiert. Deswegen schreibe ich alle relevanten Objekte nochmal ins Globabl-Environment raus, bevor ich den mstrust (multi-start- trust-region optimierer aufrufe).
+
+dem Rungb übergebe ich nur den dMod.frame "model", da dieser ja alles beinhaltet. runbg kopiert den dann auf den server zusammen mit den verlinkten .so-Dateien, dem C-Code unseres Modells. Die .so-Dateien sind auch der Grund, warum man einen abgespeicherten dMod.frame immer mit readDMod.frame() einlesen muss: damit die .so library auch geladen wird!
+
+Die Zeilen unter dem runbg lasse ich immer stehen und kommentiere sie nach Bedarf ein oder aus, genauso wie die "recover = T"-Zeile. Nachdem der job fertig ist, muss man ihn sich zurückholen, etc. aber das hast du ja schonmal gemacht.
 ```{r}
 fit_2_job <- runbg({
     ncores <- detectFreeCores()
@@ -462,71 +383,77 @@ fit_2_job <- runbg({
 }, machine = c(paste0("knecht", c(1,2,4,5))), input = "model", filename = "2018_08_10_18_05_fit_2_job"
   , recover = T
 )
-while(!fit_2_job$check())
-  Sys.sleep(60*5)
-beepr::beep(8)
+# while(!fit_2_job$check())
+#   Sys.sleep(60*5)
+# beepr::beep(8)
 
 # fit_2_job$check()
-fit_2 <- fit_2_job$get()
+# fit_2 <- fit_2_job$get()
 # # fit_2 %>% str1
-fit_2 <- fit_2 %>% uniteFits() %>% appendParframes
-saveRDS(fit_2, file = "fit_2.rds")
+# fit_2 <- fit_2 %>% uniteFits() %>% appendParframes
+# saveRDS(fit_2, file = "fit_2.rds")
 model <- readDMod.frame("fit_2.rds")
 # fit_2_job$purge()
 
 ```
 
+Jetzt wo die Fits fertig sind, muss man sie sich ein bisschen anschauen. Alle Fits sind in der parframe-Spalte von model gespeichert. Ein parframe enthält die gefitteten Parameter und vier Spalten mit Infos über den Fit. Hier ist erst mal eine Funktion, um die gefixten Parameter auch in den parframe zu bringen. Da besteht noch implementierungsbedarf bei dMod.
+Wichtig ist noch die Funktion as.parvec(i), die aus einem parframe die Parameter des i-besten fit rauszieht.
 ```{r}
-# append_fixed <- function(myparf, fixed) {
-#   myattributes <- attributes(myparf)
-#   myattributes[["parameters"]] <- c(myattributes[["parameters"]], names(fixed))
-#   myattributes[["names"]] <- c(myattributes[["names"]], names(fixed))
-#   fixed <- unclass(fixed)
-#   myparf <- cbind(myparf,t(fixed))
-#   attributes(myparf) <- myattributes
-#   
-#   return(myparf)
-# }
-# p_parframe <- function(p, myparframe, parameters, condition) {
-#   old_attr <- attributes(myparframe)
-#   parframe_reduced <- as.data.frame(myparframe)
-#   parframe_reduced <- parframe_reduced[!names(parframe_reduced)%in%old_attr$metanames]
-#   newpars <- apply(parframe_reduced, 1, function(i) {
-#     pinner <- p(i, deriv = F, condition = condition)[[1]]
-#     pinner[parameters]
-#   }) %>% 
-#     t
-#   
-#   df <- as.data.frame(myparframe)
-#   new_parframe <- cbind(df[old_attr$metanames], newpars)
-#   
-#   new_attr <- old_attr
-#   new_attr[["parameters"]] <- parameters
-#   new_attr[["names"]] <- names(new_parframe)
-#   
-#   attributes(new_parframe) <- new_attr
-#   
-#   return(new_parframe)
-# }
-# 
-# reindex <- function(myparframe) {
-#   myparframe$index <- 1:nrow(myparframe)
-#   myparframe
-# }
-# 
-# model$parframes[[1]] <- append_fixed(model$parframes[[1]], model$fixed[[1]])
+append_fixed <- function(myparf, fixed) {
+  myattributes <- attributes(myparf)
+  myattributes[["parameters"]] <- c(myattributes[["parameters"]], names(fixed))
+  myattributes[["names"]] <- c(myattributes[["names"]], names(fixed))
+  fixed <- unclass(fixed)
+  myparf <- cbind(myparf,t(fixed))
+  attributes(myparf) <- myattributes
+
+  return(myparf)
+}
+model$parframes[[1]] <- append_fixed(model$parframes[[1]], model$fixed[[1]])
+
+```
+
+Die musst du nicht wirklich beachten.
+```{r}
+p_parframe <- function(p, myparframe, parameters, condition) {
+  old_attr <- attributes(myparframe)
+  parframe_reduced <- as.data.frame(myparframe)
+  parframe_reduced <- parframe_reduced[!names(parframe_reduced)%in%old_attr$metanames]
+  newpars <- apply(parframe_reduced, 1, function(i) {
+    pinner <- p(i, deriv = F, condition = condition)[[1]]
+    pinner[parameters]
+  }) %>%
+    t
+
+  df <- as.data.frame(myparframe)
+  new_parframe <- cbind(df[old_attr$metanames], newpars)
+
+  new_attr <- old_attr
+  new_attr[["parameters"]] <- parameters
+  new_attr[["names"]] <- names(new_parframe)
+
+  attributes(new_parframe) <- new_attr
+
+  return(new_parframe)
+}
+
+reindex <- function(myparframe) {
+  myparframe$index <- 1:nrow(myparframe)
+  myparframe
+}
+
 ```
 
 ## explore fits
+erst mal ein bisschen anschauen
 ```{r}
 model %>% parframes_summary()
-model$parframes
-```
-
-```{r}
 myparframe <- model$parframes[[1]]
+myparframe
 ```
 
+Im Parameterraum anschauen, wo die Fits gelandet sind
 ```{r}
 quantiles <- c("10" = 0.1, "25" = 0.25, "50" = 0.5, "100" = 1)
 
@@ -543,16 +470,16 @@ walk(seq_along(quantiles), function(i) {
 
 ```
 
+Parameter von Stufen anschauen
 ```{r}
 myparframe %>% plotPars(tol = 5, value < quantile(value, 0.01))
 ```
 
+nicht so wichtig
 ```{r}
 newparf <- p_parframe(model$p[[1]], myparframe, parameters, 1)
 newparf <- p_parframe(p_log, newparf, parameters, 1)
-```
 
-```{r}
 lq <- 0.0
 uq <- 0.5
 newparf %>% 
@@ -562,7 +489,7 @@ newparf %>%
   select(-(11:14)) %>% 
   pairs
 ```
-
+auch nicht
 ```{r}
 lq <- 0.0
 uq <- 0.5
@@ -588,33 +515,28 @@ myparframe %>%
 
 ```
 
-
-
+Parameter von ausgewählten Stufen (die Stufen waren noch die für die alten Fits)
 ```{r}
 plotPars(newparf[c(1,50,100,150,280,450)])+ 
   scale_color_dMod(labels= as.character(c(1,50,100,150,280,450)))
 ggsave("parameters 1 50 100 150 280 450.pdf") 
 ```
 
-## Look at data again
+
+wie viel trögt jede einzelne condition zu dem chi^2-Wert bei?
 ```{r}
-wup <- obj_condition_wise(model$obj_data[[1]], model$pars[[1]])
-wup %>% as.data.frame()
+foo <- obj_condition_wise(model$obj_data[[1]], model$pars[[1]])
+foo %>% as.data.frame()
 ```
 
-
-```{r}
-obs_sig<- data_sig$name %>% unique()
-cond_sig <- data_sig %>% as.datalist() %>% names
-
-data_full %>% 
-  filter(name == obs_sig[1]) %>% 
-```
 
 
 # Plotting
-
+Hier sind jetzt die einzelnen Plots, die ich gegen Ende immer rausgehauen habe.
 ```{r plotting helpers}
+model <- readDMod.frame("fit_2.rds")
+model$parframes[[1]] <- append_fixed(model$parframes[[1]], model$fixed[[1]])
+
 observables <- model$g[[1]] %>% getEquations() %>%.[[1]] %>%  names
 
 observables_apap <- "Mve_apap"
@@ -681,7 +603,6 @@ walk(which_hypotheses, function(i) {
 dev.off()
 ```
 
-
 ```{r plot predictions}
 # Group conditions by observables
 pdf(file = paste0("plots_",modelversion,"_step_", step, ".pdf"), width = 16, height = 9)
@@ -694,10 +615,6 @@ walk(which_hypotheses, function(i) {
 })
 dev.off()
 ```
-
-
-
-
 
 ```{r plot conditions individually}
 # Plot conditions individually
@@ -727,7 +644,7 @@ dev.off()
 
 
 
-
+# Ab hier nicht mehr wichtig für dich
 
 
 
@@ -746,7 +663,7 @@ dev.off()
 * obj_condition_wise
 * rescale_conditions
     * Goal that all conditions contribute roughly the same
-
+* plotting funktionen in Fit_model_49.Rmd setup
 
 
 ```{r plot Profiles}
