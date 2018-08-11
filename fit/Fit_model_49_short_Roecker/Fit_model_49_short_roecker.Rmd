@@ -664,7 +664,7 @@ dev.off()
 * rescale_conditions
     * Goal that all conditions contribute roughly the same
 * plotting funktionen in Fit_model_49.Rmd setup
-
+* idee: "value" behalten im "pairs"-plot
 
 ```{r plot Profiles}
 pdf(paste0("profiles_",modelversion,".pdf"))
