@@ -1,0 +1,24 @@
+# ---------------------------------------------------------- #
+# "Fitting model 50" ----
+# ---------------------------------------------------------- #  
+  
+# ---------------------------------------------------------- #
+# Header ----
+# ---------------------------------------------------------- #
+rm(list = ls())
+library(conveniencefunctions)
+setwd("~/Promotion/Projects/methacetin_fitting/fit/Fit_model_50/")
+# setwd("fit/Fit_model_50")
+
+load("workspaceScript2.rda")
+loadDLL(x,p)
+
+fit_bic_job$check()
+fit_bic <- fit_bic_job$get()
+# # fit_bic %>% str1
+# fit_bic <- fit_bic %>% uniteFits() %>% appendParframes
+# saveRDS(fit_bic, file = "fit_bic.rds")
+# model <- readDMod.frame("fit_bic.rds")
+# fit_bic_job$purge()
+
+# GGally::ggpairs(model$parframes[[1]] %>% as.data.frame() %>% .[-c(1:4)])
