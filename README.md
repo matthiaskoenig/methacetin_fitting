@@ -35,11 +35,19 @@ sudo -E apt-get -y install openjdk-11-jdk
 sudo -E apt-get -y install r-base-core r-base r-base-dev r-recommended libssl-dev libcurl4-openssl-dev libxml2-dev liblzma-dev lzma lzma-dev
 
 # R
+sudo RUN R CMD javareconf
 sudo R
 install.packages("devtools")
 devtools::install_github("dlill/conveniencefunctions")
 devtools::install_github("dkaschek/cOde")
 devtools::install_github("dkaschek/dMod")
+
+sudo R -e 'install.packages("devtools")'
+sudo R -e 'devtools::install_github("dlill/conveniencefunctions")'
+sudo R -e 'devtools::install_github("dkaschek/cOde")'
+sudo R -e 'devtools::install_github("dkaschek/dMod")'
+
+
 ```
 
 ## [A] paracetamol
