@@ -3,5 +3,6 @@
 .Rhistory
 .ipynb_checkpoints
 .Rproj.user
+id_rsa.pub
 
 fitting/odemodel_*
