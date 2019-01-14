@@ -37,17 +37,10 @@ sudo -E apt-get -y install r-base-core r-base r-base-dev r-recommended libssl-de
 # R
 sudo RUN R CMD javareconf
 sudo R
-install.packages("devtools")
-devtools::install_github("dlill/conveniencefunctions")
-devtools::install_github("dkaschek/cOde")
-devtools::install_github("dkaschek/dMod")
-
 sudo R -e 'install.packages("devtools")'
-sudo R -e 'devtools::install_github("dlill/conveniencefunctions")'
 sudo R -e 'devtools::install_github("dkaschek/cOde")'
 sudo R -e 'devtools::install_github("dkaschek/dMod")'
-
-
+sudo R -e 'devtools::install_github("dlill/conveniencefunctions")'
 ```
 
 ## [A] paracetamol

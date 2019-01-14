@@ -7,9 +7,9 @@
 # ---------------------------------------------------------- #
 rm(list = ls())
 library(conveniencefunctions)
-setwd("~/Promotion/Projects/methacetin_fitting/fit/Fit_model_50/")
+setwd("~/git/methacetin_fitting/fit/Fit_model_50/")
+# setwd("~/Promotion/Projects/methacetin_fitting/fit/Fit_model_50/")
 # setwd("fit/Fit_model_50")
-
 
 
 load("workspaceScript1.rda")
@@ -42,8 +42,6 @@ fit_bic_job <- runbg({
       fit_conditions = c(cond_bic[[i]])
       assign("fit_conditions", fit_conditions, pos = .GlobalEnv)
       assign("fit_studyname", paste0("fits", hypothesis[[i]]), pos = .GlobalEnv)
-      
-      
       
       mstrust(objfun = fit_obj, 
               
@@ -87,7 +85,9 @@ fit_bic_job <- runbg({
   
   out
   
-}, machine = c(paste0("knecht", c(1,2))), input = "model", filename = "fit_bic"
+}, 
+# machine = c(paste0("knecht", c(1,2))), input = "model", filename = "fit_bic"
+machine = c('dmod-node1', 'dmod-trip1', 'dmod-trip2'), input = "model", filename = "fit_bic"
 # , recover = T
 )
 

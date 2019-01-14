@@ -7,10 +7,11 @@
 # ---------------------------------------------------------- #
 rm(list = ls())
 library(conveniencefunctions)
-setwd("~/Promotion/Projects/methacetin_fitting/fit/Fit_model_50/")
+# to fix RJAVA problems
+# export LD_LIBRARY_PATH=/usr/lib/jvm/java-8-oracle/jre/lib/amd64/server/
+
+setwd("~/git/methacetin_fitting/fit/Fit_model_50/")
 # setwd("fit/Fit_model_50")
-
-
 
 # ---------------------------------------------------------- #
 # 1. Read model ----
