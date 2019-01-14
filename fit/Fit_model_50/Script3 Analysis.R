@@ -7,7 +7,8 @@
 # ---------------------------------------------------------- #
 rm(list = ls())
 library(conveniencefunctions)
-setwd("~/Promotion/Projects/methacetin_fitting/fit/Fit_model_50/")
+setwd("~/git/methacetin_fitting/fit/Fit_model_50/")
+# setwd("~/Promotion/Projects/methacetin_fitting/fit/Fit_model_50/")
 # setwd("fit/Fit_model_50")
 
 load("workspaceScript2.rda")
