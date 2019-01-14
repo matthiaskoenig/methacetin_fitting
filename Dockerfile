@@ -3,8 +3,9 @@
 #
 #   To build the image copy the public ssh key into `id_rsa.pub`.
 #
-#   docker build -t mkoenig:dmod .
-#   docker run -d -p 50001:22 --name dmod mkoenig:dmod
+#   docker build -t matthiaskoenig/dmod:latest .
+#   docker run -d -p 50001:22 --name dmod matthiaskoenig/dmod:latest
+#   docker push matthiaskoenig/dmod:latest
 #
 #   access via:
 #   ssh root@<ip> -p 50000
