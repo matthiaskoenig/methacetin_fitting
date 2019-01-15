@@ -3,5 +3,11 @@
 .Rhistory
 .ipynb_checkpoints
 .Rproj.user
+id_rsa.pub
 
 fitting/odemodel_*
+
+# temporary files
+*.rda
+*.so
+*.RData
