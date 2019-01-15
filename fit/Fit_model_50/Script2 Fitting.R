@@ -36,7 +36,9 @@ fit_bic_job <- runbg({
       
       fit_pars <- pars[[i]] 
       fit_pars <- fit_pars[!names(fit_pars)%in%names(fit_fixed)]
-      fit_pars <- msParframe(fit_pars, 5*ncores, sd = 2)
+      # fit_pars <- msParframe(fit_pars, 5*ncores, sd = 2)
+      # FIXME: calculate reproducible seed
+      fit_pars <- msParframe(fit_pars, 10*ncores, seed=sample(1:10000,1), sd = 2)
       assign("fit_pars", fit_pars, pos = .GlobalEnv)
       
       fit_conditions = c(cond_bic[[i]])

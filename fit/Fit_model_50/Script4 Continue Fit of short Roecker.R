@@ -15,12 +15,18 @@
 # ---------------------------------------------------------- #
 rm(list = ls())
 library(conveniencefunctions)
-currentwd <- '/home/denial/Promotion/Projects/methacetin_fitting/fit/Fit_model_50'
-projwd <- '/home/denial/Promotion/Projects/methacetin_fitting'
-scriptwd <- '/home/denial/Promotion/Projects/methacetin_fitting/fit/Fit_model_50'
-setwd(scriptwd)
+# currentwd <- '/home/denial/Promotion/Projects/methacetin_fitting/fit/Fit_model_50'
+# projwd <- '/home/denial/Promotion/Projects/methacetin_fitting'
+# scriptwd <- '/home/denial/Promotion/Projects/methacetin_fitting/fit/Fit_model_50'
+
+# setwd(scriptwd)
 load('workspaceScript3.rda')
 # model <- readDMod.frame("Script2fit_bic.rds")
+
+
+# plot the best fits
+plotCombined(model)
+plotCombined(model,1,1, str_detect(condition, "Lalazar"))
 
 
 # ---------------------------------------------------------- #

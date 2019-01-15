@@ -16,10 +16,11 @@ loadDLL(x,p)
 
 fit_bic_job$check()
 fit_bic <- fit_bic_job$get()
+
 # # fit_bic %>% str1
-# fit_bic <- fit_bic %>% uniteFits() %>% appendParframes
-# saveRDS(fit_bic, file = "fit_bic.rds")
-# model <- readDMod.frame("fit_bic.rds")
+fit_bic <- fit_bic %>% uniteFits() %>% appendParframes
+saveRDS(fit_bic, file = "results_mk2018-01-14_fit_bic.rds")
+model <- readDMod.frame("results_mk2018-01-14_fit_bic.rds")
 # fit_bic_job$purge()
 
 # GGally::ggpairs(model$parframes[[1]] %>% as.data.frame() %>% .[-c(1:4)])

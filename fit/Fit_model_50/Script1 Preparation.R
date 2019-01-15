@@ -66,7 +66,7 @@ errors_met_sig["mom_rec_metc13"] <- 1 #hierfür gibts eh keine daten mit sigma=N
 free_pars <- c("Kp_co2c13", "KBO_MAX_CO2", "KBO_REL_CO2", "KBO_FIX_CO2", "KLI_MAX_CO2", "KLI_REL_CO2", "KLI_FIX_CO2", "KLU_EX_CO2", "KLU_EXKM_CO2", "Ka_co2c13", "Ka_metc13")
 
 myodemodel <- odemodel(dxdt_dmod, estimate = free_pars, modelname = "x", compile = F) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
-x <- Xs(myodemodel)
+x <- Xs(myodemodel)  # possible to improve the tolerances on the integrator
 g <- Y(c(observables_bic, observables_met), x, attach.input = F, modelname = "g", compile = F)
 compile(g,x, cores = 3, output = "gx")
 
