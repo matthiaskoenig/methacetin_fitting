@@ -67,17 +67,16 @@ RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so
 
 # add public ssh keys
 RUN mkdir -p /root/.ssh
-
-# FIXME: this is only a hack for now
-# COPY id_rsa.pub /root/.ssh/authorized_keys
-# RUN sed -i 's/mkoenig/root/' /root/.ssh/authorized_keys
-
-# add config file
-COPY config /root/.ssh/config
+RUN chmod 700 /root/.ssh
 
 ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" >> /etc/profile
 
-
 EXPOSE 22
+
+# entrypoint sets ssh permissions
+COPY docker-entrypoint.sh /bin/docker-entrypoint.sh
+RUN chmod +x /bin/docker-entrypoint.sh
+ENTRYPOINT ["/bin/docker-entrypoint.sh"]
+
 CMD ["/usr/sbin/sshd", "-D"]

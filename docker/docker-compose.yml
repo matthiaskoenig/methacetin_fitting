@@ -1,17 +1,17 @@
+########################################
+# docker-compose up -d
 #
-# docker run -d -p 50001:22 --name dmod matthiaskoenig/dmod:latest
-
-#   access via:
+# access via:
 #   ssh root@<ip> -p 50001
 #
-#   define alias in .ssh/config:
+# define alias in .ssh/config:
 #   Host dmod-node1
 #	    User root
 #	    HostName node1
 #	    Port 50001
 #
-#   Than use dmod-node1 in runbg
-
+#  Then use dmod-node1 in runbg.
+########################################
 
 version: "3"
 services:
@@ -20,5 +20,5 @@ services:
     ports:
       - "50001:22"
     volumes:
-      - ${HOME}/.ssh/authorized_keys:/root/.ssh/authorized_keys
+      - ~/.ssh/authorized_keys:/tmp/authorized_keys:ro
 
