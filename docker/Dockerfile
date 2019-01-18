@@ -1,22 +1,8 @@
 ####################################################
 # Container image for dmod
 #
-#   To build the image copy the public ssh key into `id_rsa.pub`.
-#
 #   docker build -t matthiaskoenig/dmod:latest .
-#   docker run -d -p 50001:22 --name dmod matthiaskoenig/dmod:latest
 #   docker push matthiaskoenig/dmod:latest
-#
-#   access via:
-#   ssh root@<ip> -p 50000
-#
-#   define alias in .ssh/config:
-#   Host dmod-node1
-#	    User root
-#	    HostName node1
-#	    Port 50000
-#
-#   Than use dmod-node1 in runbg
 #
 # You can push a new image to this repository using the CLI
 #
@@ -80,10 +66,14 @@ RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/s
 RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
 
 # add public ssh keys
-# FIXME: this is only a hack for now
 RUN mkdir -p /root/.ssh
-COPY id_rsa.pub /root/.ssh/authorized_keys
-RUN sed -i 's/mkoenig/root/' /root/.ssh/authorized_keys
+
+# FIXME: this is only a hack for now
+# COPY id_rsa.pub /root/.ssh/authorized_keys
+# RUN sed -i 's/mkoenig/root/' /root/.ssh/authorized_keys
+
+# add config file
+COPY config /root/.ssh/config
 
 ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" >> /etc/profile
