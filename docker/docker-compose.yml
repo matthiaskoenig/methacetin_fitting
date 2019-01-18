@@ -21,8 +21,4 @@ services:
       - "50001:22"
     volumes:
       - ${HOME}/.ssh/authorized_keys:/root/.ssh/authorized_keys
-    networks:
-      - dmodnet
 
-networks:
-  dmodnet:
