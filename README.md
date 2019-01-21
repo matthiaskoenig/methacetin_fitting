@@ -42,6 +42,10 @@ sudo R -e 'devtools::install_github("dkaschek/cOde")'
 sudo R -e 'devtools::install_github("dkaschek/dMod")'
 sudo R -e 'devtools::install_github("dlill/conveniencefunctions")'
 ```
+The dockerized version of dmod is available via
+https://github.com/matthiaskoenig/dmod-docker
+
+
 
 ## [A] paracetamol
 
