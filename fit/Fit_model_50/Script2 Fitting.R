@@ -18,7 +18,6 @@ loadDLL(x,p)
 # ---------------------------------------------------------- #
 # 6. Fit ----
 # ---------------------------------------------------------- #
-
 fit_bic_job <- runbg({
   ncores <- detectFreeCores()
   assign("ncores", ncores, pos = .GlobalEnv)
@@ -38,7 +37,7 @@ fit_bic_job <- runbg({
       fit_pars <- fit_pars[!names(fit_pars)%in%names(fit_fixed)]
       # fit_pars <- msParframe(fit_pars, 5*ncores, sd = 2)
       # FIXME: calculate reproducible seed
-      fit_pars <- msParframe(fit_pars, 10*ncores, seed=sample(1:10000,1), sd = 2)
+      fit_pars <- msParframe(fit_pars, 20*ncores, seed=sample(1:10000,1), sd=2)
       assign("fit_pars", fit_pars, pos = .GlobalEnv)
       
       fit_conditions = c(cond_bic[[i]])
@@ -84,13 +83,15 @@ fit_bic_job <- runbg({
     })
     ) %>%
     rowwise
-  
   out
-  
 }, 
 # machine = c(paste0("knecht", c(1,2))), input = "model", filename = "fit_bic"
-machine = c('dmod-node1', 'dmod-trip1', 'dmod-trip2'), input = "model", filename = "fit_bic"
+# machine = c('dmod-node1', 'dmod-trip1', 'dmod-trip2'), input = "model", filename = "fit_mk_v50_f1"
+# machine = c(c('dmod-node1', 'dmod-trip1', 'dmod-trip2'), c(paste0("dmod-denbi-", c(1,2,3,4,5,6,7,8)))), 
+machine = c(paste0("dmod-denbi-", c(1,2,3,4,5,6,7,8))), input = "model", filename = "fit_denbi_v50_f1"
+# input = "model", filename = "fit_bic"
 # , recover = T
 )
+
 
 save.image("workspaceScript2.rda")
