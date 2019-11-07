@@ -1,32 +1,37 @@
 # LiMAx fitting
-Information for fitting parameter values in the LiMAx model
+Information, data, models and fitting results for the LiMAx model.
 
-## SBML Model
-The latest model version is available in the `model` folder as SBML file 
+## Model
+All models are SBML models stored in the `model` folder. 
 ```
-./model/limax_pkpd_*.xml
+./model/<version>/limax_<version>.xml
 ```
-A HTML model report is provided in the model directory as
+A HTML model report is provided next to the models as
 ```
-./model/limax_pkpd_*.html
+./model/<version>/limax_<version>.html
 ```
+For every model reference simulations have been performed in `R` and `python` 
+available in the
+```
+./model/<version>/results
+```
+folder.
 
-Reference output of the model is provided for `R` and `python` in `model/results`-
-
-## Data sets for fitting
-The latest datasets are in the `data` folder, named in line with the model.
-
-## Python notebook
-Example simulations are available in the ipython notebook.
-For installation setup a python virtual environment with the requirements listed
-in requirements.txt
+## Datasets
+The corresponding datasets are in the `data` folder, named in line with the model as tab separated files (`tsv`)
 ```
-mkvirtualenv methacetin_fitting -p python3
-pip install -r requirements.txt
+./data/<version>/limax_52_data.tsv
 ```
 
-# Documentation
-Required packages devtools & dMod 
+## Fitting
+Fitting is performed with `dMod`
+
+### Setup
+A dockerized version of dmod is available from 
+https://github.com/matthiaskoenig/dmod-docker
+Which allows simple setup of the environment to run the parameter fitting.
+
+Alternatively the required dependencies can be installed via
 ```
 # bash
 sudo -E add-apt-repository -y ppa:marutter/rrutter
@@ -42,123 +47,58 @@ sudo R -e 'devtools::install_github("dkaschek/cOde")'
 sudo R -e 'devtools::install_github("dkaschek/dMod")'
 sudo R -e 'devtools::install_github("dlill/conveniencefunctions")'
 ```
-The dockerized version of dmod is available via
-https://github.com/matthiaskoenig/dmod-docker
 
 
+# Optimization problem
+**Parameters to set**
+For the simulation a subset of parameters must be set. These are provided as
+separate columns in the `data` spreadsheet.
 
-## [A] paracetamol
-
-### Observer Functions
-```
-Mve_apap = Mve_apap     # [mg/dl] paracetamol concentration plasma
-```
-
-### Free Parameters
-```
-Ka_apap         # [1/hr] absorption apap gut
-APAPD_HLM_CL    # Vmax value hepatic clearance
-APAPD_Km_apap   # [mM] Km value for apap
-```
-
-### study, group
-* `Albert1974, capsule`
-* `Albert1974, tablet`
-* `Baraka1990, NaN`
-* `Chiew2010, NaN`
-* `Critchley2005, NaN`
-* `Rawlins1977, IV_D1000`
-* `Rawlins1977, ORAL_D500`
-* `Rawlins1977, ORAL_D1000`
-* `Rawlins1977, ORAL_D2000`
-
-## [B] bicarbonate
-
-### Observer Functions
-```
-DOB = DOB  # [‰] Delta over baseline
-P_CO2F = P_CO2Fc13 - init_P_CO2Fc13  # co2c13 fraction corrected for baseline  
-mom_rec_co2c13 = Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0  # [%] revovery after continous IV injection
+```python
+BW             # [kg] body weight
+PODOSE_apap    # [mg] oral dose apap
+IVDOSE_apap    # [mg] intravenous dose apap
+PODOSE_co2c13  # [mg] oral bicarbonate dose
+IVDOSE_co2c13  # [mg] iv bicarbonate dose
+Ri_co2c13      # [?] injection rate bicarbonate
+ti_co2c13      # [?] injection duration bicarbonate
+PODOSE_metc13  # [mg] oral dose methacetin
+IVDOSE_metc13  # [mg] iv dose methacetin
+ti_metc13      # [?] injection duration methacetin
 ```
 
-### Free Parameters
-```
-Ka_co2c13       # [1/hr] absorption bicarbonate gut
-KLU_EXCO2       # CO2 rate of disposal in air [1/min]
-CO2FIX_HLM_CL   # CO2 fixation liver?
-KBO_FIXCO2      # CO2 storage slow pool [1/min],
-KBO_RELCO2      # CO2 release slow pool [1/min]"),
-KBO_MAXCO2      # CO2 pool size [mg]"),
-
-# the tissue distribution coefficients could be important (but must be changed together)
-```
-
-### study, group
-* `Mohr2018, NaN`
-* `Irving1983, NaN`
-* `Roecker2001, NaN`
-* `Barstow1990, NaN`
-* `Meineke1993, D12.5_T1`
-* `Meineke1993, D25.0_T1`
-* `Meineke1993, D25.0_T2`
-* `Meineke1993, D50.0_T1`
-* `Meineke1993, D100.0_T1`
-* `Leijssen1996, NaN`
-* `Fuller2000, C13`
-* `Fuller2000, C14`
-
-
-## [C] Methacetin Breath Test (methacetin)
-
-### Observer Functions
-Recovery and cummulative recovery calculate how much of the initial given dose is recovered over
-time.
-```
-mom_rec_metc13 = Exhalation_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100 # [% dose/h] momentary recovery
-cum_rec_metc13 = Abreath_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100  # [% dose] cummulative recovery
-```
-
-### Free Parameters
-```
-Ka_metc13       # [1/hr] absorption methacetin gut
-CYP1A2MET_CL    # Vmax value hepatic clearance
-CYP1A2MET_Km_met  # [mM] Km value for methacetin
-```
-
-### study, group
-* `Kasicka-Jonderko2008, young`
-* `Kasicka-Jonderko2008, middle-aged`
-* `Kasicka-Jonderko2008, 2d`
-* `Kasicka-Jonderko2008, 18d`
-* `Kasicka-Jonderko2008, baseline1`
-* `Kasicka-Jonderko2008, baseline2`
-* `Kasicka-Jonderko2013a, F_LBMI_FX75`
-* `Kasicka-Jonderko2013a, F_LBMI_BMAD`
-* `Kasicka-Jonderko2013a, M_HBMI_FX75`
-* `Kasicka-Jonderko2013a, M_HBMI_BMAD`
-* `Ciccocioppo2003, elderly`
-* `Ciccocioppo2003, adult`
-* `Krumbiegel1985, AC-01`
-* `Krumbiegel1985, AC-03`
-* `Holtmeier2006, NaN`
-* `Lalazar2008, NaN`
-* `Vranova2013, Control`
-
-
-## [D] LiMAx (limax)
-
-### Observer Functions
-```
-Mve_apap = Mve_apap     # [mg/dl] paracetamol concentration plasma
+**Observer Function**
+The following observer functions are used in the model
+```python
+Mve_apap = Mve_apap      # [mg/dl] paracetamol concentration plasma
 Mve_metc13 = Mve_metc13  # [mg/dl] methacetin concentration plasma
-DOB = DOB
+DOB = DOB                # [‰] Delta over baseline
+P_CO2F = P_CO2Fc13 - init_P_CO2Fc13  # co2c13 fraction corrected for baseline
+mom_rec_co2c13 = Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0  # [%] recovery after continuous IV injection
+mom_rec_metc13 = Exhalation_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100  # [% dose/h] momentary recovery
+cum_rec_metc13 = Abreath_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100  # [% dose] cumulative recovery
 ```
 
 ### Free Parameters
-```
-CYP1A2MET_CL    # Vmax value hepatic clearance
-CYP1A2MET_Km_met  # [mM] Km value for methacetin
-```
+```python
+# apap
+Kp_apap           # [-] partition coefficient tissue/plasma apap
+Vp_apap           # [1/hr] partition velocity apap
+Ka_apap           # [1/hr] absorption rate apap from gut (appearance after oral dose)
+APAPD_CL          # [?] Vmax hepatic clearance (
+APAPD_Km_apap     # [mM] Km value for apap
 
-### study, group
-* `Taheri2013, NaN`
+# bicarbonate and co2
+Kp_co2c13         # [-] partition coefficient tissue/plasma bicarbonate
+Vp_co2c13         # [1/hr] partition velocity bicarbonate
+Ka_co2c13         # [1/hr] absorption rate bicarbonate gut (appearance after oral dose)
+EXHCO2_CL         # [mmole_per_min] Vmax CO2 rate of disposal in air
+EXHCO2_Km_co2     # [mM] Km CO2 rate of disposal in air
+
+# methacetin
+Kp_metc13         # [-] partition coefficient tissue/plasma 13C-methacetin
+Vp_metc13         # [1/hr] partition velocity 13C-methacetin
+Ka_metc13         # [1/hr] absorption rate methacetin gut (appearance after oral dose)
+CYP1A2MET_CL      # [] Vmax hepatic clearance methacetin
+CYP1A2MET_Km_met  # [mM] Km value clearance for methacetin
+```

@@ -14,13 +14,14 @@ library(magrittr) # der Pipe-operator %>%: z.B: x =" a; y="f(x); z="g(y); wird z
 
 # Read model
 ```{r}
-source("limax_pkpd_v50.R")
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+source("./v53/limax_53.R")
 ```
 
 
 ```{r}
 pars <- c(x0, p)
-pars_to_optimize <- c("Ka_apap", "APAPD_HLM_CL", "APAPD_Km_apap")
+pars_to_optimize <- c("Kp_apap", "Vp_apap", "Ka_apap", "APAPD_CL", "APAPD_Km_apap")
 
 # get all parameters occuring in dxdt_dmod
 pars_in_dxdtdmod <- c(getSymbols(dxdt_dmod), names(dxdt_dmod))
