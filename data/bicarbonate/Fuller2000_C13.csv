@@ -1,8 +1,0 @@
-study	n	label	period	time	co2_production	co2_production_sd	recovery	recovery_sd
-Fuller2000	6	C13	0 - 1	1	626.0	88.0	24.9	1.8
-Fuller2000	6	C13	1 - 2	2	647.0	86.0	62.0	4.7
-Fuller2000	6	C13	2 - 3	3	654.0	100.0	78.4	5.9
-Fuller2000	6	C13	3 - 4	4	669.0	85.0	88.9	2.3
-Fuller2000	6	C13	4 - 5	5	673.0	98.0	92.7	3.0
-Fuller2000	6	C13	5 - 6	6	641.0	82.0	90.0	5.8
-
