@@ -17,9 +17,9 @@
 # `Sys.time()`
 #
 # .. Libraries -----
-# library(conveniencefunctions)
-devtools::load_all("~/Promotion/Promotion/Projects/conveniencefunctions")
-library(tidyverse)
+library(conveniencefunctions)
+# devtools::load_all("~/Promotion/Promotion/Projects/conveniencefunctions")
+# library(tidyverse)
 # .. Default Values -----
 rm(list = ls(all.names = TRUE))
 .outputFolder <- "../04-Output/Script1 Preparation/"
@@ -75,7 +75,8 @@ data_full <- data_full %>%
   cf_as.datalist(split.by = c("study", "group")) %>% 
   as.data.frame() %>% 
   mutate(ID = as.numeric(as_factor(condition)))
-
+dl <- data_full %>% 
+  cf_as.datalist(split.by = c("study", "group"))
 
 # [] log transform data?
 #   [] If yes, turn rel error model into absolute error model!
@@ -157,7 +158,7 @@ parameters_df <- cf_parameters_df_merge_values(parameters_df, pars_raw) %>%
 
 parameters_estimate <- c(parameters_estimate0, parameters_df$name[parameters_df$FLAGerrpar])
 
-parameters_df %>% 
+parameters_df <- parameters_df %>% 
   mutate(
     # set boundaries
     upper = case_when(str_detect(name, "^Kp_(apap|co2|met)") ~ 10  , TRUE ~ upper),
@@ -214,10 +215,10 @@ unlink(list.files(pattern = "\\.(c|o)$"))
 # .. 6 Construct objective function -----
 prd0 <- (g*x*p)
 prd <- cf_PRD_indiv(prd0, est.grid, fixed.grid)
-obj_data <- cf_normL2_indiv(as.datalist(data_full), prd0, e, est.grid, fixed.grid)
+obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
 
 # .. 7 Test dMod functions-----
-times <- seq(0,5, length.out = 200)
+times <- seq(0,5, length.out = 10)
 pars <- setNames(pars_est_df$value, pars_est_df$name)
 
 prs <-  cf_make_pars(pars, est.grid, fixed.grid, 1)
@@ -226,30 +227,28 @@ prs <- prs$pars
 p(prs, fixed = fxd)
 compare(getParameters(p), names(c(prs, fxd)))
 
-prd0(0:10, prs, fixed = fxd, deriv= TRUE)
+prd0(times, prs, fixed = fxd, deriv= TRUE)
 # debugonce(prd)
-wupwup <- prd(0:10,pars, deriv = TRUE)
+wupwup <- prd(times, pars, deriv = TRUE)
+
+
+# .... develop catching of NaNs ------
+# catch NaN and Inf
+pred <- wupwup[[1]]
 
 
 
-
-# ---------------------------------------------------------- #
-# 6. Fit ----
-# ---------------------------------------------------------- #
-
-# Iterative fitting: select only bic and apap first
-studies_bic <-  data_full %>% filter(simulation %in% c("bicarbonate"))  %>% .[["study"]] %>% unique
-studies_met <-  data_full %>% filter(simulation %in% c("methacetin"))  %>% .[["study"]] %>% unique
-all_cond <- getConditions(model)
-cond_bic <- map(all_cond, . %>% str_subset(studies_bic)) %>% do.call(c,.)
-cond_met <- map(all_cond, . %>% str_subset(studies_met)) %>% do.call(c,.)
-
-model <- model %>% 
-  mutate(cond_bic = list(cond_bic),
-         cond_met = list(cond_met))
+# .... Test obj ------
+# debugonce(obj_data); 
+obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
+obj_data(pars, FLAGverbose = TRUE, FLAGbrowser = FALSE)
 
 
-save.image("workspaceScript1.rda")
+# .... Test fitting ------
+lower <- setNames(pars_est_df$lower, pars_est_df$name)
+upper <- setNames(pars_est_df$upper, pars_est_df$name)
+obj_data(pars)
+fit <- trust(obj_data, pars, 0.1,10, iterlim = 100, parupper = upper, parlower = lower)
 
 
 # Exit ----
