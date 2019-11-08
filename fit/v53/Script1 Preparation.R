@@ -76,6 +76,10 @@ data_full <- data_full %>%
   as.data.frame() %>% 
   mutate(ID = as.numeric(as_factor(condition)))
 
+
+# [] log transform data?
+#   [] If yes, turn rel error model into absolute error model!
+
 # .. 2 Table containing all information about different conditions -----
 condition.grid <- data_full %>% 
   cf_as.datalist() %>% 
@@ -94,13 +98,20 @@ data_full <- data_full %>% unique()
 #   filter(!(str_detect(study, "Albert")&str_detect(group, "capsule")))
 
 # .. 4 Data Exploration -----
-# data_full %>% 
-#   filter(is.na(sigma)) %>% 
+# data_full %>%
+#   filter(is.na(sigma)) %>%
 #   ggplot(aes(time, value)) +
 #   facet_wrap(~condition, scales = "free") +
-#   geom_point() + 
-#   scale_y_log10() +  
-#   geom_smooth()
+#   geom_point() +
+#   scale_y_log10() +
+#   geom_smooth(spna = 0.2)
+# .... loess residuas ------
+# loe <- data_full %>%
+#   filter(is.na(sigma)) %>% 
+#   mutate(value = log(value)) %>% 
+#   filter(is.finite(value)) %>% 
+#   mutate(wup = as.numeric(interaction(name, condition))) %>% 
+#   {loess(value ~ wup, data = ., span = 0.2)}
 
 # [] Make a proper data exploration
 #   The data looks very much like 2 compartmental pk except for the Krumbiegel data.
@@ -120,13 +131,16 @@ observables <- c(
   DOB            = "DOB"                                                     , # [‰] Delta over baseline
   P_CO2F         = "P_CO2Fc13 - init_P_CO2Fc13"                              , # co2c13 fraction corrected for baseline
   mom_rec_co2c13 = "Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0"          , # [%] recovery after continuous IV injection
-  mom_rec_metc13 = "Exhalation_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100" , # [% dose/h] momentary recovery
-  cum_rec_metc13 = "Abreath_co2c13/(init(PODOSE_metc13)/Mr_metc13) * 100"      # [% dose] cumulative recovery
+  mom_rec_metc13 = "Exhalation_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100" , # [% dose/h] momentary recovery
+  cum_rec_metc13 = "Abreath_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100"      # [% dose] cumulative recovery
 )
 
 # Error models
+# * From the data exploration it appears that we can already omit the absolute error 
+#   (data exploration is still work in progress, but relative error model is still a reasonable assumption)
+# [] Maybe it's also best to log transform the data, kick out the time==0 and just go with a relative error model
 nm     <- names(observables)
-errormodel <- paste0("sqrt(s0_", nm, "^2 + srel_", nm, "^2 * ", nm, "^2 )") %>% set_names(nm)
+errormodel <- paste0("sqrt((1e-6)^2 + srel_", nm, "^2 * ", nm, "^2 )") %>% set_names(nm) 
 
 # .. 3 Parameters ----
 # .... 1 Table containing all parameter names + meta-information ------
@@ -138,7 +152,8 @@ pars_data      <- c("BW", "PODOSE_apap", "IVDOSE_apap", "PODOSE_co2c13", "IVDOSE
                     "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", "IVDOSE_metc13", "ti_metc13")
 
 parameters_df <- cf_build_parameters_df(odes = dxdt_dmod, observables = observables, errormodel = errormodel)
-parameters_df <- cf_parameters_df_merge_values(parameters_df, pars_raw)
+parameters_df <- cf_parameters_df_merge_values(parameters_df, pars_raw) %>% 
+  filter(str_detect(name0, "^init_")) # I think removing init_m parameters can be a general rule or better: remove them and reintroduce them already in the cf_build_parameters_df. name0 would be the original parameter. think a biut about that.
 
 parameters_estimate <- c(parameters_estimate0, parameters_df$name[parameters_df$FLAGerrpar])
 
@@ -200,7 +215,12 @@ unlink(list.files(pattern = "\\.(c|o)$"))
 prd0 <- (g*x*p)
 prd <- cf_PRD_indiv(prd0, est.grid, fixed.grid)
 obj_data <- cf_normL2_indiv(as.datalist(data_full), prd0, e, cf_est.grid, cf_fixed.grid)
-obj_L2 <- constraintL2(mu = 0 * old_pars, sigma = 10) 
+
+# .. 7 Test -----
+
+
+
+
 
 
 
