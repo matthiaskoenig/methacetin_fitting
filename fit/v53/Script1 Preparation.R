@@ -1,12 +1,29 @@
-# ---------------------------------------------------------- #
-# Header ----
-# ---------------------------------------------------------- #
-rm(list = ls())
+# -------------------------------------------------------------------------#
+# 0 Header ----
+# -------------------------------------------------------------------------#
+#
+# Working directory must be the folder containing this script!!!
+#
+#
+# Script1 Preparation.R
+#
+# [PURPOSE]
+# 
+#
+# [AUTHOR]
+# Daniel Lill
+#
+# [Date]
+# `Sys.time()`
+#
+# .. Libraries -----
 library(conveniencefunctions)
+library(tidyverse)
+# .. Default Values -----
+rm(list = ls(all.names = TRUE))
+.outputFolder <- "../04-Output/Script1 Preparation/"
 # to fix RJAVA problems
 # export LD_LIBRARY_PATH=/usr/lib/jvm/java-8-oracle/jre/lib/amd64/server/
-
-# working directory must be the folder containing this script
 
 # -------------------------------------------------------------------------#
 # 1 Data ----
@@ -41,7 +58,7 @@ some_na <- data_full %>%
   filter(sna>0 & sna != nna) %>% 
   select(-sna, -nna) %>% 
   as.data.frame() %>% 
-  fitErrorModel(factors = fitErrorModel_factors, plotting = F, blather = F) 
+  fitErrorModel(factors = fitErrorModel_factors, plotting = FALSE, blather = FALSE) 
 # leave other data unchanged
 none_or_all_na <- data_full %>% 
   group_by(study, group, name) %>% 
@@ -96,7 +113,7 @@ errormodel <- paste0("sqrt(s0_", nm, "^2 + srel_", nm, "^2 * ", nm, "^2 )") %>% 
 # .. 3 Parameters ----
 # .... 1 Table containing all parameter names + meta-information ------
 pars_raw       <- c(x0, p) 
-pars_estimate0 <- c("Kp_apap", "Vp_apap", "Ka_apap", "APAPD_CL", "APAPD_Km_apap", 
+parameters_estimate0 <- c("Kp_apap", "Vp_apap", "Ka_apap", "APAPD_CL", "APAPD_Km_apap", 
                     "Kp_co2c13", "Vp_co2c13", "Ka_co2c13", "EXHCO2_CL", "EXHCO2_Km_co2", 
                     "Kp_metc13", "Vp_metc13", "Ka_metc13", "CYP1A2MET_CL", "CYP1A2MET_Km_met")
 pars_data      <- c("BW", "PODOSE_apap", "IVDOSE_apap", "PODOSE_co2c13", "IVDOSE_co2c13", 
@@ -105,8 +122,7 @@ pars_data      <- c("BW", "PODOSE_apap", "IVDOSE_apap", "PODOSE_co2c13", "IVDOSE
 parameters_df <- cf_build_parameters_df(odes = dxdt_dmod, observables = observables, errormodel = errormodel)
 parameters_df <- cf_parameters_df_merge_values(parameters_df, pars_raw)
 
-pars_estimate <- c(pars_estimate0, parameters_df$name[parameters_df$FLAGerrpar])
-
+parameters_estimate <- c(parameters_estimate0, parameters_df$name[parameters_df$FLAGerrpar])
 
 # .... 2 Table containing all information about different conditions ------
 condition.grid <- data_full %>% 
@@ -116,157 +132,59 @@ condition.grid <- data_full %>%
   covariates() %>% 
   mutate(ID = as.numeric(as_factor(condition)))
 
-# .... 3  ------
-supplied_pars <- names(pars_raw)[(names(pars_raw) %in% names(data_full))]
+# .... 3 Table for all fixed parameters ------
 fixed.grid <- parameters_df %>% 
-  filter(!name0 %in% c(pars_estimate, supplied_pars)) %>% 
+  filter(!name0 %in% c(parameters_estimate, pars_data)) %>% 
   reshape2::dcast(. ~ name, value.var = "value") %>% 
   select(-1) %>% 
-  cbind(condition.grid[c("ID", "condition", supplied_pars)], .)
+  cbind(condition.grid[c("ID", "condition", pars_data)], .)
 
-
+# .... 4 Lookup - Table for all estimated parameters ------
+# [] Find a better way to better handle est.grid, trafo_df and est.vec simultaneously instead of different subsubsections
 est.grid <- parameters_df %>% 
-  filter(name0 %in% pars_estimate) %>% 
+  filter(name0 %in% parameters_estimate) %>% 
   reshape2::dcast(. ~ name0, value.var = "name") %>% 
   select(-1) %>%
   cbind(condition.grid[c("ID", "condition")], .)
-  
 
-# Get all parameters that in some way replace pars_raw (parameters supplied by the SBML file) or 
-#   are additional parameters that we need to fit
-# This could be e.g. Study specific pars such as IVDOSE* or pars that are fitted
-outer_pars    <- sort(unique(c(pars_estimate, supplied_pars)))
-
-pars_errors <- c(errormodel) %>% 
-  getSymbols %>% 
-  str_subset("^s") %>% 
-  are_names_of(1)
-outer_pars_sig <- sort(unique(c(outer_pars, names(pars_errors))))
-
-# ----------------------------------------------- #
-# .. 2. Build parameter transformations----
-# ----------------------------------------------- #
-# Die Trafos werden, wie alle anderen Funktionen auch erstmal symbolisch definiert.
-# Hilfreich sind hier die Funktionen branch und insert, mit denen man solche Trafos schön bauen kann.
-# Zur Log-Trafo: in der vorletzten Zeile steht "  insert("x~exp(x)", x = .currentSymbols) %>% ". Das bedeutet, dass man die logarithmierten parameter wieder exponenzieren muss, damit lineare Parameter rauskommen. Die Art, eine Logtrafo zu definieren, ist also, die Umkehrfunktion zu definieren.
-# Die Zeile darunter arbeitet also schon auf den Logarithmierten parametern und drückt aus, dass die KLI-Parameter vielfache von den KBO-Parametern sind. Die neuen äußeren Parameter sind aber jetzt die r_* Parameter, für die man einfacher den constraint angeben kann, dass r>0 sein soll, als wenn man dem optmierer sagen muss dass KLI>KBO ist.
-
-# Define the parameter trafos which in turn define the different conditions
-trafo <-
-  c(pars_raw) %>% 
-  sort_by_name() %>% 
-  replace(names(.) %in% outer_pars, outer_pars) %>% 
-  
-  branch(data %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
-  
-  insert("name ~ value", value = unlist(mget(supplied_pars)), name = supplied_pars) %>% # insert parameters supplied by the data
-  
-  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
-  
-  insert("x~exp(x)", x = .currentSymbols) %>% 
-  insert("x~y+r_x", y = c("KBO_FIX_CO2", "KBO_REL_CO2"), x = c("KLI_FIX_CO2", "KLI_REL_CO2")) %>% 
-  
+# .... 5 Symbolic parameter transformation ------
+trafo_df <-
+  parameters_df %>% 
+  mutate(estscale = case_when(name %in% names(fixed.grid) ~ "N", TRUE ~ estscale)) %>% 
+  mutate(trafo = case_when(estscale == "L" ~ paste0("exp(", name, ")"),estscale == "N" ~ name)) %>% 
   {.}
 
+trafo <- setNames(trafo_df$trafo, trafo_df$name)
+# duplicate inits
+trafo_inits <- trafo[parameters_df$name[parameters_df$FLAGinitpar]] %>% setNames(.,paste0("init_", names(.)))
+trafo       <- c(trafo, trafo_inits)
 
-# ----------------------------------------------- #
-# .. 3. To do: Do better error-parameter estimation ----
-# ----------------------------------------------- #
-trafo_sig <-
-  c(pars_raw, pars_errors) %>% 
-  sort_by_name() %>% 
-  replace(names(.) %in% outer_pars_sig, outer_pars_sig) %>%
-  
-  branch(data_sig %>% as.datalist() %>% covariates()) %>% # The table of covariates includes dosepar and dose, which are used in the next line
-  insert("name ~ value", value = unlist(mget(supplied_pars)), name = supplied_pars) %>%
-  
-  define("init_PODOSE_metc13~podose", podose = mytrafo[[i]]["PODOSE_metc13"]) %>% # For the observables, I need the initial dose as a fixed parameter which doesn't change. Because the PODOSE_metc13 is also a state, I need to duplicate this parameters
-  
-  insert("x~exp(x)", x = .currentSymbols) %>% 
-  insert("x~y+r_x", y = c("KBO_FIX_CO2", "KBO_REL_CO2"), x = c("KLI_FIX_CO2", "KLI_REL_CO2")) %>% 
-  
-  # Fix some parameters, error bars were estimated by eye 
-  insert("x~-11", x = str_subset(.currentSymbols, "^s0"), conditionMatch = "Meineke1993") %>% # Fix the error parameters to a value
-  insert("x~0", x = str_subset(.currentSymbols, "^s0"), conditionMatch = "(Barstow)") %>% 
-  insert("x~-5", x = str_subset(.currentSymbols, "^srel"), conditionMatch = "Barstow") %>% 
-  insert("x~-3", x = str_subset(.currentSymbols, "^srel"), conditionMatch = "(Meineke)") %>% 
-  
-  insert("x~2.3", x = str_subset(.currentSymbols, "s0_DOB"), conditionMatch = "Roecker") %>% 
-  insert("x~-5", x = str_subset(.currentSymbols, "srel_DOB"), conditionMatch = "Roecker") %>% 
-  insert("x~0", x = str_subset(.currentSymbols, "s(0|rel)"), conditionMatch = "Roecker") %>% 
-  
-  
-  insert("x~0", x = str_subset(.currentSymbols, "s((0)|(rel))_((DOB)|(P_CO2F))")) %>% 
-  insert("x~-4", x = str_subset(.currentSymbols, "s((0)|(rel))"), conditionMatch = "Krumbiegel") %>% 
-  
-  {.}
+# .... 6 Parameter vector ------
+pars_est_df <- parameters_df %>% 
+  filter(name %in% parameters_estimate) %>% 
+  mutate(value = case_when(estscale == "L" ~ log(value), estscale == "N" ~ value),
+         upper = case_when(estscale == "L" ~ log(upper), estscale == "N" ~ upper),
+         lower = case_when(estscale == "L" ~ log(lower), estscale == "N" ~ lower))
 
-# ----------------------------------------------- #
-# .. 4. Compile  ----
-# ----------------------------------------------- #
-
-# .. 2 Compile with sensitivities ----
-# Hier wird das Modell nach den Parametern abgeleitet und dann in C compiliert. Ableitungen sind für die Optimierung wichtig und die bekommen man am besten durch sensitivitätsgleichungen, da finite Differenzen zu numerischen Problemen führen können.
-
-# 1. Define which parameters are to be fitted and need sensitivities
-
-
-myodemodel <- odemodel(dxdt_dmod, estimate = pars_estimate, modelname = "x", compile = F) # Aar_apap is not there to be optimized, but a variable which is a state is needed because of a bug in odemodel.
-x <- Xs(myodemodel) # possible to improve the tolerances on the integrator
-g <- Y(c(observables), x, attach.input = F, modelname = "g", compile = F)
-e <- Y(errormodel, g)
-
-
-
-compile(g,x,e, cores = 3, output = "gx")
-
-
-# Wieder kompilieren etc.
-# Für das Fehlermodell gebe ich nun dezidiert die conditions an, für die diese gilt, damit die Objective function später weiß, dass sie bei diesen conditions die Fehler aus dem Fehlermodell e_sig ziehen soll.
-p <- P(trafo, modelname = "p", compile = F)
-pars <- getParameters(p) %>% are_names_of(0)
-
-p_sig <- P(trafo_sig, modelname = "p_sig", compile = F)
-pars_sig <- getParameters(p_sig) %>% are_names_of(0)
-
-compile(p, p_sig, cores = 3, output = "p")
-remove_c_and_o()
-
-e_sig <- map(getConditions(p_sig), function(cn) {Y(c(errors_bic_sig, errors_met_sig), g, condition = cn)}) %>% Reduce("+", .)
-
-
+# .. 5 Compile  -----
+myodemodel <- odemodel(dxdt_dmod, estimate = intersect(getSymbols(dxdt_dmod, names(dxdt_dmod)), parameters_estimate), modelname = "x", compile = FALSE) 
+x <- Xs(myodemodel)
+g <- Y(c(observables), x, attach.input = TRUE, modelname = "g", compile = FALSE)
+e <- Y(errormodel, g, modelname = "e")
+p <- P(trafo, modelname = "p", compile = FALSE)
+compile(g,x,e,p, cores = 11, output = "model")
+# remove intermediate files
+unlink(list.files(pattern = "\\.(c|o)$"))
 
 # ---------------------------------------------------------- #
 # 5. Construct objective function ----
 # ---------------------------------------------------------- #
+prd0 <- (g2*g1*x*p)
+prd <- cf_PRD_indiv(prd0, est.grid, fixed.grid)
 
-# Das Aufsetzen des Modells haben wir im Wesentlichen hinter uns gebracht, ab jetzt geht es los mit Standardrechnungen: Objective function aus Modell und Daten erstellen, Fitten, etc.
-# Dafür gibt es den dmod.frame, im wesentlichen eine Tabelle, angelehnt and das Konzept des data.frames, wo jede Zeile eine Observierung der Variablen (Spalten) ist. Im dMod.frame ist jede Zeile eine Hypothese, die da wären, z.B. mit/ohne manche Datensätze, andere Paramter zu schätzen, anderes zugrundeliegendes dynamisches Modell, andere priorstärken, etc.
-# Das dMod.frame hier hat eine Hypothese, als ich verschiende Priorstärken oder Gewichtungen getestet habe, hatten die dMod.frames mehrere Zeilen.
-# 
-# Jede Zeile stellt ein komplettes Modell dar, inklusive Daten und Fehlern. Um die jeweiligen Parametertrafos zu bauen, mit und ohne Fehlermodell, habe ich den Datensatz aufgeteilt. Den führe ich nun wieder zusammen, mit dem "+"-Operator, der für datalists die Daten wieder zusammenführt. Gleiches gilt für die Paramtertrafos, die die jeweligen conditions beinhalten. x und g sind generisch, wesewegen man hier nichts zusammenführen muss.
-# 
-# Außerdem schreibe ich noch den besten Fit und einen leichten prior auf die Paramter rein. der leichte Prior hatte das Ziel, diese Nichtidentifizierbarkeiten aufzulösen, aber letztendlich war er zu schwach.
-# 
-# Mit der Funktion appenObj konstruiere ich dann die objective function und ein paar andere Objekte, wie z.B. die prediction function "prd(times, pars)", mit denen man letztendlich die Modellvorhersagen macht. prd ist eine Hintereinanderausführung von g(x(p(times, pars))), die gleichzeitig noch die Ableitungen richtig mit der Kettenregel forpflanzt. Wie obj und pars wird prd dem dMod.frame als neue Spalte hinzugefügt.
-# 
-# Außerdem füge ich noch die Spalten cond_bic und cond_met hinzu, damit ich leichter die objective function nur für diese conditions auswerten kann
-old_pars <- c(
-  Ka_co2c13    	=	2.02772644041906	, # 1
-  KBO_FIX_CO2  	=	2.78428236981411	, # 2
-  KBO_MAX_CO2  	=	9.63498751140779	, # 3
-  KBO_REL_CO2  	=	-0.267459702339339	, # 4
-  r_KLI_FIX_CO2	=	9.61971900119817	, # 5
-  KLI_MAX_CO2  	=	0.353328736323793	, # 6
-  r_KLI_REL_CO2	=	9.39431519150866	, # 7
-  KLU_EX_CO2   	=	2.12620395625639	, # 8
-  KLU_EXKM_CO2 	=	1.34462945313086	, # 9
-  Kp_co2c13    	=	0.502949047843344	, # 10
-  Ka_metc13    	=	6.0966305	  # 11 
-)
 
-obj_L2 <- constraintL2(mu = 0 * old_pars, sigma = 10) #Prior
 
+obj_L2 <- constraintL2(mu = 0 * old_pars, sigma = 10) 
 model <- dMod.frame("1", g, x, (p+p_sig), (as.datalist(data) + as.datalist(data_sig)), e_sig, obj_L2 = list(obj_L2)) %>% 
   appendObj(obj = list(obj_data + obj_L2),
             times = list(c(seq(0,1,length.out = 200), seq(1,12,length.out = 200))),
@@ -292,3 +210,5 @@ model <- model %>%
 
 save.image("workspaceScript1.rda")
 
+
+# Exit ----
