@@ -17,7 +17,8 @@
 # `Sys.time()`
 #
 # .. Libraries -----
-library(conveniencefunctions)
+# library(conveniencefunctions)
+devtools::load_all("~/Promotion/Promotion/Projects/conveniencefunctions")
 library(tidyverse)
 # .. Default Values -----
 rm(list = ls(all.names = TRUE))
@@ -29,12 +30,11 @@ rm(list = ls(all.names = TRUE))
 # 1 Data ----
 # -------------------------------------------------------------------------#
 # .. 1. Preprocessing -----
-
 # Die Daten lassen sich aus Fehlersicht in drei Teile aufteilen:
 #   1. Eine Studie hat die Fehler zu allen Datenpunkten
 # 2. Manche Fehler fehlen
 # 3. alle Fehler fehlen.
-# 
+
 # Für Punkt 2 gibt es die Möglichkeit, die Parameter für das Fehlermodell aus den anderen gegebenen Fehlern zu schätzen. Ein übliches Fehlermodell ist, dass der Fehler aus absoluten und relativen Fehlern besteht:
 #   $sigma^2 = s0^2 + srel^2*value, $
 #   wobei s0 und srel die Parameter des Fehlermodells sind.
@@ -68,26 +68,44 @@ none_or_all_na <- data_full %>%
   as.data.frame()
 # recombine data sets
 data_full <- rbind(some_na, none_or_all_na) %>% 
-  select(-n) 
+  select(-n)  
+
+# Add condition and ID identifier and lloq
+data_full <- data_full %>% 
+  cf_as.datalist(split.by = c("study", "group")) %>% 
+  as.data.frame() %>% 
+  mutate(ID = as.numeric(as_factor(condition)))
+
+# .. 2 Table containing all information about different conditions -----
+condition.grid <- data_full %>% 
+  cf_as.datalist() %>% 
+  covariates()
 
 
-# .. 2. Select data for fitting -----
-# 1. Remove duplicated data points
-data_full <- data_full %>% unique() # TODO: Lalazar has duplicated entries
+# .. 3 Select data for fitting -----
+data_full <- data_full %>% unique() 
+# data_full <- data_full 
+#   filter(time > 0)
 
-# 2. Roecker - filter time points 
-data_full <- data_full %>% # TODO: Don't unterstand anymore what I did here
-  filter(time > 0)
-
-# Remove other studies from the data which goes into fitting
-# [] Discuss with Matthias
+# [] Discuss with Matthias, which studies to remove from fitting
 # data_for_fitting <- data_full %>% 
 #   filter(!str_detect(simulation, "limax")) %>% 
 #   filter(!str_detect(study, "Mohr2018")) %>% 
 #   filter(!(str_detect(study, "Albert")&str_detect(group, "capsule")))
 
+# .. 4 Data Exploration -----
+# data_full %>% 
+#   filter(is.na(sigma)) %>% 
+#   ggplot(aes(time, value)) +
+#   facet_wrap(~condition, scales = "free") +
+#   geom_point() + 
+#   scale_y_log10() +  
+#   geom_smooth()
 
+# [] Make a proper data exploration
+#   The data looks very much like 2 compartmental pk except for the Krumbiegel data.
 
+# Is there any long observation of metc13, because obviously in Krumbiegel?
 
 # ---------------------------------------------------------- #
 # 2 Model ----
@@ -95,7 +113,7 @@ data_full <- data_full %>% # TODO: Don't unterstand anymore what I did here
 # .. 1 Read ODE-Model -----
 source("../../model/v53/limax_53.R")
 
-# .. 2 Observables and error-models ----
+# .. 2 Observables and errormodel ----
 observables <- c(
   Mve_apap       = "Mve_apap"                                                , # [mg/dl] paracetamol concentration plasma
   Mve_metc13     = "Mve_metc13"                                              , # [mg/dl] methacetin concentration plasma
@@ -124,13 +142,15 @@ parameters_df <- cf_parameters_df_merge_values(parameters_df, pars_raw)
 
 parameters_estimate <- c(parameters_estimate0, parameters_df$name[parameters_df$FLAGerrpar])
 
-# .... 2 Table containing all information about different conditions ------
-condition.grid <- data_full %>% 
-  as.datalist() %>% 
-  as.data.frame() %>% 
-  cf_as.datalist(split.by = "condition") %>% 
-  covariates() %>% 
-  mutate(ID = as.numeric(as_factor(condition)))
+parameters_df %>% 
+  mutate(
+    # set boundaries
+    upper = case_when(str_detect(name, "^Kp_(apap|co2|met)") ~ 10  , TRUE ~ upper),
+    lower = case_when(str_detect(name, "^Kp_(apap|co2|met)") ~  0.1, TRUE ~ lower),
+    # set better initial values for errors
+    value = case_when(str_detect(name, "^s(0|rel)_") ~  0.1,         TRUE ~ value)
+         )
+
 
 # .... 3 Table for all fixed parameters ------
 fixed.grid <- parameters_df %>% 
@@ -176,19 +196,12 @@ compile(g,x,e,p, cores = 11, output = "model")
 # remove intermediate files
 unlink(list.files(pattern = "\\.(c|o)$"))
 
-# ---------------------------------------------------------- #
-# 5. Construct objective function ----
-# ---------------------------------------------------------- #
-prd0 <- (g2*g1*x*p)
+# .. 6 Construct objective function -----
+prd0 <- (g*x*p)
 prd <- cf_PRD_indiv(prd0, est.grid, fixed.grid)
-
-
-
+obj_data <- cf_normL2_indiv(as.datalist(data_full), prd0, e, cf_est.grid, cf_fixed.grid)
 obj_L2 <- constraintL2(mu = 0 * old_pars, sigma = 10) 
-model <- dMod.frame("1", g, x, (p+p_sig), (as.datalist(data) + as.datalist(data_sig)), e_sig, obj_L2 = list(obj_L2)) %>% 
-  appendObj(obj = list(obj_data + obj_L2),
-            times = list(c(seq(0,1,length.out = 200), seq(1,12,length.out = 200))),
-            pars = list(old_pars))
+
 
 
 
