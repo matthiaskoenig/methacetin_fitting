@@ -127,14 +127,14 @@ source("../../model/v53/limax_53.R")
 
 # .. 2 Observables and errormodel ----
 observables <- c(
-  Mve_apap       = "Mve_apap"                                                , # [mg/dl] paracetamol concentration plasma
-  Mve_metc13     = "Mve_metc13"                                              , # [mg/dl] methacetin concentration plasma
-  DOB            = "DOB"                                                     , # [‰] Delta over baseline
-  P_CO2F         = "P_CO2Fc13 - init_P_CO2Fc13"                              , # co2c13 fraction corrected for baseline
-  mom_rec_co2c13 = "Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0"          , # [%] recovery after continuous IV injection
-  mom_rec_metc13 = "Exhalation_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100" ,  # [% dose/h] momentary recovery
-  cum_rec_metc13 = "Abreath_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100",      # [% dose] cumulative recovery
-  cum_rec_co2c13 = "Abreath_co2c13/(init_PODOSE_co2c13/Mr_co2c13) * 100"       # [% dose] cumulative recovery
+  Mve_apap       = y_dmod["Mve_apap"]   , # [mg/dl] paracetamol concentration plasma
+  Mve_metc13     = y_dmod["Mve_metc13"] , # [mg/dl] methacetin concentration plasma
+  DOB            = y_dmod["DOB"]        , # [‰] Delta over baseline
+  P_CO2F         = paste0("(",y_dmod["P_CO2Fc13"], ") - init_P_CO2Fc13") , # co2c13 fraction corrected for baseline
+  mom_rec_co2c13 = paste0("(",y_dmod["Exhalation_co2c13"], ")/60*(", "Mr_co2c13"         , ")/(", "Ri_co2c13", ")","* 100")          , # [%] recovery after continuous IV injection
+  mom_rec_metc13 = paste0("(",y_dmod["Exhalation_co2c13"], ")/(",    "init_PODOSE_metc13", ")/(", "Mr_metc13", ")","* 100") ,  # [% dose/h] momentary recovery
+  cum_rec_metc13 = paste0("(","Abreath_co2c13", ")/(",    "init_PODOSE_metc13", ")/(", "Mr_metc13", ")","* 100"),      # [% dose] cumulative recovery
+  cum_rec_co2c13 = paste0("(","Abreath_co2c13", ")/(",    "init_PODOSE_co2c13", ")/(", "Mr_co2c13", ")","* 100")       # [% dose] cumulative recovery
 )
 
 # Error models
@@ -228,7 +228,10 @@ prs <- prs$pars
 p(prs, fixed = fxd)
 compare(getParameters(p), names(c(prs, fxd)))
 
-prd0(times, prs, fixed = fxd, deriv= TRUE)
+prd0(times, prs, fixed = fxd, deriv= TRUE) 
+# .... Check out why there is no dynamics in observables ------
+prd0(times, prs, fixed = fxd, deriv= FALSE) %>% as.prdlist() %>% plot(data = NULL, str_detect(name, "apap"))
+# .... test prd ------
 # debugonce(prd)
 wupwup <- prd(times, pars, deriv = TRUE)
 
@@ -242,10 +245,31 @@ pred <- wupwup[[1]]
 obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
 wup <- obj_data(pars, FLAGverbose = TRUE, FLAGbrowser = FALSE)
 is.na(wup$value)
-# .... Test fitting ------
+
+# -------------------------------------------------------------------------#
+# 3 Test fit ----
+# -------------------------------------------------------------------------#
+# .. Fit -----
 lower <- setNames(pars_est_df$lower, pars_est_df$name)
 upper <- setNames(pars_est_df$upper, pars_est_df$name)
-fit <- trust(obj_data, pars, 0.1,10, iterlim = 100, parupper = upper, parlower = lower)
+fit <- trust(obj_data, pars, 0.1,10, iterlim = 100, parupper = upper, parlower = lower, simcores = 11, printIter = TRUE)
+
+# .. Look at predictions -----
+times <- datatimes(data_full, 150)
+pred0 <- prd(times, pars) %>% as.prdlist()
+pred1 <- prd(times, fit$argument) %>% as.prdlist()
+
+# original unfitted one
+plotCombined(pred0, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
+  facet_wrap(~condition, scales = "free")
+
+# fitted one
+plotCombined(pred1, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
+  facet_wrap(~condition, scales = "free")
+  
+
+
+
 
 
 # Exit ----
