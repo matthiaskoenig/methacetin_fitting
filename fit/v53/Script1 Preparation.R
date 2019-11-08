@@ -153,7 +153,7 @@ pars_data      <- c("BW", "PODOSE_apap", "IVDOSE_apap", "PODOSE_co2c13", "IVDOSE
 
 parameters_df <- cf_build_parameters_df(odes = dxdt_dmod, observables = observables, errormodel = errormodel)
 parameters_df <- cf_parameters_df_merge_values(parameters_df, pars_raw) %>% 
-  filter(str_detect(name0, "^init_")) # I think removing init_m parameters can be a general rule or better: remove them and reintroduce them already in the cf_build_parameters_df. name0 would be the original parameter. think a biut about that.
+  filter(str_detect(name0, "^init_", negate = TRUE)) # I think removing init_m parameters can be a general rule or better: remove them and reintroduce them already in the cf_build_parameters_df. name0 would be the original parameter. think a biut about that.
 
 parameters_estimate <- c(parameters_estimate0, parameters_df$name[parameters_df$FLAGerrpar])
 
@@ -214,13 +214,21 @@ unlink(list.files(pattern = "\\.(c|o)$"))
 # .. 6 Construct objective function -----
 prd0 <- (g*x*p)
 prd <- cf_PRD_indiv(prd0, est.grid, fixed.grid)
-obj_data <- cf_normL2_indiv(as.datalist(data_full), prd0, e, cf_est.grid, cf_fixed.grid)
+obj_data <- cf_normL2_indiv(as.datalist(data_full), prd0, e, est.grid, fixed.grid)
 
-# .. 7 Test -----
+# .. 7 Test dMod functions-----
+times <- seq(0,5, length.out = 200)
+pars <- setNames(pars_est_df$value, pars_est_df$name)
 
+prs <-  cf_make_pars(pars, est.grid, fixed.grid, 1)
+fxd <- prs$fixed
+prs <- prs$pars
+p(prs, fixed = fxd)
+compare(getParameters(p), names(c(prs, fxd)))
 
-
-
+prd0(0:10, prs, fixed = fxd, deriv= TRUE)
+# debugonce(prd)
+wupwup <- prd(0:10,pars, deriv = TRUE)
 
 
 
