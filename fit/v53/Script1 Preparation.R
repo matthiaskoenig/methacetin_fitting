@@ -127,15 +127,19 @@ source("../../model/v53/limax_53.R")
 
 # .. 2 Observables and errormodel ----
 observables <- c(
-  Mve_apap       = y_dmod["Mve_apap"]   , # [mg/dl] paracetamol concentration plasma
-  Mve_metc13     = y_dmod["Mve_metc13"] , # [mg/dl] methacetin concentration plasma
-  DOB            = y_dmod["DOB"]        , # [‰] Delta over baseline
-  P_CO2F         = paste0("(",y_dmod["P_CO2Fc13"], ") - init_P_CO2Fc13") , # co2c13 fraction corrected for baseline
-  mom_rec_co2c13 = paste0("(",y_dmod["Exhalation_co2c13"], ")/60*(", "Mr_co2c13"         , ")/(", "Ri_co2c13", ")","* 100")          , # [%] recovery after continuous IV injection
-  mom_rec_metc13 = paste0("(",y_dmod["Exhalation_co2c13"], ")/(",    "init_PODOSE_metc13", ")/(", "Mr_metc13", ")","* 100") ,  # [% dose/h] momentary recovery
-  cum_rec_metc13 = paste0("(","Abreath_co2c13", ")/(",    "init_PODOSE_metc13", ")/(", "Mr_metc13", ")","* 100"),      # [% dose] cumulative recovery
-  cum_rec_co2c13 = paste0("(","Abreath_co2c13", ")/(",    "init_PODOSE_co2c13", ")/(", "Mr_co2c13", ")","* 100")       # [% dose] cumulative recovery
+  Mve_apap       = "Mve_apap"                                                , # [mg/dl] paracetamol concentration plasma
+  Mve_metc13     = "Mve_metc13"                                              , # [mg/dl] methacetin concentration plasma
+  DOB            = "DOB"                                                     , # [‰] Delta over baseline
+  P_CO2F         = "P_CO2Fc13 - init_P_CO2Fc13"                              , # co2c13 fraction corrected for baseline
+  mom_rec_co2c13 = "Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0"          , # [%] recovery after continuous IV injection
+  mom_rec_metc13 = "Exhalation_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100" ,  # [% dose/h] momentary recovery
+  cum_rec_metc13 = "Abreath_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100",      # [% dose] cumulative recovery
+  cum_rec_co2c13 = "Abreath_co2c13/(init_PODOSE_co2c13/Mr_co2c13) * 100"       # [% dose] cumulative recovery
 )
+observables <- c(y_dmod[intersect(names(y_dmod), getSymbols(observables))], observables) %>% 
+  dMod::resolveRecurrence() %>% 
+  .[names(observables)]
+
 
 # Error models
 # * From the data exploration it appears that we can already omit the absolute error 
@@ -235,17 +239,13 @@ prd0(times, prs, fixed = fxd, deriv= FALSE) %>% as.prdlist() %>% plot(data = NUL
 # debugonce(prd)
 wupwup <- prd(times, pars, deriv = TRUE)
 
-
-# .... develop catching of NaNs ------
-# catch NaN and Inf
-pred <- wupwup[[1]]
-
 # .... Test obj ------
 # debugonce(obj_data); 
 obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
 wup <- obj_data(pars, FLAGverbose = TRUE, FLAGbrowser = FALSE)
+# wup <- obj_data(pars, conditions = c("Barstow1990_NaN"), FLAGverbose = TRUE, FLAGbrowser = TRUE)
 is.na(wup$value)
-
+wup %>% attr("con")
 # -------------------------------------------------------------------------#
 # 3 Test fit ----
 # -------------------------------------------------------------------------#
