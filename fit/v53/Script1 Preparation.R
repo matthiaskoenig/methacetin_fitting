@@ -106,7 +106,7 @@ data_full <- data_full %>% unique()
 #   geom_point() +
 #   scale_y_log10() +
 #   geom_smooth(spna = 0.2)
-# .... loess residuas ------
+# .... Loess residuas ------
 # loe <- data_full %>%
 #   filter(is.na(sigma)) %>% 
 #   mutate(value = log(value)) %>% 
@@ -235,7 +235,7 @@ compare(getParameters(p), names(c(prs, fxd)))
 prd0(times, prs, fixed = fxd, deriv= TRUE) 
 # .... Check out why there is no dynamics in observables ------
 prd0(times, prs, fixed = fxd, deriv= FALSE) %>% as.prdlist() %>% plot(data = NULL, str_detect(name, "apap"))
-# .... test prd ------
+# .... Test prd ------
 # debugonce(prd)
 wupwup <- prd(times, pars, deriv = TRUE)
 
@@ -266,8 +266,32 @@ plotCombined(pred0, dl, name %in% names(observables), aesthetics = c(group = "na
 # fitted one
 plotCombined(pred1, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
   facet_wrap(~condition, scales = "free")
-  
 
+plotCombined(pred1, dl, name %in% "cum_rec_co2c13", aesthetics = c(group = "name", color = "name")) + 
+  facet_wrap(~condition, scales = "free") + 
+  geom_line(size = 2)
+
+
+
+# is infinite
+pred1$Leijssen1996_NaN[, "cum_rec_co2c13"]
+
+
+
+
+
+
+
+
+
+
+# -------------------------------------------------------------------------#
+# Todolist ----
+# -------------------------------------------------------------------------#
+# [] Proper data exploration
+# [] Check that predictions are not infinite if data is present
+# [] Run multistart
+# [] Set up docker such that it works
 
 
 
