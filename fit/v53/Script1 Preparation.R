@@ -132,8 +132,9 @@ observables <- c(
   DOB            = "DOB"                                                     , # [‰] Delta over baseline
   P_CO2F         = "P_CO2Fc13 - init_P_CO2Fc13"                              , # co2c13 fraction corrected for baseline
   mom_rec_co2c13 = "Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0"          , # [%] recovery after continuous IV injection
-  mom_rec_metc13 = "Exhalation_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100" , # [% dose/h] momentary recovery
-  cum_rec_metc13 = "Abreath_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100"      # [% dose] cumulative recovery
+  mom_rec_metc13 = "Exhalation_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100" ,  # [% dose/h] momentary recovery
+  cum_rec_metc13 = "Abreath_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100",      # [% dose] cumulative recovery
+  cum_rec_co2c13 = "Abreath_co2c13/(init_PODOSE_co2c13/Mr_co2c13) * 100"       # [% dose] cumulative recovery
 )
 
 # Error models
@@ -236,18 +237,14 @@ wupwup <- prd(times, pars, deriv = TRUE)
 # catch NaN and Inf
 pred <- wupwup[[1]]
 
-
-
 # .... Test obj ------
 # debugonce(obj_data); 
 obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
-obj_data(pars, FLAGverbose = TRUE, FLAGbrowser = FALSE)
-
-
+wup <- obj_data(pars, FLAGverbose = TRUE, FLAGbrowser = FALSE)
+is.na(wup$value)
 # .... Test fitting ------
 lower <- setNames(pars_est_df$lower, pars_est_df$name)
 upper <- setNames(pars_est_df$upper, pars_est_df$name)
-obj_data(pars)
 fit <- trust(obj_data, pars, 0.1,10, iterlim = 100, parupper = upper, parlower = lower)
 
 
