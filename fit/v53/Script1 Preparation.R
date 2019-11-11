@@ -16,7 +16,7 @@
 # [Date]
 # `Sys.time()`
 #
-# .. Libraries -----
+# .. Libraries -----  
 library(conveniencefunctions)
 # devtools::load_all("~/Promotion/Promotion/Projects/conveniencefunctions")
 # library(tidyverse)
@@ -119,6 +119,7 @@ data_full <- data_full %>% unique()
 
 # Is there any long observation of metc13, because obviously in Krumbiegel?
 
+
 # ---------------------------------------------------------- #
 # 2 Model ----
 # ---------------------------------------------------------- #
@@ -136,6 +137,7 @@ observables <- c(
   cum_rec_metc13 = "Abreath_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100",      # [% dose] cumulative recovery
   cum_rec_co2c13 = "Abreath_co2c13/(init_PODOSE_co2c13/Mr_co2c13) * 100"       # [% dose] cumulative recovery
 )
+
 observables <- c(y_dmod[intersect(names(y_dmod), getSymbols(observables))], observables) %>% 
   dMod::resolveRecurrence() %>% 
   .[names(observables)]
@@ -169,7 +171,7 @@ parameters_df <- parameters_df %>%
     upper = case_when(str_detect(name, "^Kp_(apap|co2|met)") ~ 10  , TRUE ~ upper),
     lower = case_when(str_detect(name, "^Kp_(apap|co2|met)") ~  0.1, TRUE ~ lower),
     # set better initial values for errors
-    value = case_when(str_detect(name, "^s(0|rel)_") ~  0.1,         TRUE ~ value)
+    value = case_when(str_detect(name, "^s(0|rel)_")         ~  0.1, TRUE ~ value)
          )
 
 
@@ -243,7 +245,7 @@ wupwup <- prd(times, pars, deriv = TRUE)
 # debugonce(obj_data); 
 obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
 wup <- obj_data(pars, FLAGverbose = TRUE, FLAGbrowser = FALSE)
-# wup <- obj_data(pars, conditions = c("Barstow1990_NaN"), FLAGverbose = TRUE, FLAGbrowser = TRUE)
+wup <- obj_data(pars, conditions = c("Leijssen1996_NaN"), FLAGverbose = TRUE, FLAGbrowser = TRUE)
 is.na(wup$value)
 wup %>% attr("con")
 # -------------------------------------------------------------------------#
@@ -273,23 +275,11 @@ plotCombined(pred1, dl, name %in% "cum_rec_co2c13", aesthetics = c(group = "name
 
 
 
-# is infinite
-pred1$Leijssen1996_NaN[, "cum_rec_co2c13"]
-
-
-
-
-
-
-
-
-
 
 # -------------------------------------------------------------------------#
 # Todolist ----
 # -------------------------------------------------------------------------#
 # [] Proper data exploration
-# [] Check that predictions are not infinite if data is present
 # [] Run multistart
 # [] Set up docker such that it works
 
