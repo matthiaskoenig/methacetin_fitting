@@ -275,7 +275,6 @@ wup <- obj_data(free_pars, fixed = fixed_pars, conditions = condition_subset,
 
 
 # R-objekte rausschreiben und aufhören ...
-debugonce(trust)
 fit <- trust(obj_data, free_pars, 0.1,10, iterlim = 100, 
              parupper = upper, parlower = lower, printIter = TRUE,
              simcores = 11, conditions = condition_subset, fixed = fixed_pars)
@@ -314,34 +313,34 @@ saveRDS(fits, file.path(.estimationFolder, "fits.rds"))
 # -------------------------------------------------------------------------#
 # Test validation profiles ----
 # -------------------------------------------------------------------------#
-cn <- est.grid$condition
-lower <- setNames(pars_est_df$lower, pars_est_df$name)
-upper <- setNames(pars_est_df$upper, pars_est_df$name)
-fit <- trust(obj_data, pars, 0.1,10, iterlim = 100, parupper = upper, parlower = lower, 
-             simcores = 11, printIter = TRUE, conditions = cn[1:10])
-
-bestfit <- fit$argument
-
-# ..  -----
-bla <- prd(times, bestfit, conditions = "Chiew2010_NaN", deriv = TRUE)
-pars_vali <- c(testvali = unname(bla[["Chiew2010_NaN"]][10, "Aar_apap", drop = TRUE]))
-vali <- cf_datapointL2(name = "Aar_apap", time =  5,value =  "testvali", sigma = 1e-6, "vali", condition = "Chiew2010_NaN", prd)
-vali(c(bestfit, pars_vali), FLAGbrowser = FALSE)
-
-obj2 <- (obj_data + vali)
-
-debugonce(vali)
-obj2(pars = c(bestfit, pars_vali), conditions = cn[1:10])
-
-rp___ <- tempfile()
-Rprof(rp___)
-prf <- profile(obj2, c(bestfit, pars_vali), names(pars_vali), conditions = cn[1:10], method = "integrate",
-               limits = c(lower = 0.0000001, upper = 10), stepControl = list(limit = 10), cores = 1, verbose = TRUE)
-Rprof(NULL)
-pv___ <- profvis::profvis(prof_input = rp___)
-htmlwidgets::saveWidget(pv___, paste0(rp___, ".html"))
-browseURL(paste0(rp___, ".html"))
-
-plotProfile(prf)
+# cn <- est.grid$condition
+# lower <- setNames(pars_est_df$lower, pars_est_df$name)
+# upper <- setNames(pars_est_df$upper, pars_est_df$name)
+# fit <- trust(obj_data, pars, 0.1,10, iterlim = 100, parupper = upper, parlower = lower, 
+#              simcores = 11, printIter = TRUE, conditions = cn[1:10])
+# 
+# bestfit <- fit$argument
+# 
+# # ..  -----
+# bla <- prd(times, bestfit, conditions = "Chiew2010_NaN", deriv = TRUE)
+# pars_vali <- c(testvali = unname(bla[["Chiew2010_NaN"]][10, "Aar_apap", drop = TRUE]))
+# vali <- cf_datapointL2(name = "Aar_apap", time =  5,value =  "testvali", sigma = 1e-6, "vali", condition = "Chiew2010_NaN", prd)
+# vali(c(bestfit, pars_vali), FLAGbrowser = FALSE)
+# 
+# obj2 <- (obj_data + vali)
+# 
+# debugonce(vali)
+# obj2(pars = c(bestfit, pars_vali), conditions = cn[1:10])
+# 
+# rp___ <- tempfile()
+# Rprof(rp___)
+# prf <- profile(obj2, c(bestfit, pars_vali), names(pars_vali), conditions = cn[1:10], method = "integrate",
+#                limits = c(lower = 0.0000001, upper = 10), stepControl = list(limit = 10), cores = 1, verbose = TRUE)
+# Rprof(NULL)
+# pv___ <- profvis::profvis(prof_input = rp___)
+# htmlwidgets::saveWidget(pv___, paste0(rp___, ".html"))
+# browseURL(paste0(rp___, ".html"))
+# 
+# plotProfile(prf)
 
 # Exit ----
