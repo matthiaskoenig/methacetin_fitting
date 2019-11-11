@@ -160,8 +160,8 @@ errormodel <- paste0("sqrt((1e-6)^2 + srel_", nm, "^2 * ", nm, "^2 )") %>% set_n
 pars_raw       <- c(x0, p) 
 # >>>> von Hand <<<<<<<<<<<
 parameters_estimate0 <- c("Kp_apap", "Vp_apap", "Ka_apap", "APAPD_CL", "APAPD_Km_apap", 
-                    "Kp_co2c13", "Vp_co2c13", "Ka_co2c13", "EXHCO2_CL", "EXHCO2_Km_co2", 
-                    "Kp_metc13", "Vp_metc13", "Ka_metc13", "CYP1A2MET_CL", "CYP1A2MET_Km_met")
+                          "Kp_co2c13", "Vp_co2c13", "Ka_co2c13", "EXHCO2_CL", "EXHCO2_Km_co2", 
+                          "Kp_metc13", "Vp_metc13", "Ka_metc13", "CYP1A2MET_CL", "CYP1A2MET_Km_met")
 pars_data      <- c("BW", "PODOSE_apap", "IVDOSE_apap", "PODOSE_co2c13", "IVDOSE_co2c13", 
                     "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", "IVDOSE_metc13", "ti_metc13")
 
@@ -178,7 +178,7 @@ parameters_df <- parameters_df %>%
     lower = case_when(str_detect(name, "^Kp_(apap|co2|met)") ~  0.1, TRUE ~ lower),
     # set better initial values for errors
     value = case_when(str_detect(name, "^(s0|srel)_")        ~  0.1, TRUE ~ value)
-         )
+  )
 
 # .... 3 Table for all fixed parameters ------
 fixed.grid <- parameters_df %>% 
@@ -311,10 +311,16 @@ upper            <- setNames(pars_est_df$upper, pars_est_df$name)[names(free_par
 
 
 startpars <- msParframe(free_pars*0, n = 200, sd = 2)
-fits <- mstrust(obj_data, startpars, cores = dMod::detectFreeCores(), 
-                parupper = upper, parlower = lower, printIter = TRUE, 
-                conditions = condition_subset, fixed = fixed_pars)
-saveRDS(fits, file.path(.estimationFolder, "fits.rds"))
+
+myjob <- runbg({
+  mstrust(obj_data, startpars, cores = 24, 
+          parupper = upper, parlower = lower,
+          conditions = condition_subset, fixed = fixed_pars)}, 
+  machine = "knecht2",  
+  input = c("obj_data", "startpars", "upper", "lower", "condition_subset", "fixed_pars", "est.grid", "fixed.grid"), # [] why fixed.grid not found??
+  filename = "metv53fit",
+  recover  = TRUE
+  )
 
 # -------------------------------------------------------------------------#
 # Todolist ----
