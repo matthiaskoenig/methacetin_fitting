@@ -215,6 +215,7 @@ pars_est_df <- parameters_df %>%
          lower = case_when(estscale == "L" ~ log(lower), estscale == "N" ~ lower))
 
 # .. 5 Compile  -----
+cat("compiling\n")
 myodemodel <- odemodel(dxdt_dmod, estimate = intersect(getSymbols(dxdt_dmod, names(dxdt_dmod)), parameters_estimate), modelname = "x", compile = FALSE) 
 x <- Xs(myodemodel)
 g <- Y(c(observables), x, attach.input = TRUE, modelname = "g", compile = FALSE)
@@ -223,7 +224,7 @@ p <- P(trafo, modelname = "p", compile = FALSE)
 compile(g,x,e,p, cores = 11, output = "model")
 # remove intermediate files
 unlink(list.files(pattern = "\\.(c|o)$"))
-
+cat("testing\n")
 # .. 6 Construct objective function -----
 prd0 <- (g*x*p)
 prd <- cf_PRD_indiv(prd0, est.grid, fixed.grid)
@@ -260,6 +261,45 @@ test_obj$gradient
 # 3 Test fit ----
 # -------------------------------------------------------------------------#
 # .. Fit -----
+# fixed_pars <- pars[names(test_obj$gradient[test_obj$gradient == 0])]
+# free_pars  <- pars[names(test_obj$gradient[test_obj$gradient != 0])]
+# 
+# obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
+# conditions       <- est.grid$condition
+# condition_subset <- setdiff(conditions, c("Leijssen1996_NaN", "Fuller2000_C13", "Fuller2000_C14"))
+# lower            <- setNames(pars_est_df$lower, pars_est_df$name)[names(free_pars)]
+# upper            <- setNames(pars_est_df$upper, pars_est_df$name)[names(free_pars)]
+# 
+# wup <- obj_data(free_pars, fixed = fixed_pars, conditions = condition_subset, 
+#                 FLAGverbose = FALSE, FLAGbrowser = FALSE)
+
+
+
+# R-objekte rausschreiben und aufhören ...
+# fit <- trust(obj_data, free_pars, 0.1,10, iterlim = 100, 
+#              parupper = upper, parlower = lower, printIter = TRUE,
+#              simcores = 11, conditions = condition_subset, fixed = fixed_pars)
+# 
+# # .. Look at predictions -----
+# times <- datatimes(data_full, 150)
+# pred0 <- prd(times, pars) %>% as.prdlist()
+# pred1 <- prd(times, fit$argument, fixed = fixed_pars) %>% as.prdlist()
+# 
+# # original unfitted one
+# pl <- plotCombined(pred0, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
+#   facet_wrap(~condition, scales = "free")
+# ggsave(file.path(.plotFolder, "001-Unfitted.png"), pl)
+# # fitted one
+# pl <- plotCombined(pred1, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
+#   facet_wrap(~condition, scales = "free")
+# ggsave(file.path(.plotFolder, "002-Fitted.png"),pl)
+
+
+
+
+# -------------------------------------------------------------------------#
+# 4 Multi-start fit ----
+# -------------------------------------------------------------------------#
 fixed_pars <- pars[names(test_obj$gradient[test_obj$gradient == 0])]
 free_pars  <- pars[names(test_obj$gradient[test_obj$gradient != 0])]
 
@@ -269,38 +309,11 @@ condition_subset <- setdiff(conditions, c("Leijssen1996_NaN", "Fuller2000_C13", 
 lower            <- setNames(pars_est_df$lower, pars_est_df$name)[names(free_pars)]
 upper            <- setNames(pars_est_df$upper, pars_est_df$name)[names(free_pars)]
 
-wup <- obj_data(free_pars, fixed = fixed_pars, conditions = condition_subset, 
-                FLAGverbose = FALSE, FLAGbrowser = FALSE)
 
-
-
-# R-objekte rausschreiben und aufhören ...
-fit <- trust(obj_data, free_pars, 0.1,10, iterlim = 100, 
-             parupper = upper, parlower = lower, printIter = TRUE,
-             simcores = 11, conditions = condition_subset, fixed = fixed_pars)
-
-# .. Look at predictions -----
-times <- datatimes(data_full, 150)
-pred0 <- prd(times, pars) %>% as.prdlist()
-pred1 <- prd(times, fit$argument, fixed = fixed_pars) %>% as.prdlist()
-
-# original unfitted one
-pl <- plotCombined(pred0, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
-  facet_wrap(~condition, scales = "free")
-ggsave(file.path(.plotFolder, "001-Unfitted.png"), pl)
-# fitted one
-pl <- plotCombined(pred1, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
-  facet_wrap(~condition, scales = "free")
-ggsave(file.path(.plotFolder, "002-Fitted.png"),pl)
-
-
-
-
-# -------------------------------------------------------------------------#
-# 4 Multi-start fit ----
-# -------------------------------------------------------------------------#
-startpars <- msParframe(fit$argument*0, n = 200, sd = 2)
-fits <- mstrust(obj_data, startpars, cores = dMod::detectFreeCores())
+startpars <- msParframe(free_pars*0, n = 200, sd = 2)
+fits <- mstrust(obj_data, startpars, cores = dMod::detectFreeCores(), 
+                parupper = upper, parlower = lower, printIter = TRUE, 
+                conditions = condition_subset, fixed = fixed_pars)
 saveRDS(fits, file.path(.estimationFolder, "fits.rds"))
 
 # -------------------------------------------------------------------------#
