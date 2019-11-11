@@ -1,0 +1,1 @@
+Hier käme normalerweise der Originaldatensatz rein, der noch ein bisschen umprogrammiert werden muss, damit man damit parameter schätzen kann. Ist hier ja nicht nötig, da das data programming ja außerhalb stattfinded

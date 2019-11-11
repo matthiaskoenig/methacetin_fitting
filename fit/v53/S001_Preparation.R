@@ -2,9 +2,6 @@
 # 0 Header ----
 # -------------------------------------------------------------------------#
 #
-# Working directory must be the folder containing this script!!!
-#
-#
 # Script1 Preparation.R
 #
 # [PURPOSE]
@@ -16,15 +13,19 @@
 # [Date]
 # `Sys.time()`
 #
-# .. Libraries -----  
+# .. Libraries -----
 library(conveniencefunctions)
-# devtools::load_all("~/Promotion/Promotion/Projects/conveniencefunctions")
-# library(tidyverse)
 # .. Default Values -----
 rm(list = ls(all.names = TRUE))
-.outputFolder <- "../04-Output/Script1 Preparation/"
-# to fix RJAVA problems
-# export LD_LIBRARY_PATH=/usr/lib/jvm/java-8-oracle/jre/lib/amd64/server/
+.outputFolder     <-"../04-Output/S001_Preparation/"
+.modelFolder      <-file.path(.outputFolder, "01-Model")
+.estimationFolder <-file.path(.outputFolder, "02-Estimation")
+.plotFolder       <-file.path(.outputFolder, "03-Plot")
+.tableFolder      <-file.path(.outputFolder, "04-Table")
+.tempdir          <-tempdir()
+for (x in c(.outputFolder,.modelFolder,.estimationFolder,.plotFolder,.tableFolder,.tempdir))
+  if (!dir.exists(x)) dir.create(x)
+
 
 # -------------------------------------------------------------------------#
 # 1 Data ----
@@ -42,6 +43,7 @@ rm(list = ls(all.names = TRUE))
 
 
 # Read data
+# >>>> von Hand <<<<<<<<<<<
 data_full <-
   read_tsv("../../data/v53/limax_53_data.tsv") %>%
   select(-model) %>% 
@@ -49,6 +51,7 @@ data_full <-
   rename(n = subjects)
 
 # 1. For those studies where some data points have no sigma, infer it from the other sigmas of the same study
+# >>>> von Hand <<<<<<<<<<<
 fitErrorModel_factors <- c("study", "group", "name", "BW", "PODOSE_apap", "IVDOSE_apap", 
                            "PODOSE_co2c13", "IVDOSE_co2c13", "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", 
                            "IVDOSE_metc13", "ti_metc13")
@@ -89,6 +92,7 @@ condition.grid <- data_full %>%
 
 # .. 3 Select data for fitting -----
 data_full <- data_full %>% unique() 
+# >>>> von Hand <<<<<<<<<<<
 # data_full <- data_full 
 #   filter(time > 0)
 
@@ -133,10 +137,11 @@ observables <- c(
   DOB            = "DOB"                                                     , # [‰] Delta over baseline
   P_CO2F         = "P_CO2Fc13 - init_P_CO2Fc13"                              , # co2c13 fraction corrected for baseline
   mom_rec_co2c13 = "Exhalation_co2c13/60*Mr_co2c13/Ri_co2c13*100.0"          , # [%] recovery after continuous IV injection
-  mom_rec_metc13 = "Exhalation_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100" ,  # [% dose/h] momentary recovery
+  mom_rec_metc13 = "Exhalation_co2c13/((init_PODOSE_metc13)/Mr_metc13) * 100",  # [% dose/h] momentary recovery
   cum_rec_metc13 = "Abreath_co2c13/(init_PODOSE_metc13/Mr_metc13) * 100",      # [% dose] cumulative recovery
   cum_rec_co2c13 = "Abreath_co2c13/(init_PODOSE_co2c13/Mr_co2c13) * 100"       # [% dose] cumulative recovery
 )
+# observables <- unlist(rjson::fromJSON(rjson::toJSON(observables)))
 
 observables <- c(y_dmod[intersect(names(y_dmod), getSymbols(observables))], observables) %>% 
   dMod::resolveRecurrence() %>% 
@@ -153,6 +158,7 @@ errormodel <- paste0("sqrt((1e-6)^2 + srel_", nm, "^2 * ", nm, "^2 )") %>% set_n
 # .. 3 Parameters ----
 # .... 1 Table containing all parameter names + meta-information ------
 pars_raw       <- c(x0, p) 
+# >>>> von Hand <<<<<<<<<<<
 parameters_estimate0 <- c("Kp_apap", "Vp_apap", "Ka_apap", "APAPD_CL", "APAPD_Km_apap", 
                     "Kp_co2c13", "Vp_co2c13", "Ka_co2c13", "EXHCO2_CL", "EXHCO2_Km_co2", 
                     "Kp_metc13", "Vp_metc13", "Ka_metc13", "CYP1A2MET_CL", "CYP1A2MET_Km_met")
@@ -160,20 +166,19 @@ pars_data      <- c("BW", "PODOSE_apap", "IVDOSE_apap", "PODOSE_co2c13", "IVDOSE
                     "Ri_co2c13", "ti_co2c13", "PODOSE_metc13", "IVDOSE_metc13", "ti_metc13")
 
 parameters_df <- cf_build_parameters_df(odes = dxdt_dmod, observables = observables, errormodel = errormodel)
-parameters_df <- cf_parameters_df_merge_values(parameters_df, pars_raw) %>% 
-  filter(str_detect(name0, "^init_", negate = TRUE)) # I think removing init_m parameters can be a general rule or better: remove them and reintroduce them already in the cf_build_parameters_df. name0 would be the original parameter. think a biut about that.
-
+parameters_df <- cf_parameters_df_merge_values(parameters_df, pars_raw)
 parameters_estimate <- c(parameters_estimate0, parameters_df$name[parameters_df$FLAGerrpar])
 
+
+# >>>> von Hand <<<<<<<<<<< 
 parameters_df <- parameters_df %>% 
   mutate(
     # set boundaries
     upper = case_when(str_detect(name, "^Kp_(apap|co2|met)") ~ 10  , TRUE ~ upper),
     lower = case_when(str_detect(name, "^Kp_(apap|co2|met)") ~  0.1, TRUE ~ lower),
     # set better initial values for errors
-    value = case_when(str_detect(name, "^s(0|rel)_")         ~  0.1, TRUE ~ value)
+    value = case_when(str_detect(name, "^(s0|srel)_")        ~  0.1, TRUE ~ value)
          )
-
 
 # .... 3 Table for all fixed parameters ------
 fixed.grid <- parameters_df %>% 
@@ -225,56 +230,79 @@ prd <- cf_PRD_indiv(prd0, est.grid, fixed.grid)
 obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
 
 # .. 7 Test dMod functions-----
+
+# .... 1 Test low-level prediction function ------
 times <- seq(0,5, length.out = 10)
 pars <- setNames(pars_est_df$value, pars_est_df$name)
 
-prs <-  cf_make_pars(pars, est.grid, fixed.grid, 1)
+prs <-  cf_make_pars(pars, NULL, est.grid, fixed.grid, 1)
 fxd <- prs$fixed
 prs <- prs$pars
+
 p(prs, fixed = fxd)
 compare(getParameters(p), names(c(prs, fxd)))
 
 prd0(times, prs, fixed = fxd, deriv= TRUE) 
-# .... Check out why there is no dynamics in observables ------
-prd0(times, prs, fixed = fxd, deriv= FALSE) %>% as.prdlist() %>% plot(data = NULL, str_detect(name, "apap"))
-# .... Test prd ------
+# .... 2 Test prediction function for all conditions ------
 # debugonce(prd)
 wupwup <- prd(times, pars, deriv = TRUE)
-
-# .... Test obj ------
+# .... 3 Test objective function ------
 # debugonce(obj_data); 
 obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
-wup <- obj_data(pars, FLAGverbose = TRUE, FLAGbrowser = FALSE)
-wup <- obj_data(pars, conditions = c("Leijssen1996_NaN"), FLAGverbose = TRUE, FLAGbrowser = TRUE)
-is.na(wup$value)
-wup %>% attr("con")
+# wup <- obj_data(pars, FLAGverbose = TRUE, FLAGbrowser = FALSE)
+
+conditions <- est.grid$condition
+condition_subset <- setdiff(conditions, c("Leijssen1996_NaN", "Fuller2000_C13", "Fuller2000_C14"))
+test_obj <- obj_data(pars, conditions = condition_subset, FLAGverbose = FALSE, FLAGbrowser = FALSE)
+test_obj %>% attr("con")
+test_obj$gradient
 # -------------------------------------------------------------------------#
 # 3 Test fit ----
 # -------------------------------------------------------------------------#
 # .. Fit -----
-lower <- setNames(pars_est_df$lower, pars_est_df$name)
-upper <- setNames(pars_est_df$upper, pars_est_df$name)
-fit <- trust(obj_data, pars, 0.1,10, iterlim = 100, parupper = upper, parlower = lower, simcores = 11, printIter = TRUE)
+fixed_pars <- pars[names(test_obj$gradient[test_obj$gradient == 0])]
+free_pars  <- pars[names(test_obj$gradient[test_obj$gradient != 0])]
+
+obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
+conditions       <- est.grid$condition
+condition_subset <- setdiff(conditions, c("Leijssen1996_NaN", "Fuller2000_C13", "Fuller2000_C14"))
+lower            <- setNames(pars_est_df$lower, pars_est_df$name)[names(free_pars)]
+upper            <- setNames(pars_est_df$upper, pars_est_df$name)[names(free_pars)]
+
+wup <- obj_data(free_pars, fixed = fixed_pars, conditions = condition_subset, 
+                FLAGverbose = FALSE, FLAGbrowser = FALSE)
+
+
+
+# R-objekte rausschreiben und aufhören ...
+debugonce(trust)
+fit <- trust(obj_data, free_pars, 0.1,10, iterlim = 100, 
+             parupper = upper, parlower = lower, printIter = TRUE,
+             simcores = 11, conditions = condition_subset, fixed = fixed_pars)
 
 # .. Look at predictions -----
 times <- datatimes(data_full, 150)
 pred0 <- prd(times, pars) %>% as.prdlist()
-pred1 <- prd(times, fit$argument) %>% as.prdlist()
+pred1 <- prd(times, fit$argument, fixed = fixed_pars) %>% as.prdlist()
 
 # original unfitted one
-plotCombined(pred0, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
+pl <- plotCombined(pred0, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
   facet_wrap(~condition, scales = "free")
-
+ggsave(file.path(.plotFolder, "001-Unfitted.png"), pl)
 # fitted one
-plotCombined(pred1, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
+pl <- plotCombined(pred1, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
   facet_wrap(~condition, scales = "free")
-
-plotCombined(pred1, dl, name %in% "cum_rec_co2c13", aesthetics = c(group = "name", color = "name")) + 
-  facet_wrap(~condition, scales = "free") + 
-  geom_line(size = 2)
+ggsave(file.path(.plotFolder, "002-Fitted.png"),pl)
 
 
 
+
+# -------------------------------------------------------------------------#
+# 4 Multi-start fit ----
+# -------------------------------------------------------------------------#
+startpars <- msParframe(fit$argument*0, n = 200, sd = 2)
+fits <- mstrust(obj_data, startpars, cores = dMod::detectFreeCores())
+saveRDS(fits, file.path(.estimationFolder, "fits.rds"))
 
 # -------------------------------------------------------------------------#
 # Todolist ----
@@ -283,7 +311,37 @@ plotCombined(pred1, dl, name %in% "cum_rec_co2c13", aesthetics = c(group = "name
 # [] Run multistart
 # [] Set up docker such that it works
 
+# -------------------------------------------------------------------------#
+# Test validation profiles ----
+# -------------------------------------------------------------------------#
+cn <- est.grid$condition
+lower <- setNames(pars_est_df$lower, pars_est_df$name)
+upper <- setNames(pars_est_df$upper, pars_est_df$name)
+fit <- trust(obj_data, pars, 0.1,10, iterlim = 100, parupper = upper, parlower = lower, 
+             simcores = 11, printIter = TRUE, conditions = cn[1:10])
 
+bestfit <- fit$argument
 
+# ..  -----
+bla <- prd(times, bestfit, conditions = "Chiew2010_NaN", deriv = TRUE)
+pars_vali <- c(testvali = unname(bla[["Chiew2010_NaN"]][10, "Aar_apap", drop = TRUE]))
+vali <- cf_datapointL2(name = "Aar_apap", time =  5,value =  "testvali", sigma = 1e-6, "vali", condition = "Chiew2010_NaN", prd)
+vali(c(bestfit, pars_vali), FLAGbrowser = FALSE)
+
+obj2 <- (obj_data + vali)
+
+debugonce(vali)
+obj2(pars = c(bestfit, pars_vali), conditions = cn[1:10])
+
+rp___ <- tempfile()
+Rprof(rp___)
+prf <- profile(obj2, c(bestfit, pars_vali), names(pars_vali), conditions = cn[1:10], method = "integrate",
+               limits = c(lower = 0.0000001, upper = 10), stepControl = list(limit = 10), cores = 1, verbose = TRUE)
+Rprof(NULL)
+pv___ <- profvis::profvis(prof_input = rp___)
+htmlwidgets::saveWidget(pv___, paste0(rp___, ".html"))
+browseURL(paste0(rp___, ".html"))
+
+plotProfile(prf)
 
 # Exit ----
