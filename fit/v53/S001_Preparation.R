@@ -25,7 +25,9 @@ rm(list = ls(all.names = TRUE))
 .tempdir          <-tempdir()
 for (x in c(.outputFolder,.modelFolder,.estimationFolder,.plotFolder,.tableFolder,.tempdir))
   if (!dir.exists(x)) dir.create(x)
-
+# [] change to FALSE to recompile  ----fast
+# >>>> von Hand <<<<<<<<<<<----
+fast <- TRUE
 
 # -------------------------------------------------------------------------#
 # 1 Data ----
@@ -152,7 +154,7 @@ observables <- c(y_dmod[intersect(names(y_dmod), getSymbols(observables))], obse
 # * From the data exploration it appears that we can already omit the absolute error 
 #   (data exploration is still work in progress, but relative error model is still a reasonable assumption)
 # [] Maybe it's also best to log transform the data, kick out the time==0 and just go with a relative error model
-nm     <- names(observables)
+nm <- data_full %>% filter(is.na(sigma)) %>% .$name %>% unique
 errormodel <- paste0("sqrt((1e-6)^2 + srel_", nm, "^2 * ", nm, "^2 )") %>% set_names(nm) 
 
 # .. 3 Parameters ----
@@ -215,15 +217,21 @@ pars_est_df <- parameters_df %>%
          lower = case_when(estscale == "L" ~ log(lower), estscale == "N" ~ lower))
 
 # .. 5 Compile  -----
-cat("compiling\n")
-myodemodel <- odemodel(dxdt_dmod, estimate = intersect(getSymbols(dxdt_dmod, names(dxdt_dmod)), parameters_estimate), modelname = "x", compile = FALSE) 
-x <- Xs(myodemodel)
-g <- Y(c(observables), x, attach.input = TRUE, modelname = "g", compile = FALSE)
-e <- Y(errormodel, g, modelname = "e")
-p <- P(trafo, modelname = "p", compile = FALSE)
-compile(g,x,e,p, cores = 11, output = "model")
-# remove intermediate files
-unlink(list.files(pattern = "\\.(c|o)$"))
+if (!fast){
+  cat("compiling\n")
+  myodemodel <- odemodel(dxdt_dmod, estimate = intersect(getSymbols(dxdt_dmod, names(dxdt_dmod)), parameters_estimate), modelname = "x", compile = FALSE) 
+  x <- Xs(myodemodel)
+  g <- Y(c(observables), x, attach.input = TRUE, modelname = "g", compile = FALSE)
+  e <- Y(errormodel, g, modelname = "e")
+  p <- P(trafo, modelname = "p", compile = FALSE)
+  compile(g,x,e,p, cores = 11, output = "model")
+  save(x,g,e,p, file = "model.rda")
+  # remove intermediate files
+  unlink(list.files(pattern = "\\.(c|o)$"))
+} else {
+  load("model.rda")
+  loadDLL(x)
+}
 cat("testing\n")
 # .. 6 Construct objective function -----
 prd0 <- (g*x*p)
@@ -261,8 +269,8 @@ test_obj$gradient
 # 3 Test fit ----
 # -------------------------------------------------------------------------#
 # .. Fit -----
-# fixed_pars <- pars[names(test_obj$gradient[test_obj$gradient == 0])]
-# free_pars  <- pars[names(test_obj$gradient[test_obj$gradient != 0])]
+fixed_pars <- pars[names(test_obj$gradient[test_obj$gradient == 0])]
+free_pars  <- pars[names(test_obj$gradient[test_obj$gradient != 0])]
 # 
 # obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
 # conditions       <- est.grid$condition
@@ -321,13 +329,63 @@ myjob <- runbg({
   filename = "metv53fit",
   recover  = TRUE
   )
+# fits <- myjob$get() 
+# fits <- fits  %>% unlist(F) 
+# saveRDS(fits, file.path(.estimationFolder, "001-fitlist.rds"))
+
+# -------------------------------------------------------------------------#
+# 5 Explore multistart fits ----
+# -------------------------------------------------------------------------#
+fits      <- readRDS(file.path(.estimationFolder, "001-fitlist.rds"))
+parframes <- fits %>% as.parlist() %>% as.parframe() %>% add_stepcolumn()
+
+# pl <- plotValues(parframes[1:200]) 
+# ggsave(file.path(.plotFolder, "101-Waterfall.png"), pl)
+# 
+# pl <- plotValues(parframes[1:50]) %>% 
+#   remove_geom("GeomVline")
+# ggsave(file.path(.plotFolder, "102-Waterfall-zoomed.png"), pl)
+# 
+# 
+# parnames <- attr(parframes, "parameters")
+# pl <- 
+#   parframes %>% 
+#   filter(fitrank <= 50, stepsize > 1/200) %>% 
+#   parframe(parameters = parnames) %>% 
+#   plotPars() 
+# ggsave(file.path(.plotFolder, "103-ParameterValues-firstSteps.png"), pl)
+
+# .. plot predictions -----
+times <- datatimes(data_full, 150)
+parnames <- attr(parframes, "parameters")
+pf <- parframes %>% 
+  filter(fitrank <= 50, stepsize > 1/200) %>%
+  parframe(parameters = parnames) %>% 
+  unique()
+predictions <- cf_predict(prd, times = times, pars = pf, FLAGverbose = FALSE, FLAGbrowser = FALSE)
+
+# prd(times, as.parvec(pf), FLAGverbose = TRUE, FLAGbrowser = TRUE)
+
+# # .. Look at predictions -----
+# times <- datatimes(data_full, 150)
+# pred0 <- prd(times, pars) %>% as.prdlist()
+# pred1 <- prd(times, fit$argument, fixed = fixed_pars) %>% as.prdlist()
+# 
+# # original unfitted one
+# pl <- plotCombined(pred0, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
+#   facet_wrap(~condition, scales = "free")
+# ggsave(file.path(.plotFolder, "001-Unfitted.png"), pl)
+# # fitted one
+# pl <- plotCombined(pred1, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
+#   facet_wrap(~condition, scales = "free")
+# ggsave(file.path(.plotFolder, "002-Fitted.png"),pl)
+
 
 # -------------------------------------------------------------------------#
 # Todolist ----
 # -------------------------------------------------------------------------#
 # [] Proper data exploration
 # [] Run multistart
-# [] Set up docker such that it works
 
 # -------------------------------------------------------------------------#
 # Test validation profiles ----
