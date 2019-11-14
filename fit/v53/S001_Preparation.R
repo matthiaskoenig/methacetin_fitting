@@ -14,7 +14,8 @@
 # `Sys.time()`
 #
 # .. Libraries -----
-library(conveniencefunctions)
+# library(conveniencefunctions)
+devtools::load_all("~/Promotion/Promotion/Projects/conveniencefunctions")
 # .. Default Values -----
 rm(list = ls(all.names = TRUE))
 .outputFolder     <-"../04-Output/S001_Preparation/"
@@ -251,47 +252,35 @@ prs <- prs$pars
 p(prs, fixed = fxd)
 compare(getParameters(p), names(c(prs, fxd)))
 
-prd0(times, prs, fixed = fxd, deriv= TRUE) 
+test1 <- prd0(times, prs, fixed = fxd, deriv= TRUE) 
 # .... 2 Test prediction function for all conditions ------
-# debugonce(prd)
-wupwup <- prd(times, pars, deriv = TRUE)
+test2 <- prd(times, pars, deriv = TRUE)
 # .... 3 Test objective function ------
-# debugonce(obj_data); 
 obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
-# wup <- obj_data(pars, FLAGverbose = TRUE, FLAGbrowser = FALSE)
-
 conditions <- est.grid$condition
 condition_subset <- setdiff(conditions, c("Leijssen1996_NaN", "Fuller2000_C13", "Fuller2000_C14"))
-test_obj <- obj_data(pars, conditions = condition_subset, FLAGverbose = FALSE, FLAGbrowser = FALSE)
-test_obj %>% attr("con")
-test_obj$gradient
+test3 <- obj_data(pars, conditions = condition_subset, FLAGverbose = FALSE, FLAGbrowser = FALSE)
+test3 %>% attr("con")
+test3$gradient
 # -------------------------------------------------------------------------#
 # 3 Test fit ----
 # -------------------------------------------------------------------------#
 # .. Fit -----
-fixed_pars <- pars[names(test_obj$gradient[test_obj$gradient == 0])]
-free_pars  <- pars[names(test_obj$gradient[test_obj$gradient != 0])]
-# 
 # obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
 # conditions       <- est.grid$condition
 # condition_subset <- setdiff(conditions, c("Leijssen1996_NaN", "Fuller2000_C13", "Fuller2000_C14"))
-# lower            <- setNames(pars_est_df$lower, pars_est_df$name)[names(free_pars)]
-# upper            <- setNames(pars_est_df$upper, pars_est_df$name)[names(free_pars)]
-# 
-# wup <- obj_data(free_pars, fixed = fixed_pars, conditions = condition_subset, 
-#                 FLAGverbose = FALSE, FLAGbrowser = FALSE)
+# lower            <- setNames(pars_est_df$lower, pars_est_df$name)[names(pars)]
+# upper            <- setNames(pars_est_df$upper, pars_est_df$name)[names(pars)]
 
 
-
-# R-objekte rausschreiben und aufhören ...
-# fit <- trust(obj_data, free_pars, 0.1,10, iterlim = 100, 
+# fit <- trust(obj_data, pars, 0.1,10, iterlim = 100, 
 #              parupper = upper, parlower = lower, printIter = TRUE,
-#              simcores = 11, conditions = condition_subset, fixed = fixed_pars)
+#              simcores = 11, conditions = condition_subset)
 # 
 # # .. Look at predictions -----
 # times <- datatimes(data_full, 150)
-# pred0 <- prd(times, pars) %>% as.prdlist()
-# pred1 <- prd(times, fit$argument, fixed = fixed_pars) %>% as.prdlist()
+# pred0 <- prd(times, pars)
+# pred1 <- prd(times, fit$argument)
 # 
 # # original unfitted one
 # pl <- plotCombined(pred0, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
@@ -308,9 +297,6 @@ free_pars  <- pars[names(test_obj$gradient[test_obj$gradient != 0])]
 # -------------------------------------------------------------------------#
 # 4 Multi-start fit ----
 # -------------------------------------------------------------------------#
-fixed_pars <- pars[names(test_obj$gradient[test_obj$gradient == 0])]
-free_pars  <- pars[names(test_obj$gradient[test_obj$gradient != 0])]
-
 obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
 conditions       <- est.grid$condition
 condition_subset <- setdiff(conditions, c("Leijssen1996_NaN", "Fuller2000_C13", "Fuller2000_C14"))
@@ -318,17 +304,13 @@ lower            <- setNames(pars_est_df$lower, pars_est_df$name)[names(free_par
 upper            <- setNames(pars_est_df$upper, pars_est_df$name)[names(free_pars)]
 
 
-startpars <- msParframe(free_pars*0, n = 200, sd = 2)
+startpars <- msParframe(pars, n = 200, sd = 2)
 
 myjob <- runbg({
   mstrust(obj_data, startpars, cores = 24, 
           parupper = upper, parlower = lower,
-          conditions = condition_subset, fixed = fixed_pars)}, 
-  machine = "knecht2",  
-  input = c("obj_data", "startpars", "upper", "lower", "condition_subset", "fixed_pars", "est.grid", "fixed.grid"), # [] why fixed.grid not found??
-  filename = "metv53fit",
-  recover  = TRUE
-  )
+          conditions = condition_subset)}, 
+  machine = "knecht2",  filename = "metv53fit", recover  = TRUE)
 # fits <- myjob$get() 
 # fits <- fits  %>% unlist(F) 
 # saveRDS(fits, file.path(.estimationFolder, "001-fitlist.rds"))
@@ -346,23 +328,49 @@ parframes <- fits %>% as.parlist() %>% as.parframe() %>% add_stepcolumn()
 #   remove_geom("GeomVline")
 # ggsave(file.path(.plotFolder, "102-Waterfall-zoomed.png"), pl)
 # 
-# 
 # parnames <- attr(parframes, "parameters")
 # pl <- 
 #   parframes %>% 
-#   filter(fitrank <= 50, stepsize > 1/200) %>% 
+#   filter(fitrank <= 50, stepsize > 1) %>% 
 #   parframe(parameters = parnames) %>% 
 #   plotPars() 
 # ggsave(file.path(.plotFolder, "103-ParameterValues-firstSteps.png"), pl)
 
-# .. plot predictions -----
-times <- datatimes(data_full, 150)
+
+# .. Plot predictions of 50 first fits -----
+times <- sort(unique(c(seq(0,0.2,0.01),datatimes(data_full, 100))))
 parnames <- attr(parframes, "parameters")
 pf <- parframes %>% 
-  filter(fitrank <= 50, stepsize > 1/200) %>%
+  filter(fitrank <= 50, stepsize > 1) %>%
   parframe(parameters = parnames) %>% 
-  unique()
-predictions <- cf_predict(prd, times = times, pars = pf, FLAGverbose = FALSE, FLAGbrowser = FALSE)
+  {.}
+predictions <- cf_predict(prd, times = times, pars = pf, keep_names = names(observables), 
+                          FLAGverbose2 = FALSE, FLAGbrowser = FALSE)
+colorcode <- parframes %>% cf_parf_getMeta() %>% 
+  mutate(ggAlpha = ((1 - as.numeric(duplicated(step)|step > 5)) + 0.001)/1.001) %>% 
+  mutate(ggColor = as_factor(case_when(step <= 5 ~ step * 1.0, TRUE ~ 6.0))) %>% 
+  select(fitrank, ggAlpha, ggColor)
+
+
+
+iwalk(names(observables), function(.x,.y) {
+  cat("plotting ", .x, "\n")
+  cns <- data_full %>% select(name, condition) %>% unique %>% filter(name == .x) %>% .$condition
+  d_plot <- data_full %>% filter(name %in% .x & condition %in% cns)
+  pl <- predictions %>% 
+    filter(name %in% .x & condition %in% cns) %>% 
+    merge(colorcode) %>% 
+    ggplot(aes(time, value)) + 
+    geom_line(aes(color = ggColor, alpha = ggAlpha, group = interaction(fitrank))) + 
+    geom_point(data = d_plot) + 
+    geom_errorbar(data = d_plot, aes(ymin = value-sigma, ymax = value + sigma)) + 
+    facet_wrap(~condition, scales=  "free")+
+    scale_color_manual(values= c(dMod:::dMod_colors[1:5], rep("gray", 1000)))
+  try(ggsave(file.path(.plotFolder, paste0(sprintf("%03i", 200 + .y), .x, ".png")), pl))
+})
+
+  
+
 
 # prd(times, as.parvec(pf), FLAGverbose = TRUE, FLAGbrowser = TRUE)
 
