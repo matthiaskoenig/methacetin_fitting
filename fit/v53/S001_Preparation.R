@@ -312,9 +312,8 @@ myjob <- runbg({
           conditions = condition_subset)}, 
   machine = "knecht2",  filename = "metv53fit", recover  = TRUE)
 # fits <- myjob$get() 
-# fits <- fits  %>% unlist(F) 
+# fits <- fits  %>% unlist(F) %>% as.par
 # saveRDS(fits, file.path(.estimationFolder, "001-fitlist.rds"))
-
 # -------------------------------------------------------------------------#
 # 5 Explore multistart fits ----
 # -------------------------------------------------------------------------#
@@ -336,12 +335,11 @@ parframes <- fits %>% as.parlist() %>% as.parframe() %>% add_stepcolumn()
 #   plotPars() 
 # ggsave(file.path(.plotFolder, "103-ParameterValues-firstSteps.png"), pl)
 
-
 # .. Plot predictions of 50 first fits -----
 times <- sort(unique(c(seq(0,0.2,0.01),datatimes(data_full, 100))))
 parnames <- attr(parframes, "parameters")
 pf <- parframes %>% 
-  filter(fitrank <= 50, stepsize > 1) %>%
+  filter(fitrank <= 50) %>%
   parframe(parameters = parnames) %>% 
   {.}
 predictions <- cf_predict(prd, times = times, pars = pf, keep_names = names(observables), 
@@ -350,50 +348,45 @@ colorcode <- parframes %>% cf_parf_getMeta() %>%
   mutate(ggAlpha = ((1 - as.numeric(duplicated(step)|step > 5)) + 0.001)/1.001) %>% 
   mutate(ggColor = as_factor(case_when(step <= 5 ~ step * 1.0, TRUE ~ 6.0))) %>% 
   select(fitrank, ggAlpha, ggColor)
-
-
-
+# .... Plot ------
 iwalk(names(observables), function(.x,.y) {
   cat("plotting ", .x, "\n")
   cns <- data_full %>% select(name, condition) %>% unique %>% filter(name == .x) %>% .$condition
   d_plot <- data_full %>% filter(name %in% .x & condition %in% cns)
+  maxtimes <- d_plot %>% group_by(condition) %>% filter(time == max(time)) %>% {setNames(.$time, .$condition)}
   pl <- predictions %>% 
     filter(name %in% .x & condition %in% cns) %>% 
+    filter(time <= maxtimes[condition]) %>% 
     merge(colorcode) %>% 
-    ggplot(aes(time, value)) + 
+    ggplot(aes(time, log(value))) + 
     geom_line(aes(color = ggColor, alpha = ggAlpha, group = interaction(fitrank))) + 
     geom_point(data = d_plot) + 
-    geom_errorbar(data = d_plot, aes(ymin = value-sigma, ymax = value + sigma)) + 
+    geom_errorbar(data = d_plot, aes(ymin = log(value-sigma), ymax = log(value + sigma))) + 
     facet_wrap(~condition, scales=  "free")+
     scale_color_manual(values= c(dMod:::dMod_colors[1:5], rep("gray", 1000)))
-  try(ggsave(file.path(.plotFolder, paste0(sprintf("%03i", 200 + .y), .x, ".png")), pl))
+  try(ggsave(file.path(.plotFolder, paste0(sprintf("%03i", 200 + .y), .x, ".png")), pl, width = 7, height = 7))
 })
 
-  
+# -------------------------------------------------------------------------#
+# 6 Profile Likelihood ----
+# -------------------------------------------------------------------------#
+bestfit <- as.parvec(parframes)
+bestfit <- trust(obj_data, bestfit, 1,10,parupper = upper, parlower = lower,conditions = condition_subset)
+bestfit <- bestfit$argument
 
-
-# prd(times, as.parvec(pf), FLAGverbose = TRUE, FLAGbrowser = TRUE)
-
-# # .. Look at predictions -----
-# times <- datatimes(data_full, 150)
-# pred0 <- prd(times, pars) %>% as.prdlist()
-# pred1 <- prd(times, fit$argument, fixed = fixed_pars) %>% as.prdlist()
-# 
-# # original unfitted one
-# pl <- plotCombined(pred0, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
-#   facet_wrap(~condition, scales = "free")
-# ggsave(file.path(.plotFolder, "001-Unfitted.png"), pl)
-# # fitted one
-# pl <- plotCombined(pred1, dl, name %in% names(observables), aesthetics = c(group = "name", color = "name")) + 
-#   facet_wrap(~condition, scales = "free")
-# ggsave(file.path(.plotFolder, "002-Fitted.png"),pl)
-
+bestfit %>% compare_named_numeric(unclass_parvec(as.parvec(parframes)))
+myjob <- runbg({
+  profile(obj_data, bestfit, names(bestfit), cores = 24,conditions = condition_subset)
+}, machine = "knecht1",  filename = "metv53profiles", recover = TRUE)
+profiles <- myjob$get()[[1]]
+saveRDS(profiles, file.path(.estimationFolder, "002-profiles_bestfit.rds"))
+profiles <- readRDS(file.path(.estimationFolder, "002-profiles_bestfit.rds"))
 
 # -------------------------------------------------------------------------#
 # Todolist ----
 # -------------------------------------------------------------------------#
-# [] Proper data exploration
-# [] Run multistart
+
+
 
 # -------------------------------------------------------------------------#
 # Test validation profiles ----
