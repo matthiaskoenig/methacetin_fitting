@@ -336,29 +336,25 @@ parframes <- fits %>% as.parlist() %>% as.parframe() %>% add_stepcolumn()
 # ggsave(file.path(.plotFolder, "103-ParameterValues-firstSteps.png"), pl)
 
 # .. Plot predictions of 50 first fits -----
-times <- sort(unique(c(seq(0,0.2,0.01),datatimes(data_full, 100))))
-parnames <- attr(parframes, "parameters")
-pf <- parframes %>% 
-  filter(fitrank <= 50) %>%
-  parframe(parameters = parnames) %>% 
-  {.}
-predictions <- cf_predict(prd, times = times, pars = pf, keep_names = names(observables), 
-                          FLAGverbose2 = FALSE, FLAGbrowser = FALSE)
-colorcode <- parframes %>% cf_parf_getMeta() %>% 
+times       <- sort(unique(c(seq(0,0.2,0.01),datatimes(data_full, 100))))
+parnames    <- attr(parframes, "parameters")
+pf          <- parframes %>% filter(fitrank <= 50) %>% parframe(parameters = parnames) 
+predictions <- cf_predict(prd, times = times, pars = pf, keep_names = names(observables))
+colorcode   <- parframes %>% cf_parf_getMeta() %>% 
   mutate(ggAlpha = ((1 - as.numeric(duplicated(step)|step > 5)) + 0.001)/1.001) %>% 
   mutate(ggColor = as_factor(case_when(step <= 5 ~ step * 1.0, TRUE ~ 6.0))) %>% 
   select(fitrank, ggAlpha, ggColor)
 # .... Plot ------
 iwalk(names(observables), function(.x,.y) {
   cat("plotting ", .x, "\n")
-  cns <- data_full %>% select(name, condition) %>% unique %>% filter(name == .x) %>% .$condition
-  d_plot <- data_full %>% filter(name %in% .x & condition %in% cns)
-  maxtimes <- d_plot %>% group_by(condition) %>% filter(time == max(time)) %>% {setNames(.$time, .$condition)}
+  cns      <- data_full %>% select(name, condition) %>% unique %>% filter(name == .x) %>% .$condition
+  d_plot   <- data_full %>% filter(name %in% .x & condition %in% cns)
+  maxtimes <- d_plot %>% group_by(condition) %>% filter(value == max(value)) %>% {setNames(.$time, .$condition)}
   pl <- predictions %>% 
     filter(name %in% .x & condition %in% cns) %>% 
-    filter(time <= maxtimes[condition]) %>% 
+    filter(value <= maxtimes[condition]) %>% 
     merge(colorcode) %>% 
-    ggplot(aes(time, log(value))) + 
+    ggplot(aes(value, log(value))) + 
     geom_line(aes(color = ggColor, alpha = ggAlpha, group = interaction(fitrank))) + 
     geom_point(data = d_plot) + 
     geom_errorbar(data = d_plot, aes(ymin = log(value-sigma), ymax = log(value + sigma))) + 
@@ -381,6 +377,45 @@ myjob <- runbg({
 profiles <- myjob$get()[[1]]
 saveRDS(profiles, file.path(.estimationFolder, "002-profiles_bestfit.rds"))
 profiles <- readRDS(file.path(.estimationFolder, "002-profiles_bestfit.rds"))
+
+# -------------------------------------------------------------------------#
+# 8 Test fitting of apap only ----
+# -------------------------------------------------------------------------#
+# .. Fit -----
+conditions       <- est.grid$condition
+condition_subset <- data_full %>% filter(name == "Mve_apap") %>% .$condition %>% unique
+lower            <- setNames(pars_est_df$lower, pars_est_df$name)[names(pars)]
+upper            <- setNames(pars_est_df$upper, pars_est_df$name)[names(pars)]
+
+fit <- trust(obj_data, pars, 0.1,10, iterlim = 100,
+             parupper = upper, parlower = lower, printIter = TRUE,
+             simcores = 11, conditions = condition_subset)
+# 
+# # .. Look at predictions -----
+times <- datatimes(data_full, 150)
+pred0 <- prd(times, pars)
+pred1 <- prd(times, fit$argument)
+
+# original unfitted one
+pl <- plotCombined(pred0, dl, name %in% names(observables) & condition %in% condition_subset, aesthetics = c(group = "name", color = "name")) + 
+ facet_wrap(~condition, scales = "free")
+ggsave(file.path(.plotFolder, "001-Unfitted.png"), pl)
+# fitted one
+pl <- plotCombined(pred1, dl, name %in% names(observables) & condition %in% condition_subset, aesthetics = c(group = "name", color = "name")) + 
+ facet_wrap(~condition, scales = "free") + scale_y_log10()
+ggsave(file.path(.plotFolder, "002-Fitted.png"),pl)
+
+# ....  ------
+# Man muss hier ganz klar sehen, dass teilweise sehr unterschiedliche Daten hier verheiratet werden sollen.
+# 1. Taheri ist ganz anders als alle anderen. Soll die auch noch raus?
+# 2. 
+data_full %>% 
+  filter(name == "Mve_apap") %>% 
+  group_by(condition) %>% 
+  filter(value == max(value)) %>% 
+  select(condition, BW, PODOSE_apap, IVDOSE_apap, max_time = time, value, sigma) %>% 
+  mutate(sigbyval = sigma/value)
+
 
 # -------------------------------------------------------------------------#
 # Todolist ----
