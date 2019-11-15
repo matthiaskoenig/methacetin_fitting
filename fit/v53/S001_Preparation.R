@@ -259,7 +259,8 @@ test2 <- prd(times, pars, deriv = TRUE)
 obj_data <- cf_normL2_indiv(dl, prd0, e, est.grid, fixed.grid)
 conditions <- est.grid$condition
 condition_subset <- setdiff(conditions, c("Leijssen1996_NaN", "Fuller2000_C13", "Fuller2000_C14"))
-test3 <- obj_data(pars, conditions = condition_subset, FLAGverbose = FALSE, FLAGbrowser = FALSE)
+system.time(test3 <- obj_data(pars, conditions = condition_subset, FLAGverbose = FALSE, FLAGbrowser = FALSE))
+system.time(test4 <- obj_data(pars, conditions = condition_subset, FLAGverbose = FALSE, FLAGbrowser = FALSE, simcores = 11))
 test3 %>% attr("con")
 test3$gradient
 # -------------------------------------------------------------------------#
@@ -320,6 +321,16 @@ myjob <- runbg({
 fits      <- readRDS(file.path(.estimationFolder, "001-fitlist.rds"))
 parframes <- fits %>% as.parlist() %>% as.parframe() %>% add_stepcolumn()
 
+# .. Explore influence of conditions -----
+fits_condwise <- fits[parframes$index] %>% map(~attr(.x, "con")) %>% reduce(rbind) %>% as.data.table() 
+fits_condwise[,index := parframes$index]
+pm <- parframes %>% cf_parf_getMeta() %>% data.table()
+fits_condwise <- fits_condwise[pm,on="index"]
+fits_condwise[,(condition_subset):=map(.SD,~ .x-min(.x)), .SDcols = condition_subset]
+pdf(file.path(.plotFolder, "003-Correlations_of_Condition_objvalues.pdf"), width = 10, height = 10)
+fits_condwise[,map(.SD,~ .x-min(.x)), .SDcols = names(fits_condwise)] %>% cor() %>% {corrplot::corrplot(.)}
+dev.off()
+# .. Plot Waterfalls -----
 # pl <- plotValues(parframes[1:200]) 
 # ggsave(file.path(.plotFolder, "101-Waterfall.png"), pl)
 # 
